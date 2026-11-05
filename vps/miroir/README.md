@@ -30,7 +30,7 @@ et celle de `khurdans-afc03` (console Firebase → Paramètres du projet → Com
 Vérifier les chemins dans `ecosystem.config.js`.
 
 ```
-SRC_KEY=~/secrets/… DST_KEY=~/secrets/… node miroir.js --tout   # recopie l'historique une fois
+SRC_KEY=~/secrets/journee-rp-cle.json DST_KEY=~/secrets/khurdans-cle.json node miroir.js --tout   # recopie l'historique une fois
 pm2 start ecosystem.config.js && pm2 save                        # puis écoute en direct
 pm2 logs iloh-miroir --lines 30
 ```

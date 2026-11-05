@@ -5,8 +5,8 @@ module.exports = { apps: [{
   script: 'miroir.js',
   cwd: __dirname,
   env: {
-    SRC_KEY: process.env.HOME + '/secrets/journal-rp-service-account.json',
-    DST_KEY: process.env.HOME + '/secrets/khurdans-service-account.json',
+    SRC_KEY: process.env.HOME + '/secrets/journee-rp-cle.json',
+    DST_KEY: process.env.HOME + '/secrets/khurdans-cle.json',
   },
   max_memory_restart: '200M',
   restart_delay: 10000,
