@@ -184,7 +184,7 @@ async function boot() {
   await loadMonth(prevYm(A.ym));
   await loadMonth(A.ym);
   await Promise.all(mine.map(id => setDoc(monthRef(id, A.ym), {}, { merge: true })));
-  await Promise.all(A.myCouples().flatMap(k => [setDoc(coupleMonthRef(k.id, A.ym), {}, { merge: true }), setDoc(coupleStateRef(k.id), {}, { merge: true })]));
+  await Promise.all(A.myCouples().filter(k => !k.mirror).flatMap(k => [setDoc(coupleMonthRef(k.id, A.ym), {}, { merge: true }), setDoc(coupleStateRef(k.id), {}, { merge: true })]));
   base = {
     global: clone(g.data() || {}), day: clone(d.data() || {}),
     entries: Object.fromEntries(mine.map(id => [id, clone(seenToday[id])])),

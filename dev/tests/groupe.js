@@ -13,9 +13,13 @@ const ok = (cond, label) => { console.log((cond ? '  ok  ' : '  ÉCHEC ') + labe
   await ctx.route('**fonts.googleapis.com**', r => r.fulfill({ body: '', contentType: 'text/css' }));
   await ctx.route('**fonts.gstatic.com**', r => r.fulfill({ body: '' }));
   const errs = [];
+  // Journée RP en cours (elle commence à 5 h), comme dans l'appli.
+  const rp = new Date(Date.now() - 5 * 3600e3), ym = `${rp.getFullYear()}-${String(rp.getMonth() + 1).padStart(2, '0')}`, day = String(rp.getDate());
   // Base de départ : l'admin et deux joueuses invités (comme dans la console Firebase).
   const seed = { 'access/nono@test.fr': { player: 'nono', role: 'admin' }, 'access/jynette@test.fr': { player: 'jynette', role: 'joueur' },
-    'access/eden@test.fr': { player: 'eden', role: 'joueur' } };
+    'access/eden@test.fr': { player: 'eden', role: 'joueur' }, 'access/sheyla@test.fr': { player: 'sheyla', role: 'joueur' },
+    'access/idriss@test.fr': { player: 'idriss', role: 'joueur' },
+    [`couples/taiga-tamachag/months/${ym}`]: { [day]: { nights: { tamachag: { hot: true, with: 'taiga' }, taiga: { hot: true, with: 'tamachag' } } } } };
   const open = async (name, email, first = false) => {
     const p = await ctx.newPage();
     p.on('pageerror', e => errs.push(name + ': ' + e.message));
@@ -47,60 +51,66 @@ const ok = (cond, label) => { console.log((cond ? '  ok  ' : '  ÉCHEC ') + labe
   ok(await nono.locator('.grid .card').count() === 0, 'Eden + Invités : aucun');
   await nono.click('#f-all'); await nono.click('#g-all'); await nono.waitForTimeout(150);
 
-  // Tamachag : journée, nuit chaude avec Taiga, validation
+  // Tamachag : fiche recopiée de Journée RP → lecture seule, même pour Nono
   await nono.evaluate(() => go('tamachag')); await nono.waitForTimeout(200);
   ok((await nono.textContent('#view h1')).includes('Tamachag'), 'fiche de Tamachag');
-  ok(await nono.locator('#hot-tamachag').count() === 1, 'case nuit chaude présente (couple)');
-  await nono.fill('#mood-tamachag', 'Serein ce matin.'); await nono.dispatchEvent('#mood-tamachag', 'input');
-  await nono.click('[data-act="Travail du bois"]'); await nono.waitForTimeout(150);
-  await nono.click('#hot-tamachag'); await nono.waitForTimeout(150);
-  ok(await nono.isChecked('#protect-tamachag') === false, 'protection proposée');
-  await nono.click('#done-tamachag'); await nono.waitForTimeout(1500);
-  d = await db(nono);
-  const ym = await nono.evaluate(() => RP_APP.ym), day = await nono.evaluate(() => RP_APP.day);
-  ok(d[`days/tamachag/months/${ym}`]?.[day]?.mood === 'Serein ce matin.', 'journée de Tamachag enregistrée');
-  const news = Object.entries(d).filter(([k]) => k.startsWith('news/')).map(([, v]) => v);
-  ok(news.some(n => n.to === 'jynette' && n.from === 'nono'), 'nouvelle pour Jynette (nuit chaude), auteur noté');
-  ok(news.every(n => n.to !== 'nono'), 'aucune nouvelle vers soi-même');
-  // Confidentialité : la nuit chaude n'est que dans l'espace du couple
-  ok(d['couples/taiga-tamachag']?.players?.length === 2, 'espace du couple Taiga & Tamachag créé (2 joueurs)');
-  ok(Object.keys(d).filter(k => /^couples\/[^/]+$/.test(k)).length === 4, '4 espaces de couple créés');
-  ok(d[`couples/taiga-tamachag/months/${ym}`]?.[day]?.nights?.tamachag?.hot === true, 'nuit chaude rangée dans l\'espace du couple');
-  ok(!JSON.stringify(Object.entries(d).filter(([k]) => k.startsWith('shared/') || k.startsWith('days/') || k.startsWith('today/'))).includes('"hot"'),
-    'aucune nuit chaude dans les données lues par tout le groupe');
-  // Amant : un autre personnage du groupe est refusé, un PNJ accepté
-  await nono.evaluate(() => go('tamachag')); await nono.waitForTimeout(200);
-  await nono.click('#edit-tamachag'); await nono.waitForTimeout(300);
-  await nono.fill('#lover-new-tamachag', 'Ogloo'); await nono.click('#lover-add-tamachag'); await nono.waitForTimeout(150);
-  ok((await nono.textContent('#view')).includes('seul un PNJ'), 'un personnage du groupe ne peut pas être ajouté comme amant');
-  await nono.fill('#lover-new-tamachag', 'Une voyageuse'); await nono.click('#lover-add-tamachag'); await nono.waitForTimeout(900);
-  d = await db(nono);
-  ok(JSON.stringify(d['couples/taiga-tamachag/state/main'] || {}).includes('Une voyageuse'), 'amant PNJ rangé dans l\'espace du couple');
-  ok(!JSON.stringify(d['shared/global'] || {}).includes('Une voyageuse'), 'amant absent des données partagées');
-  // Tengis : pas de couple → pas de nuit chaude
-  await nono.evaluate(() => go('tengis')); await nono.waitForTimeout(200);
+  ok(await nono.locator('#mood-tamachag').count() === 0 && (await nono.textContent('#view')).includes('Journée RP'), 'Tamachag en lecture seule (tenu dans Journée RP)');
+  // Tengis : pas de couple → pas de nuit chaude ; Vie intime absente
   ok(await nono.locator('#hot-tengis').count() === 0, 'pas de nuit chaude pour Tengis (hors couple)');
   ok(await nono.locator('text=Vie intime').count() === 0, 'plus de section Vie intime');
 
-  console.log('Joueuse (Jynette)');
+  console.log('Joueuse (Sheyla) : couple Oldaghar & Reaksa');
+  const sh = await open('sheyla', 'sheyla@test.fr');
+  await sh.evaluate(() => go('oldaghar')); await sh.waitForTimeout(200);
+  ok(await sh.locator('#hot-oldaghar').count() === 1, 'case nuit chaude présente (couple)');
+  await sh.fill('#mood-oldaghar', 'Serein ce matin.'); await sh.dispatchEvent('#mood-oldaghar', 'input');
+  await sh.click('#hot-oldaghar'); await sh.waitForTimeout(150);
+  ok(await sh.isChecked('#protect-oldaghar') === false, 'protection proposée');
+  // Amant : un autre personnage du groupe est refusé, un PNJ accepté
+  await sh.fill('#lover-new-oldaghar', 'Ogloo'); await sh.click('#lover-add-oldaghar'); await sh.waitForTimeout(150);
+  ok((await sh.textContent('#view')).includes('seul un PNJ'), 'un personnage du groupe ne peut pas être ajouté comme amant');
+  await sh.fill('#lover-new-oldaghar', 'Une voyageuse'); await sh.click('#lover-add-oldaghar'); await sh.waitForTimeout(300);
+  await sh.click('#done-oldaghar'); await sh.waitForTimeout(1500);
+  d = await db(sh);
+  ok(d[`days/oldaghar/months/${ym}`]?.[day]?.mood === 'Serein ce matin.', 'journée d\'Oldaghar enregistrée');
+  const news = Object.entries(d).filter(([k]) => k.startsWith('news/')).map(([, v]) => v);
+  ok(news.some(n => n.to === 'idriss' && n.from === 'sheyla'), 'nouvelle pour Idriss (nuit chaude), auteur noté');
+  ok(news.every(n => n.to !== n.from), 'aucune nouvelle vers soi-même');
+  // Confidentialité : la nuit chaude n'est que dans l'espace du couple
+  ok(d['couples/oldaghar-reaksa']?.players?.length === 2, 'espace du couple Oldaghar & Reaksa créé (2 joueurs)');
+  ok(Object.keys(d).filter(k => /^couples\/[^/]+$/.test(k)).length === 4, '4 espaces de couple créés');
+  ok(d[`couples/oldaghar-reaksa/months/${ym}`]?.[day]?.nights?.oldaghar?.hot === true, 'nuit chaude rangée dans l\'espace du couple');
+  ok(JSON.stringify(d['couples/oldaghar-reaksa/state/main'] || {}).includes('Une voyageuse'), 'amant PNJ rangé dans l\'espace du couple');
+  ok(!JSON.stringify(Object.entries(d).filter(([k]) => k.startsWith('shared/') || k.startsWith('days/') || k.startsWith('today/'))).match(/"hot"|Une voyageuse/),
+    'ni nuit chaude ni amant dans les données lues par tout le groupe');
+
+  console.log('Joueur (Idriss)');
+  const idr = await open('idriss', 'idriss@test.fr');
+  ok((await idr.textContent('.news')).match(/Reaksa|Oldaghar/) !== null, 'Idriss voit la nouvelle de la nuit');
+  await idr.evaluate(() => go('reaksa')); await idr.waitForTimeout(200);
+  ok((await idr.textContent('#view')).includes('Nuit chaude'), 'Reaksa : nuit chaude reportée depuis la fiche d\'Oldaghar');
+  ok(await idr.locator('text=Monsieur se protège').count() === 0, 'Reaksa : pas de case « Monsieur se protège » (fiche féminine)');
+
+  console.log('Joueuse (Jynette) : couple recopié de Journée RP');
   const jy = await open('jynette', 'jynette@test.fr');
   ok((await jy.textContent('.session')).includes('Jynette'), 'session : Jynette');
   ok(await jy.locator('.discord-set').count() === 0, 'pas de réglage Discord (pas admin)');
-  ok((await jy.textContent('.news')).match(/Taiga|Tamachag/) !== null, 'Jynette voit la nouvelle de la nuit');
   await jy.evaluate(() => go('taiga')); await jy.waitForTimeout(200);
-  ok((await jy.textContent('#view')).includes('Nuit chaude'), 'Taiga : nuit chaude reportée depuis la fiche de Tamachag');
-  ok(await jy.locator('text=Monsieur se protège').count() === 0, 'Taiga : pas de case « Monsieur se protège » (fiche féminine)');
+  ok((await jy.textContent('#view')).includes('Nuit chaude'), 'Taiga : nuit chaude recopiée visible pour Jynette');
+  await jy.evaluate(() => go('shiruun')); await jy.waitForTimeout(200);
+  ok(await jy.locator('#mood-shiruun').count() === 1, 'Shiruun (absent de Journée RP) se remplit dans Iloh');
 
   console.log('Joueuse (Eden)');
   const ed = await open('eden', 'eden@test.fr');
-  await ed.evaluate(() => go('tamachag')); await ed.waitForTimeout(200);
-  ok((await ed.textContent('#view')).includes('lecture seule'), 'Eden lit Tamachag en lecture seule');
   await ed.evaluate(() => go('buyan')); await ed.waitForTimeout(200);
   ok(await ed.locator('#mood-buyan').count() === 1, 'Eden remplit Buyan');
   ok(await ed.locator('#hot-buyan').count() === 0, 'pas de nuit chaude pour Buyan');
   ok((await ed.textContent('#view h1')).includes('Buyan'), 'nom de Buyan');
-  await ed.evaluate(() => go('tamachag')); await ed.waitForTimeout(200);
-  ok(!(await ed.textContent('#view')).includes('Nuit chaude'), 'Eden ne voit pas la nuit chaude de Tamachag');
+  await ed.evaluate(() => go('oldaghar')); await ed.waitForTimeout(200);
+  ok((await ed.textContent('#view')).includes('lecture seule'), 'Eden lit Oldaghar en lecture seule');
+  ok(!(await ed.textContent('#view')).includes('Nuit chaude'), 'Eden ne voit pas la nuit chaude d\'Oldaghar');
+  await ed.evaluate(() => go('taiga')); await ed.waitForTimeout(200);
+  ok(!(await ed.textContent('#view')).includes('Nuit chaude'), 'Eden ne voit pas la nuit chaude de Taiga');
   ok(await ed.evaluate(() => Object.keys(nightsBy).length) === 0, 'aucune nuit chaude chargée chez Eden');
 
   console.log('Administration');

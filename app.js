@@ -41,31 +41,32 @@ const GROUPS = GROUP_DEFS.map(g => g.id);
 // ── Personnages ────────────────────────────────────────────────────────────
 // gender : 'm' ou 'f' (accords des textes : « Inspiré » / « Inspirée »…)
 // hotNights : option nuit chaude / protection / risque de grossesse (couples uniquement)
+// mirror : fiche tenue dans Journée RP et recopiée chaque jour dans Iloh Khurdan par le service du VPS (lecture seule ici)
 // acts : activités de base, par catégorie ; chaque joueur peut ensuite en ajouter ou en retirer dans l'appli
 const K = 'Khurdan';
 const HUNT = ['Chasse solo', 'Chasse en groupe'];
 const C = [
   // Nono
-  { id:'tamachag', name:'Tamachag', surname:K, groups:['Khurdans'], theme:'khurdan', player:'nono', gender:'m', hotNights:true, acts:{
+  { id:'tamachag', name:'Tamachag', surname:K, groups:['Khurdans'], theme:'khurdan', player:'nono', gender:'m', hotNights:true, mirror:true, acts:{
     quotidien:["Tir à l'arc à cheval",'Chasse au vol avec Oyunchimeg','Soins et chevauchée avec Ayalal','Temps avec Duulakh','Travail du bois'],
     metier:['Conseil et affaires de la tribu','Arbitrer un différend','Diplomatie avec une autre tribu','Ronde sur les terres khurdanes',"Transmettre l'histoire des Khurdans", ...HUNT],
     liens:['Temps avec Taiga','Nouvelles ou visite de Davaajav'] } },
-  { id:'khokkutsai', name:'Khokkutsai', surname:K, groups:['Khurdans'], theme:'khurdan', player:'nono', gender:'m', hotNights:true, acts:{
+  { id:'khokkutsai', name:'Khokkutsai', surname:K, groups:['Khurdans'], theme:'khurdan', player:'nono', gender:'m', hotNights:true, mirror:true, acts:{
     quotidien:['Entraînement guerrier'],
     metier:["Garde et défense de l'iloh","Administration de l'iloh",'Inventaire des réserves','Former les jeunes guerriers', ...HUNT],
     liens:['Temps avec Inkaraa','Chasse avec Bator','Entraînement et boisson avec Batbayar','Moment avec Ankhbayar'] } },
-  { id:'ankhbayar', name:'Ankhbayar', surname:K, groups:['Khurdans'], theme:'khurdan', player:'nono', gender:'m', hotNights:true, acts:{
+  { id:'ankhbayar', name:'Ankhbayar', surname:K, groups:['Khurdans'], theme:'khurdan', player:'nono', gender:'m', hotNights:true, mirror:true, acts:{
     quotidien:['Entretien des armes de chasse','Cuisine',"Entraînement à l'arc",'Cours à la yourte des savoirs'],
     metier:['Pistage','Pose et relève des pièges','Dépeçage et tannage des peaux','Rapporter le gibier au camp','Prépare la viande issue de la chasse', ...HUNT],
     liens:['Temps avec Khubunjin','Moment avec Khokkutsai'] } },
-  { id:'tengis', name:'Tengis', surname:K, groups:['Khurdans'], theme:'khurdan', player:'nono', gender:'m', acts:{ metier:[...HUNT] } },
+  { id:'tengis', name:'Tengis', surname:K, groups:['Khurdans'], theme:'khurdan', player:'nono', gender:'m', mirror:true, acts:{ metier:[...HUNT] } },
 
   // Jynette
-  { id:'taiga', name:'Taiga', surname:K, groups:['Khurdans'], theme:'khurdan', player:'jynette', gender:'f', hotNights:true, acts:{ metier:[...HUNT] } },
-  { id:'inkaraa', name:'Inkaraa', surname:K, groups:['Khurdans'], theme:'khurdan', player:'jynette', gender:'f', hotNights:true, acts:{ metier:['Tatoue au Ralliement'] } },
-  { id:'khubunjin', name:'Khubunjin', surname:K, groups:['Khurdans'], theme:'khurdan', player:'jynette', gender:'f', hotNights:true, acts:{ metier:[...HUNT] } },
-  { id:'ogloo', name:'Ogloo', surname:K, groups:['Khurdans'], theme:'khurdan', player:'jynette', gender:'f', acts:{} },
-  { id:'javkhaanhun', name:'Javkhaanhun', surname:K, groups:['Khurdans'], theme:'khurdan', player:'jynette', gender:'f', acts:{ metier:[...HUNT] } },
+  { id:'taiga', name:'Taiga', surname:K, groups:['Khurdans'], theme:'khurdan', player:'jynette', gender:'f', hotNights:true, mirror:true, acts:{ metier:[...HUNT] } },
+  { id:'inkaraa', name:'Inkaraa', surname:K, groups:['Khurdans'], theme:'khurdan', player:'jynette', gender:'f', hotNights:true, mirror:true, acts:{ metier:['Tatoue au Ralliement'] } },
+  { id:'khubunjin', name:'Khubunjin', surname:K, groups:['Khurdans'], theme:'khurdan', player:'jynette', gender:'f', hotNights:true, mirror:true, acts:{ metier:[...HUNT] } },
+  { id:'ogloo', name:'Ogloo', surname:K, groups:['Khurdans'], theme:'khurdan', player:'jynette', gender:'f', mirror:true, acts:{} },
+  { id:'javkhaanhun', name:'Javkhaanhun', surname:K, groups:['Khurdans'], theme:'khurdan', player:'jynette', gender:'f', mirror:true, acts:{ metier:[...HUNT] } },
   { id:'shiruun', name:'Shiruun', surname:K, groups:['Khurdans'], theme:'khurdan', player:'jynette', gender:'m', acts:{} },
   { id:'djokhodthai', name:'Djokhodthai', surname:K, groups:['Khurdans'], theme:'khurdan', player:'jynette', gender:'m', acts:{} },
 
@@ -88,7 +89,7 @@ const C = [
   { id:'reaksa', name:'Reaksa', surname:K, groups:['Khurdans'], theme:'khurdan', player:'idriss', gender:'f', hotNights:true, acts:{} },
 
   // Invités
-  { id:'davaajav', name:'Davaajav', surname:'Kha', groups:['Invités'], theme:'khurdan', player:'nono', gender:'m', acts:{
+  { id:'davaajav', name:'Davaajav', surname:'Kha', groups:['Invités'], theme:'khurdan', player:'nono', gender:'m', mirror:true, acts:{
     metier:['Fouilles sur un site','Exploration et repérage','Étude et catalogage des trouvailles','Recherches en archives, déchiffrage','Rencontre avec un client ou un marchand'],
     liens:['Temps avec Ushuaia','Retrouvailles avec Walha','Nouvelles de Tamachag et Taiga'] } },
   { id:'tsewang', name:'Tsewang', surname:'Khangkar', groups:['Invités'], theme:'khurdan', player:'jynette', gender:'m', acts:{} },
@@ -284,7 +285,8 @@ const myNews = () => NEWS.filter(n => n.to === me && newsReady(n));
 // Nouvelles reçues pendant la journée RP en cours (elle commence à 5 h), lues ou non : historique du jour.
 const newsOfToday = () => myNews().filter(n => n.at && sameDay(new Date(n.at - 5 * 3600e3), rpDay)).sort((a, b) => b.at - a.at);
 const newsHour = n => new Date(n.at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-const canEdit = id => C.find(c => c.id === id)?.player === me;
+const isMirror = id => !!C.find(c => c.id === id)?.mirror;
+const canEdit = id => C.find(c => c.id === id)?.player === me && !isMirror(id);
 const shown = c => (filter === 'all' || c.player === filter) && (groupFilter === 'all' || c.groups.includes(groupFilter));
 const root = document.documentElement;
 const esc = s => s.replace(/[&<>"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));
@@ -1710,7 +1712,7 @@ function renderCharNow(id) {
   if (s.done || readOnly) {
     document.getElementById('view').innerHTML = `
     ${tabsHtml(id)}
-    ${readOnly ? `<p class="readonly-note">${icon('eye')}Fiche de ${PLAYER_NAME[c.player]} : lecture seule.</p>` : ''}
+    ${readOnly ? `<p class="readonly-note">${icon('eye')}${isMirror(id) ? `Fiche tenue par ${PLAYER_NAME[c.player]} dans Journée RP, recopiée ici : lecture seule.` : `Fiche de ${PLAYER_NAME[c.player]} : lecture seule.`}</p>` : ''}
     <article class="recap">
       ${alertBlock(id, false)}
       <header class="recap-head">
@@ -2129,7 +2131,7 @@ const dec = v => Array.isArray(v) ? v.map(dec)
   : v;
 const replaceObj = (target, src) => { Object.keys(target).forEach(k => delete target[k]); Object.assign(target, src || {}); };
 const replaceArr = (target, src) => { target.length = 0; (src || []).forEach(x => target.push(x)); };
-const owns = id => C.find(c => c.id === id)?.player === me;
+const owns = id => C.find(c => c.id === id)?.player === me && !isMirror(id);
 // Activités et lieux privés : jamais copiés dans l'encart public « Aujourd'hui » des fiches.
 const isPrivateAct = a => /^Sexe avec /i.test(a);
 
@@ -2180,7 +2182,7 @@ const dayOf = () => enc({ calm: calmBy, weather: weatherOn, rp: rpPlayed });
 
 // ---------- Espace privé des couples (couples/{couple}/…) : lisible par les deux joueurs du couple seulement ----------
 // Couples qui ont l'option nuit chaude ; identifiant = les deux personnages, triés, séparés par un tiret.
-const COUPLES = PAIRS.filter(p => p.every(hasHot)).map(p => { const chars = [...p].sort(); return { id: chars.join('-'), chars, players: [...new Set(chars.map(playerOf))] }; });
+const COUPLES = PAIRS.filter(p => p.every(hasHot)).map(p => { const chars = [...p].sort(); return { id: chars.join('-'), chars, players: [...new Set(chars.map(playerOf))], mirror: chars.some(isMirror) }; });
 const myCouples = () => COUPLES.filter(k => k.players.includes(me));
 const COUPLE_NIGHT = {};   // id → { clé du jour → { hot, with } } : nuits chaudes passées (historique, wrap)
 const attachNight = (id, key) => { const n = COUPLE_NIGHT[id]?.[key]; if (!n) return; const h = HISTORY[id] ||= {}; (h[key] ||= {}).night = n; };
@@ -2239,7 +2241,7 @@ document.addEventListener('focusout', () => setTimeout(() => { if (typingDirty &
 
 window.RP_APP = {
   ids: C.map(c => c.id),
-  owned: () => C.filter(c => c.player === me).map(c => c.id),
+  owned: () => C.filter(c => c.player === me && !c.mirror).map(c => c.id),   // les fiches recopiées de Journée RP ne s'écrivent pas d'ici
   setMe: m => { me = m; },
   isPlayer: p => PLAYERS.some(x => x.id === p),
   playerOf: id => C.find(c => c.id === id)?.player || null,
@@ -2281,7 +2283,8 @@ window.RP_APP = {
     const mine = C.filter(c => c.player === me);
     return {
       global: globalOf(), day: dayOf(),
-      couples: Object.fromEntries(myCouples().map(k => [k.id, { day: coupleDayOf(k), state: coupleStateOf(k) }])),
+      // Couples recopiés de Journée RP : lus ici, écrits seulement par le service du VPS.
+      couples: Object.fromEntries(myCouples().filter(k => !k.chars.some(isMirror)).map(k => [k.id, { day: coupleDayOf(k), state: coupleStateOf(k) }])),
       entries: Object.fromEntries(mine.map(c => [c.id, entryOf(c.id)])),
       chars: Object.fromEntries(mine.map(c => [c.id, charDocOf(c)])),
       today: Object.fromEntries(mine.map(c => [c.id, todayOf(c.id)])),

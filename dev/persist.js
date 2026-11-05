@@ -15,7 +15,7 @@ const dec = v => Array.isArray(v) ? v.map(dec)
   : v;
 const replaceObj = (target, src) => { Object.keys(target).forEach(k => delete target[k]); Object.assign(target, src || {}); };
 const replaceArr = (target, src) => { target.length = 0; (src || []).forEach(x => target.push(x)); };
-const owns = id => C.find(c => c.id === id)?.player === me;
+const owns = id => C.find(c => c.id === id)?.player === me && !isMirror(id);
 // Activités et lieux privés : jamais copiés dans l'encart public « Aujourd'hui » des fiches.
 const isPrivateAct = a => /^Sexe avec /i.test(a);
 
@@ -66,7 +66,7 @@ const dayOf = () => enc({ calm: calmBy, weather: weatherOn, rp: rpPlayed });
 
 // ---------- Espace privé des couples (couples/{couple}/…) : lisible par les deux joueurs du couple seulement ----------
 // Couples qui ont l'option nuit chaude ; identifiant = les deux personnages, triés, séparés par un tiret.
-const COUPLES = PAIRS.filter(p => p.every(hasHot)).map(p => { const chars = [...p].sort(); return { id: chars.join('-'), chars, players: [...new Set(chars.map(playerOf))] }; });
+const COUPLES = PAIRS.filter(p => p.every(hasHot)).map(p => { const chars = [...p].sort(); return { id: chars.join('-'), chars, players: [...new Set(chars.map(playerOf))], mirror: chars.some(isMirror) }; });
 const myCouples = () => COUPLES.filter(k => k.players.includes(me));
 const COUPLE_NIGHT = {};   // id → { clé du jour → { hot, with } } : nuits chaudes passées (historique, wrap)
 const attachNight = (id, key) => { const n = COUPLE_NIGHT[id]?.[key]; if (!n) return; const h = HISTORY[id] ||= {}; (h[key] ||= {}).night = n; };
@@ -125,7 +125,7 @@ document.addEventListener('focusout', () => setTimeout(() => { if (typingDirty &
 
 window.RP_APP = {
   ids: C.map(c => c.id),
-  owned: () => C.filter(c => c.player === me).map(c => c.id),
+  owned: () => C.filter(c => c.player === me && !c.mirror).map(c => c.id),   // les fiches recopiées de Journée RP ne s'écrivent pas d'ici
   setMe: m => { me = m; },
   isPlayer: p => PLAYERS.some(x => x.id === p),
   playerOf: id => C.find(c => c.id === id)?.player || null,
@@ -167,7 +167,8 @@ window.RP_APP = {
     const mine = C.filter(c => c.player === me);
     return {
       global: globalOf(), day: dayOf(),
-      couples: Object.fromEntries(myCouples().map(k => [k.id, { day: coupleDayOf(k), state: coupleStateOf(k) }])),
+      // Couples recopiés de Journée RP : lus ici, écrits seulement par le service du VPS.
+      couples: Object.fromEntries(myCouples().filter(k => !k.chars.some(isMirror)).map(k => [k.id, { day: coupleDayOf(k), state: coupleStateOf(k) }])),
       entries: Object.fromEntries(mine.map(c => [c.id, entryOf(c.id)])),
       chars: Object.fromEntries(mine.map(c => [c.id, charDocOf(c)])),
       today: Object.fromEntries(mine.map(c => [c.id, todayOf(c.id)])),
