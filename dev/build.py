@@ -38,7 +38,7 @@ LOGIN_CSS = """
 .login[hidden] { display: none; }
 .login-box { display: grid; gap: 1rem; max-width: 22rem; }
 .login h1 { font: 700 2.4rem/1.1 "Alegreya SC", "Cinzel", Georgia, serif; letter-spacing: .06em; color: #ece3d6; }
-.login h1::before { content: "▼"; display: block; font-size: 1rem; color: #c9ae8f; margin-bottom: .6rem; }
+.login-logo { justify-self: center; width: 9.5rem; height: 9.5rem; margin-bottom: .2rem; }
 .login p { margin: 0; color: #a2988c; font-style: italic; }
 .login .btn { justify-self: center; font-size: 1rem; padding: .7rem 1.3rem; }
 .login .err { color: #e07a5a; font-style: normal; }
@@ -67,7 +67,7 @@ LOGIN_CSS = """
 page = page.replace('</style>', LOGIN_CSS + '</style>', 1)
 page = one(page, '<main><div class="wrap" id="view"></div></main>',
   '<main><div class="wrap" id="view"></div></main>\n'
-  '<div class="login" id="login"><div class="login-box"><h1>Iloh Khurdan</h1>'
+  '<div class="login" id="login"><div class="login-box"><img class="login-logo" src="logo.png" alt="" width="152" height="152"><h1>Iloh Khurdan</h1>'
   '<p id="login-msg">Chargement…</p>'
   '<button type="button" class="btn primary" id="login-btn" hidden>Se connecter avec Google</button>'
   '<button type="button" class="link" id="logout-btn" hidden>Changer de compte</button></div></div>\n'
@@ -75,7 +75,7 @@ page = one(page, '<main><div class="wrap" id="view"></div></main>',
 # PWA
 page = one(page, '<title>Iloh Khurdan</title>',
   '<title>Iloh Khurdan</title>\n<link rel="manifest" href="manifest.webmanifest">\n'
-  '<link rel="icon" href="icon.svg" type="image/svg+xml">\n<link rel="apple-touch-icon" href="icon-180.png">\n'
+  '<link rel="icon" href="favicon.png" type="image/png">\n<link rel="apple-touch-icon" href="icon-180.png">\n'
   '<meta name="apple-mobile-web-app-capable" content="yes">\n<meta name="mobile-web-app-capable" content="yes">\n'
   '<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">\n'
   '<meta name="apple-mobile-web-app-title" content="Iloh Khurdan">\n<meta name="theme-color" content="#111a2a">')
