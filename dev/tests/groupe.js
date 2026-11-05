@@ -62,6 +62,21 @@ const ok = (cond, label) => { console.log((cond ? '  ok  ' : '  ÉCHEC ') + labe
   const news = Object.entries(d).filter(([k]) => k.startsWith('news/')).map(([, v]) => v);
   ok(news.some(n => n.to === 'jynette' && n.from === 'nono'), 'nouvelle pour Jynette (nuit chaude), auteur noté');
   ok(news.every(n => n.to !== 'nono'), 'aucune nouvelle vers soi-même');
+  // Confidentialité : la nuit chaude n'est que dans l'espace du couple
+  ok(d['couples/taiga-tamachag']?.players?.length === 2, 'espace du couple Taiga & Tamachag créé (2 joueurs)');
+  ok(Object.keys(d).filter(k => /^couples\/[^/]+$/.test(k)).length === 4, '4 espaces de couple créés');
+  ok(d[`couples/taiga-tamachag/months/${ym}`]?.[day]?.nights?.tamachag?.hot === true, 'nuit chaude rangée dans l\'espace du couple');
+  ok(!JSON.stringify(Object.entries(d).filter(([k]) => k.startsWith('shared/') || k.startsWith('days/') || k.startsWith('today/'))).includes('"hot"'),
+    'aucune nuit chaude dans les données lues par tout le groupe');
+  // Amant : un autre personnage du groupe est refusé, un PNJ accepté
+  await nono.evaluate(() => go('tamachag')); await nono.waitForTimeout(200);
+  await nono.click('#edit-tamachag'); await nono.waitForTimeout(300);
+  await nono.fill('#lover-new-tamachag', 'Ogloo'); await nono.click('#lover-add-tamachag'); await nono.waitForTimeout(150);
+  ok((await nono.textContent('#view')).includes('seul un PNJ'), 'un personnage du groupe ne peut pas être ajouté comme amant');
+  await nono.fill('#lover-new-tamachag', 'Une voyageuse'); await nono.click('#lover-add-tamachag'); await nono.waitForTimeout(900);
+  d = await db(nono);
+  ok(JSON.stringify(d['couples/taiga-tamachag/state/main'] || {}).includes('Une voyageuse'), 'amant PNJ rangé dans l\'espace du couple');
+  ok(!JSON.stringify(d['shared/global'] || {}).includes('Une voyageuse'), 'amant absent des données partagées');
   // Tengis : pas de couple → pas de nuit chaude
   await nono.evaluate(() => go('tengis')); await nono.waitForTimeout(200);
   ok(await nono.locator('#hot-tengis').count() === 0, 'pas de nuit chaude pour Tengis (hors couple)');
@@ -84,6 +99,9 @@ const ok = (cond, label) => { console.log((cond ? '  ok  ' : '  ÉCHEC ') + labe
   ok(await ed.locator('#mood-buyan').count() === 1, 'Eden remplit Buyan');
   ok(await ed.locator('#hot-buyan').count() === 0, 'pas de nuit chaude pour Buyan');
   ok((await ed.textContent('#view h1')).includes('Buyan'), 'nom de Buyan');
+  await ed.evaluate(() => go('tamachag')); await ed.waitForTimeout(200);
+  ok(!(await ed.textContent('#view')).includes('Nuit chaude'), 'Eden ne voit pas la nuit chaude de Tamachag');
+  ok(await ed.evaluate(() => Object.keys(nightsBy).length) === 0, 'aucune nuit chaude chargée chez Eden');
 
   console.log('Compte non invité');
   const x = await open('x', 'inconnu@test.fr');

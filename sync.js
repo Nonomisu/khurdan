@@ -28,6 +28,10 @@ const dRef = doc(db, 'shared', 'day-' + A.iso);
 const monthRef = (id, ym) => doc(db, 'days', id, 'months', ym);
 const charRef = id => doc(db, 'characters', id);
 const todayRef = id => doc(db, 'today', id);
+// Espace privé d'un couple : couples/{couple}, puis months/{AAAA-MM} (un champ par jour) et state/main.
+const coupleRef = cid => doc(db, 'couples', cid);
+const coupleMonthRef = (cid, ym) => doc(db, 'couples', cid, 'months', ym);
+const coupleStateRef = cid => doc(db, 'couples', cid, 'state', 'main');
 // Notifications push : clé publique VAPID du service du VPS (la clé privée reste sur le VPS).
 // Clé propre à Iloh Khurdan, à renseigner à l'étape des notifications : tant qu'elle est vide, le bouton reste masqué.
 const VAPID_PUBLIC = '';
@@ -41,6 +45,7 @@ const newsRef = key => doc(db, 'news', String(key).replace(/\//g, '_'));
 let me = null, started = false, timer = null, base = null;
 const loaded = new Set();               // mois déjà chargés (AAAA-MM)
 const seenToday = {};                   // dernière version distante de la journée du jour, par personnage
+const seenCouple = {};                  // idem pour la journée de chaque couple
 
 // ---------------------------------------------------------------- écran de connexion
 const login = (msg, { button = true, logout = false, err = false } = {}) => {
@@ -80,6 +85,12 @@ window.RP_SYNC = {
     if (!A.owned().includes(id)) return;
     const ym = ymOf(d.getFullYear(), d.getMonth());
     setDoc(monthRef(id, ym), { [String(d.getDate())]: JSON.parse(J(patch)) }, { merge: true }).catch(report);
+  },
+  // Nuit précédente, partie « nuit chaude » : dans l'espace du couple.
+  patchPastNight: (id, d, night) => {
+    const k = A.myCouples().find(x => x.chars.includes(id)); if (!k) return;
+    const ym = ymOf(d.getFullYear(), d.getMonth());
+    setDoc(coupleMonthRef(k.id, ym), { [String(d.getDate())]: { nights: { [id]: JSON.parse(J(night)) } } }, { merge: true }).catch(report);
   },
   // Webhook Discord (salon commun) : rangé dans Firestore, lisible par les joueurs, modifiable par l'admin ; jamais dans le code.
   setWebhook: url => setDoc(doc(db, 'shared', 'discord'), { webhook: url }, { merge: true }),
@@ -129,6 +140,12 @@ async function loadMonth(ym) {
     A.applyMonth(id, ym, data, ym === A.ym && !started);
     if (ym === A.ym) seenToday[id] = clone(data[A.day]);
   }));
+  // Nuits chaudes : seulement les couples dont on joue l'un des personnages.
+  await Promise.all(A.myCouples().map(async k => {
+    const data = (await getDoc(coupleMonthRef(k.id, ym))).data() || {};
+    A.applyCoupleMonth(k.id, ym, data, ym === A.ym && !started);
+    if (ym === A.ym) seenCouple[k.id] = clone(data[A.day]);
+  }));
 }
 
 async function boot() {
@@ -150,15 +167,23 @@ async function boot() {
     return setDoc(charRef(id), chars[id]);
   }));
   mine.forEach(id => { chars[id] ||= { player: me }; });
+  // Espaces des couples : créés par l'admin d'après la configuration (personnages et joueurs).
+  if (window.RP_ADMIN) await Promise.all(A.couples().map(async k => {
+    if (!(await getDoc(coupleRef(k.id))).exists()) await setDoc(coupleRef(k.id), { chars: k.chars, players: k.players });
+  }));
+  const coupleStates = Object.fromEntries(await Promise.all(A.myCouples().map(async k => [k.id, (await getDoc(coupleStateRef(k.id))).data() || {}])));
+  Object.entries(coupleStates).forEach(([cid, d]) => A.applyCoupleState(cid, d));
   A.hydrate({ global: g.data() || {}, day: d.data() || {}, chars, news: ns.docs.map(x => x.data()) });
   await loadMonth(prevYm(A.ym));
   await loadMonth(A.ym);
   await Promise.all(mine.map(id => setDoc(monthRef(id, A.ym), {}, { merge: true })));
+  await Promise.all(A.myCouples().flatMap(k => [setDoc(coupleMonthRef(k.id, A.ym), {}, { merge: true }), setDoc(coupleStateRef(k.id), {}, { merge: true })]));
   base = {
     global: clone(g.data() || {}), day: clone(d.data() || {}),
     entries: Object.fromEntries(mine.map(id => [id, clone(seenToday[id])])),
     chars: Object.fromEntries(mine.map(id => { const { player, ...rest } = chars[id]; void player; return [id, clone(rest)]; })),
     today: {},
+    couples: Object.fromEntries(A.myCouples().map(k => [k.id, { day: clone(seenCouple[k.id]) || {}, state: clone(coupleStates[k.id]) }])),
     news: new Map(ns.docs.map(x => [x.data().key, !!x.data().read])),
   };
   started = true;
@@ -209,7 +234,7 @@ function listen() {
     if (!Object.keys(ch).length) return;
     A.applyDay(ch); base.day = { ...base.day, ...clone(ch) }; A.rerender();
     // Une nuit (ou une journée RP) cochée par un autre joueur sur l'un de nos personnages : on met à jour sa fiche enregistrée.
-    if ('nights' in ch || 'rp' in ch || 'calm' in ch) schedule();
+    if ('rp' in ch || 'calm' in ch) schedule();
   });
   onSnapshot(query(collection(db, 'news'), where('to', '==', me)), s => {
     if (s.metadata.hasPendingWrites) return;
@@ -217,6 +242,23 @@ function listen() {
     if (!list.length) return;
     list.forEach(n => base.news.set(n.key, !!n.read));
     A.applyNews(list); A.rerender();
+  });
+  A.myCouples().forEach(k => {
+    onSnapshot(coupleMonthRef(k.id, A.ym), s => {
+      if (s.metadata.hasPendingWrites) return;
+      const data = s.data() || {}, e = data[A.day] || {};
+      A.applyCoupleMonth(k.id, A.ym, data, false);
+      if (J(e) === J(seenCouple[k.id])) return;
+      seenCouple[k.id] = clone(e);
+      A.applyCoupleMonth(k.id, A.ym, { [A.day]: e }, true);
+      base.couples[k.id].day = clone(e); A.rerender();
+    });
+    onSnapshot(coupleStateRef(k.id), s => {
+      if (s.metadata.hasPendingWrites) return;
+      const d = s.data() || {}, ch = changedKeys(d, base.couples[k.id].state);
+      if (!Object.keys(ch).length) return;
+      A.applyCoupleState(k.id, ch); base.couples[k.id].state = { ...base.couples[k.id].state, ...clone(ch) }; A.rerender();
+    });
   });
   A.ids.forEach(id => onSnapshot(monthRef(id, A.ym), s => {
     if (s.metadata.hasPendingWrites) return;
@@ -235,17 +277,17 @@ function listen() {
 function schedule() { if (!started) return; clearTimeout(timer); timer = setTimeout(flush, 700); }
 
 // Différences sur deux niveaux, pour ne réécrire que ce qui a changé (et ne pas écraser les modifications des autres).
-function diff2(prev = {}, next = {}) {
+function diff2(prev = {}, next = {}, at = []) {
   const ups = [];
   for (const k of Object.keys(next)) {
     const a = prev[k], b = next[k];
     if (J(a) === J(b)) continue;
     if (isMap(a) && isMap(b)) {
       for (const sk of new Set([...Object.keys(a), ...Object.keys(b)])) {
-        if (!(sk in b)) ups.push(new FieldPath(k, sk), deleteField());
-        else if (J(a[sk]) !== J(b[sk])) ups.push(new FieldPath(k, sk), b[sk]);
+        if (!(sk in b)) ups.push(new FieldPath(...at, k, sk), deleteField());
+        else if (J(a[sk]) !== J(b[sk])) ups.push(new FieldPath(...at, k, sk), b[sk]);
       }
-    } else ups.push(new FieldPath(k), b ?? null);
+    } else ups.push(new FieldPath(...at, k), b ?? null);
   }
   return ups;
 }
@@ -262,6 +304,14 @@ async function doFlush() {
   for (const [key, ref] of [['global', gRef], ['day', dRef]]) {
     const ups = diff2(base[key], snap[key]);
     if (ups.length) { base[key] = { ...base[key], ...clone(snap[key]) }; ops.push(updateDoc(ref, ...ups)); }
+  }
+  // Espaces des couples : seulement ce qui a changé (l'autre joueur du couple écrit dans les mêmes documents).
+  for (const [cid, c] of Object.entries(snap.couples)) {
+    const b = base.couples[cid];
+    const dayUps = diff2(b.day, c.day, [A.day]);
+    if (dayUps.length) { b.day = clone(c.day); seenCouple[cid] = clone(c.day); ops.push(updateDoc(coupleMonthRef(cid, A.ym), ...dayUps)); }
+    const stUps = diff2(b.state, c.state);
+    if (stUps.length) { b.state = clone(c.state); ops.push(updateDoc(coupleStateRef(cid), ...stUps)); }
   }
   for (const id of A.owned()) {
     const e = snap.entries[id];

@@ -22,8 +22,7 @@ const isPrivateAct = a => /^Sexe avec /i.test(a);
 const entryOf = id => {
   const s = state[id], o = {};
   ENTRY_KEYS.forEach(k => { if (s[k] !== undefined) o[k] = s[k]; });
-  const n = nightOf(id);
-  o.night = { hot: !!n.hot, with: n.hot ? (n.with || null) : null };   // pour l'historique
+  // La nuit chaude n'est pas sur la fiche (lue par tout le groupe) : elle est dans l'espace du couple.
   o.rp = rpPlayed[id] || null;
   o.calmWith = calmBy[id]?.with || null;
   return enc(o);
@@ -51,12 +50,10 @@ const applyChar = (c, d) => {
   c.customPlaces.forEach(p => { PLACE_REGION[p.name] ||= p.region; if (p.zone) ZONE_OF[p.name] ||= p.zone; if (!c.places.includes(p.name)) c.places.push(p.name); });
   c.customCats = [...(d.customCats || [])]; c.actCat = { ...(d.actCat || {}) }; c.catNames = { ...(d.catNames || {}) }; applyActLayout(c);
 };
-const globalOf = () => enc({ lovers: LOVERS, protect: lastProtect, alerts, events: EVENTS, arcs: ARCS, arcSeq,
+const globalOf = () => enc({ alerts, events: EVENTS, arcs: ARCS, arcSeq,
   milestones: MILESTONES, contracts: CONTRACTS, workdays: WORKDAYS });
 const applyGlobal = g => {
   const d = dec(g || {});
-  if ('lovers' in d) replaceObj(LOVERS, d.lovers);
-  if ('protect' in d) replaceObj(lastProtect, d.protect);
   if ('alerts' in d) replaceObj(alerts, d.alerts);
   if ('events' in d) replaceArr(EVENTS, d.events);
   if ('arcs' in d) replaceObj(ARCS, d.arcs);
@@ -65,19 +62,42 @@ const applyGlobal = g => {
   if ('contracts' in d) replaceObj(CONTRACTS, d.contracts);
   if ('workdays' in d) replaceObj(WORKDAYS, d.workdays);
 };
-const dayOf = () => enc({ nights: nightsBy, calm: calmBy, weather: weatherOn, rp: rpPlayed,
-  protect: Object.fromEntries(C.map(c => [c.id, !!state[c.id].protect])),
-  shell: Object.fromEntries(C.map(c => [c.id, !!state[c.id].shell])) });
+const dayOf = () => enc({ calm: calmBy, weather: weatherOn, rp: rpPlayed });
+
+// ---------- Espace privé des couples (couples/{couple}/…) : lisible par les deux joueurs du couple seulement ----------
+// Couples qui ont l'option nuit chaude ; identifiant = les deux personnages, triés, séparés par un tiret.
+const COUPLES = PAIRS.filter(p => p.every(hasHot)).map(p => { const chars = [...p].sort(); return { id: chars.join('-'), chars, players: [...new Set(chars.map(playerOf))] }; });
+const myCouples = () => COUPLES.filter(k => k.players.includes(me));
+const COUPLE_NIGHT = {};   // id → { clé du jour → { hot, with } } : nuits chaudes passées (historique, wrap)
+const attachNight = (id, key) => { const n = COUPLE_NIGHT[id]?.[key]; if (!n) return; const h = HISTORY[id] ||= {}; (h[key] ||= {}).night = n; };
+// Journée du couple : nuits chaudes, « se protège », coquillage offert.
+const coupleDayOf = k => enc({
+  nights: Object.fromEntries(k.chars.map(x => [x, nightsBy[x]?.hot ? { hot: true, with: nightsBy[x].with ?? null } : null])),
+  protect: Object.fromEntries(k.chars.map(x => [x, !!state[x].protect])),
+  shell: Object.fromEntries(k.chars.map(x => [x, !!state[x].shell])) });
+const applyCoupleDay = (k, d) => {
+  d = dec(d || {});
+  if (d.nights) k.chars.forEach(x => { if (d.nights[x]?.hot) nightsBy[x] = { hot: true, with: d.nights[x].with ?? null }; else delete nightsBy[x]; });
+  if (d.protect) k.chars.forEach(x => { state[x].protect = !!d.protect[x]; });
+  if (d.shell) k.chars.forEach(x => { state[x].shell = !!d.shell[x]; });
+};
+// Réglages durables du couple : amants (PNJ) et dernier choix « se protège ».
+const ownProtectKey = (k, key) => k.chars.some(x => key === x || key.startsWith('pnj:' + x + ':'));
+const coupleStateOf = k => enc({
+  lovers: Object.fromEntries(k.chars.map(x => [x, LOVERS[x] || []])),
+  protect: Object.fromEntries(Object.entries(lastProtect).filter(([key]) => ownProtectKey(k, key))) });
+const applyCoupleState = (k, d) => {
+  d = dec(d || {});
+  if (d.lovers) k.chars.forEach(x => { LOVERS[x] = [...(d.lovers[x] || [])]; });
+  if (d.protect) { Object.keys(lastProtect).filter(key => ownProtectKey(k, key)).forEach(key => delete lastProtect[key]); Object.assign(lastProtect, d.protect); }
+};
 // Heure de création d'une nouvelle venue de Firestore (horodatage serveur, ou texte ISO dans les tests).
 const newsAt = n => n.createdAt?.toMillis?.() ?? (n.createdAt ? Date.parse(n.createdAt) : null);
 const applyDay = g => {
   const d = dec(g || {});
-  if ('nights' in d) replaceObj(nightsBy, d.nights);
   if ('rp' in d) replaceObj(rpPlayed, d.rp);
   if ('calm' in d) { const was = new Set(Object.keys(calmBy)); replaceObj(calmBy, d.calm); C.forEach(c => { if (calmBy[c.id] || was.has(c.id)) syncCalmState(c.id); }); }
   if ('weather' in d) replaceObj(weatherOn, d.weather);
-  if (d.protect) C.forEach(c => { if (c.id in d.protect) state[c.id].protect = !!d.protect[c.id]; });
-  if (d.shell) C.forEach(c => { if (c.id in d.shell) state[c.id].shell = !!d.shell[c.id]; });
 };
 // Encart public « Aujourd'hui » : humeur, activités publiques et lieu, seulement une fois la journée validée.
 const todayOf = id => {
@@ -120,10 +140,23 @@ window.RP_APP = {
   applyMonth: (id, ym, data, withToday) => {
     const [y, m] = ym.split('-').map(Number);
     const h = HISTORY[id] ||= {};
-    Object.entries(data || {}).forEach(([d, e]) => { h[`${y}-${m}-${+d}`] = dec(e); });
+    Object.entries(data || {}).forEach(([d, e]) => { const key = `${y}-${m}-${+d}`; h[key] = dec(e); attachNight(id, key); });
     if (withToday && ym === curYm && data?.[dayNum]) applyEntry(id, data[dayNum]);
   },
   applyGlobal, applyDay,
+  couples: () => COUPLES, myCouples,
+  // data : { '30': { nights, protect, shell }, … } d'un document couples/{couple}/months/{AAAA-MM}
+  applyCoupleMonth: (cid, ym, data, withToday) => {
+    const k = COUPLES.find(x => x.id === cid); if (!k) return;
+    const [y, m] = ym.split('-').map(Number);
+    Object.entries(data || {}).forEach(([d, v]) => {
+      const key = `${y}-${m}-${+d}`, nights = dec(v)?.nights || {};
+      k.chars.forEach(x => { (COUPLE_NIGHT[x] ||= {})[key] = nights[x]?.hot ? { hot: true, with: nights[x].with ?? null } : null; attachNight(x, key);
+        if (!nights[x]?.hot && HISTORY[x]?.[key]) delete HISTORY[x][key].night; });
+    });
+    if (withToday && ym === curYm) applyCoupleDay(k, data?.[dayNum]);
+  },
+  applyCoupleState: (cid, d) => { const k = COUPLES.find(x => x.id === cid); if (k) applyCoupleState(k, d); },
   applyNews: list => {
     list.forEach(n => {
       const x = NEWS.find(o => o.key === n.key);
@@ -134,6 +167,7 @@ window.RP_APP = {
     const mine = C.filter(c => c.player === me);
     return {
       global: globalOf(), day: dayOf(),
+      couples: Object.fromEntries(myCouples().map(k => [k.id, { day: coupleDayOf(k), state: coupleStateOf(k) }])),
       entries: Object.fromEntries(mine.map(c => [c.id, entryOf(c.id)])),
       chars: Object.fromEntries(mine.map(c => [c.id, charDocOf(c)])),
       today: Object.fromEntries(mine.map(c => [c.id, todayOf(c.id)])),

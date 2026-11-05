@@ -1256,7 +1256,10 @@ const PREV_LOCAL = {};   // aperçu : pas d'historique réel
 const prevEntry = id => (typeof HISTORY !== 'undefined' ? HISTORY[id]?.[keyOf(prevDay())] : PREV_LOCAL[id]) || null;
 const setPrev = (id, patch) => {
   const d = prevDay(), cur = typeof HISTORY !== 'undefined' ? ((HISTORY[id] ||= {})[keyOf(d)] ||= {}) : (PREV_LOCAL[id] ||= {});
-  Object.assign(cur, patch); window.RP_SYNC?.patchPast?.(id, d, patch);
+  Object.assign(cur, patch);
+  const { night, ...rest } = patch;
+  if (night !== undefined) window.RP_SYNC?.patchPastNight?.(id, d, night);
+  if (Object.keys(rest).length) window.RP_SYNC?.patchPast?.(id, d, rest);
 };
 const prevNight = id => {
   const e = prevEntry(id), c = C.find(x => x.id === id);
@@ -1921,7 +1924,7 @@ const prevNightBlock = id => {
   if (filled && !s.prevEdit) return `<div class="chrono-part">${head}${prevNightLine(id).replace('Nuit précédente : ', '')}
     <p class="reserved">Reprise de la nuit à venir de la veille. <button type="button" class="link small ico-btn" id="prev-edit-${id}" title="Modifier" aria-label="Modifier">${icon('pencil')}</button></p></div>`;
   const hotOwn = !!e?.night?.hot, w = e?.night?.with || '';
-  const opts = [...new Set([partnerOf(id), ...loversOf(id), ...C.filter(x => x.id !== id).map(x => x.id)].filter(Boolean))];
+  const opts = [...new Set([partnerOf(id), ...loversOf(id)].filter(Boolean))];
   const hotHtml = !hasHot(id) ? '' : n.hot && !n.hot.own ? `<!--hot-opts--><p class="where">${icon('lips')}<span>Nuit chaude avec ${esc(whoLabel(n.hot.with))} <small>(indiquée sur la fiche ${deName(nameOf(n.hot.with))})</small></span></p>`
       : `<label class="act night"><input type="checkbox" id="prev-hot-${id}" ${hotOwn ? 'checked' : ''}>${icon('lips')}<span>Nuit chaude</span></label><!--hot-opts-->
       ${hotOwn ? `<label class="check-inline">avec <select id="prev-with-${id}"><option value="">—</option>${opts.map(o => `<option value="${esc(o)}" ${o === w ? 'selected' : ''}>${esc(whoLabel(o))}</option>`).join('')}</select></label>` : ''}`;
@@ -2487,8 +2490,9 @@ function renderCharNow(id) {
   const addLover = (raw, alsoTonight) => {
     const v = (raw || '').trim(); if (!v) return;
     const who = charByName(v) || v;
+    // Une nuit chaude ne se coche qu'avec son ou sa partenaire, ou avec un PNJ : jamais avec un autre personnage du groupe.
+    if (isChar(who) && who !== partnerOf(id)) { state[id].loversOpen = true; state[id].loverMsg = `${nameOf(who)} est un personnage du groupe : seul un PNJ peut être ajouté ici.`; renderChar(id); return; }
     if (who !== id && !loversOf(id).includes(who) && who !== partnerOf(id)) loversOf(id).push(who);
-    if (isChar(who) && who !== partnerOf(id) && !loversOf(who).includes(id)) loversOf(who).push(id);   // réciproque
     if (alsoTonight) setNight(id, true, who);
     state[id].loversOpen = true; state[id].loverMsg = `${whoLabel(who)} ajouté${isChar(who) && isFem(who) ? 'e' : ''}${alsoTonight ? ' et choisi' + (isChar(who) && isFem(who) ? 'e' : '') + ' pour cette nuit' : ''}.`;
     renderChar(id);
