@@ -103,6 +103,29 @@ const ok = (cond, label) => { console.log((cond ? '  ok  ' : '  ÉCHEC ') + labe
   ok(!(await ed.textContent('#view')).includes('Nuit chaude'), 'Eden ne voit pas la nuit chaude de Tamachag');
   ok(await ed.evaluate(() => Object.keys(nightsBy).length) === 0, 'aucune nuit chaude chargée chez Eden');
 
+  console.log('Administration');
+  ok(await jy.locator('.admin-set').count() === 0, 'pas d\'administration pour une joueuse');
+  await nono.evaluate(() => go('home')); await nono.waitForTimeout(400);
+  ok(await nono.locator('.admin-set').count() === 1, 'administration visible pour l\'admin');
+  await nono.click('.admin-set summary'); await nono.waitForTimeout(200);
+  ok(await nono.locator('.admin-row').count() === 6, '6 joueurs listés');
+  ok(await nono.locator('#invite-eden').count() === 0 && await nono.locator('#invite-lou').count() === 1, 'Eden déjà invitée, Lou à inviter');
+  await nono.fill('#invite-lou', 'pas-une-adresse'); await nono.click('[data-invite="lou"]'); await nono.waitForTimeout(200);
+  ok((await nono.textContent('#admin-msg')).includes('ne ressemble pas'), 'adresse invalide refusée');
+  await nono.fill('#invite-lou', 'Lou@Test.fr'); await nono.click('[data-invite="lou"]'); await nono.waitForTimeout(600);
+  d = await db(nono);
+  ok(d['access/lou@test.fr']?.player === 'lou' && d['access/lou@test.fr']?.role === 'joueur', 'accès de Lou créé (adresse en minuscules)');
+  ok(d['players/lou']?.name === 'Lou', 'fiche joueur de Lou créée');
+  const lou = await open('lou', 'lou@test.fr');
+  ok((await lou.textContent('.session')).includes('Lou'), 'Lou se connecte après l\'invitation');
+  await nono.click('[data-revoke="lou@test.fr"]'); await nono.waitForTimeout(200);
+  await nono.click('[data-revoke-ok="lou@test.fr"]'); await nono.waitForTimeout(600);
+  d = await db(nono);
+  ok(!d['access/lou@test.fr'], 'accès de Lou retiré');
+  const lou2 = await open('lou2', 'lou@test.fr');
+  ok((await lou2.textContent('#login-msg')).includes("n'a pas accès"), 'Lou ne peut plus se connecter');
+  ok(await nono.locator('[data-revoke="nono@test.fr"]').count() === 0, 'l\'admin ne peut pas retirer son propre accès');
+
   console.log('Compte non invité');
   const x = await open('x', 'inconnu@test.fr');
   ok((await x.textContent('#login-msg')).includes("n'a pas accès"), 'accès refusé à une adresse non invitée');

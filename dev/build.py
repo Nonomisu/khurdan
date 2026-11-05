@@ -53,6 +53,16 @@ LOGIN_CSS = """
 .discord-set summary { cursor: pointer; display: inline-flex; align-items: center; gap: .4rem; }
 .discord-set summary .ico { width: 1rem; height: 1rem; color: var(--gold); }
 .discord-set[open] { display: grid; gap: .5rem; }
+.admin-set { font-size: .85rem; color: var(--dim); margin-top: 1rem; }
+.admin-set summary { cursor: pointer; display: inline-flex; align-items: center; gap: .4rem; }
+.admin-set summary .ico { width: 1rem; height: 1rem; color: var(--gold); }
+.admin-set[open] { display: grid; gap: .6rem; }
+.admin-row { display: grid; gap: .35rem; padding: .55rem 0; border-top: 1px solid var(--rule); }
+.admin-name { display: flex; align-items: center; gap: .45rem; color: var(--text); font-size: .95rem; }
+.admin-name i { width: .7rem; height: .7rem; border-radius: 50%; flex: none; }
+.admin-name small, .admin-mail small { color: var(--dim); }
+.admin-mail { display: flex; flex-wrap: wrap; align-items: center; gap: .3rem; overflow-wrap: anywhere; }
+.admin-set .special-row input { min-width: 0; }
 """
 page = page.replace('</style>', LOGIN_CSS + '</style>', 1)
 page = one(page, '<main><div class="wrap" id="view"></div></main>',
@@ -145,7 +155,7 @@ js = one(js, "const dropNews = keys => { for (let i = NEWS.length - 1; i >= 0; i
 
 # Démarrage : c'est sync.js qui lance l'appli une fois connecté et les données chargées
 js = one(js, "initPlaces();\ntry { window.addEventListener('hashchange', () => go(current)); } catch {}\ngo('home');",
-  "initPlaces();\n" + pathlib.Path(__file__).with_name('persist.js').read_text() + pathlib.Path(__file__).with_name('discord-part.js').read_text() + pathlib.Path(__file__).with_name('push-part.js').read_text())
+  "initPlaces();\n" + pathlib.Path(__file__).with_name('persist.js').read_text() + pathlib.Path(__file__).with_name('discord-part.js').read_text() + pathlib.Path(__file__).with_name('push-part.js').read_text() + pathlib.Path(__file__).with_name('admin-part.js').read_text())
 # Discord : envoi à la validation, état d'envoi dans le pied du récap, réglage du webhook (Nono)
 js = one(js, "document.getElementById('done-'+id).addEventListener('click', () => { s.done = true; s.doneAt ??= Date.now(); renderNav(); renderChar(id); });",
   "document.getElementById('done-'+id).addEventListener('click', () => { s.done = true; s.doneAt ??= Date.now(); renderNav(); renderChar(id); window.RP_SYNC?.saveNow(); window.RP_DISCORD?.send(id); });")
@@ -155,7 +165,8 @@ js = one(js, """          <span class="state ${s.done || rpPlayed[c.id] ? 'done'
     </div>`;""", """          <span class="state ${s.done || rpPlayed[c.id] ? 'done' : ''}">${s.done ? '✓ Terminé' : rpPlayed[c.id] ? '✓ Jouée en RP' : (s.mood || s.checked.size || s.trip ? 'En cours' : 'À remplir')}</span></button>`; }).join('')}
     </div>
     ${window.RP_PUSH ? RP_PUSH.html() : ''}
-    ${isAdminMe() && window.RP_DISCORD ? RP_DISCORD.settingsHtml() : ''}`;""")
+    ${isAdminMe() && window.RP_DISCORD ? RP_DISCORD.settingsHtml() : ''}
+    ${window.RP_ADMIN_UI ? RP_ADMIN_UI.html() : ''}`;""")
 assert "RP_DISCORD.settingsHtml()" in js and "RP_PUSH.html()" in js
 
 assert 'preview-note' not in js, 'reste d\'aperçu'

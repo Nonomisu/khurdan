@@ -92,6 +92,13 @@ window.RP_SYNC = {
     const ym = ymOf(d.getFullYear(), d.getMonth());
     setDoc(coupleMonthRef(k.id, ym), { [String(d.getDate())]: { nights: { [id]: JSON.parse(J(night)) } } }, { merge: true }).catch(report);
   },
+  // Administration (admin seulement, garanti par les règles) : accès des joueurs.
+  listAccess: async () => (await getDocs(collection(db, 'access'))).docs.map(x => ({ email: x.id, ...x.data() })),
+  invite: async (email, p) => {
+    await setDoc(doc(db, 'access', email), { player: p.id, role: 'joueur', invitedAt: serverTimestamp() });
+    await setDoc(doc(db, 'players', p.id), { name: p.name, color: p.color, role: p.admin ? 'admin' : 'joueur' }, { merge: true });
+  },
+  revoke: email => deleteDoc(doc(db, 'access', email)),
   // Webhook Discord (salon commun) : rangé dans Firestore, lisible par les joueurs, modifiable par l'admin ; jamais dans le code.
   setWebhook: url => setDoc(doc(db, 'shared', 'discord'), { webhook: url }, { merge: true }),
   // Toute l'année (pour le wrap) : douze mois, tous personnages.
@@ -190,6 +197,7 @@ async function boot() {
   $('login').hidden = true;
   A.start();
   window.RP_PUSH?.refresh();
+  if (window.RP_ADMIN) window.RP_ADMIN_UI?.refresh();
   setTimeout(() => window.RP_DISCORD?.autoWraps?.(), 2000);   // à partir du 26 décembre : envoi des wraps (une seule fois)
   listen();
   ['click', 'change', 'input'].forEach(t => document.addEventListener(t, schedule, true));
