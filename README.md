@@ -20,10 +20,9 @@ l'appli du couple ni ses données.
 1. Décisions de départ — fait
 2. Projet Firebase (connexion Google, Firestore, règles, clé API restreinte) — fait
 3. Dépôt : copie de Journée RP, thème Khurdan pour tous, code propre au couple retiré, joueurs et genres généralisés — fait
-4. Administration (page des joueurs et des personnages) — à faire
-5. Fiche du jour, récap, historique, Discord — à finir ; **avant d'inviter les joueurs** : ranger les nuits chaudes,
-   la protection et les coquillages dans `couples/{couple}/…` (lisibles par les deux joueurs du couple seulement),
-   et plus dans `shared/day-…` ni dans `days/…`
-6. Nouvelles, puis notifications push (clés VAPID propres à ce projet) — à faire
-7. Sauvegarde hebdomadaire sur le VPS — à faire
-8. Wrap du 26 décembre — à vérifier
+4. Administration : inviter un joueur, retirer un accès — fait ; nuits chaudes dans l'espace privé de chaque couple — fait
+5. Recopie continue Journée RP → Iloh Khurdan pour les 10 personnages communs (`vps/miroir`) — code prêt, à installer sur le VPS
+6. Fiche du jour, récap, historique, Discord — à vérifier avec les joueurs
+7. Nouvelles, puis notifications push (clés VAPID propres à ce projet) — à faire
+8. Sauvegarde hebdomadaire sur le VPS — à faire
+9. Wrap du 26 décembre — à vérifier
