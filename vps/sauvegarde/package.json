@@ -1,0 +1,9 @@
+{
+  "name": "iloh-sauvegarde",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Sauvegarde hebdomadaire de la base Iloh Khurdan (VPS, pm2).",
+  "main": "sauvegarde.js",
+  "scripts": { "start": "node sauvegarde.js", "test": "node test-sauvegarde.js" },
+  "dependencies": { "firebase-admin": "^13.0.0" }
+}
