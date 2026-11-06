@@ -209,6 +209,12 @@ const ok = (cond, label) => { console.log((cond ? '  ok  ' : '  ÉCHEC ') + labe
   ok((await ed.textContent('.news')).includes('Grand événement de chasse : Inscrivez-vous'), 'Eden reçoit la nouvelle de l\'événement');
   ok((await ed.textContent('.group-events')).toLowerCase().includes('annoncé par nono'), 'Eden voit l\'annonce sur l\'accueil');
   ok(await ed.locator('[data-ev-del]').count() === 0, 'Eden ne peut pas retirer l\'annonce de Nono');
+  await ed.locator('.news [data-ev-open]', { hasText: 'Naadam' }).first().click(); await ed.waitForTimeout(200);
+  ok((await ed.textContent('#view h1')).includes('Événements sur l\'Iloh') && await ed.locator(`.cal-day.sel[data-ev-day="${later}"]`).count() === 1, 'nouvelle d\'événement : ouvre le calendrier sur son jour');
+  await ed.goto('http://localhost:8765/?evenements=' + later); await ed.waitForTimeout(400); if (await ed.isVisible('#login-btn')) await ed.click('#login-btn');
+  await ed.waitForTimeout(1500); await ed.waitForFunction(() => !document.getElementById('mirror-update'), null, { timeout: 60000 }); await ed.waitForTimeout(300);
+  ok(await ed.locator(`.cal-day.sel[data-ev-day="${later}"]`).count() === 1 && (await ed.textContent('.day-detail')).includes('Naadam'), 'lien de la notification (?evenements=) : calendrier sur le bon jour');
+  await ed.evaluate(() => go('home')); await ed.waitForTimeout(150);
   await ed.evaluate(() => go('buyan')); await ed.waitForTimeout(200);
   ok((await ed.textContent('.shared-acts')).includes('Oldaghar a noté « Chasse au faucon » avec Buyan et Shuna'), 'fiche de Buyan : activité commune notée par Oldaghar');
   await ed.click('[data-join-from="oldaghar"]'); await ed.waitForTimeout(200);

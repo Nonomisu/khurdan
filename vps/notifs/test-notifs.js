@@ -70,6 +70,11 @@ st['news/vieille'] = { from: 'nono', to: 'eden', text: 'Vieille', charId: 'tengi
   await sleep(200);
   ok(!sent.some(s => s.body === 'Déjà lue'), 'nouvelle déjà lue : rien d\'envoyé');
 
+  st['shared/events'] = { ev1: { type: 'fete', text: 'Naadam', date: '2026-11-09' } };
+  write('news/n4', { from: 'nono', to: 'eden', text: 'Fête ou rassemblement : Naadam', charId: null, key: 'event:ev1:eden', read: false, createdAt: TS });
+  await sleep(200);
+  ok(sent.at(-1).body.includes('Naadam') && sent.at(-1).url.endsWith('?evenements=2026-11-09'), 'événement : la notification ouvre le calendrier sur son jour');
+
   const before = sent.length;
   write('pushSubs/lou/subs/c', { endpoint: 'https://push/lou-pc', keys: {} });
   await sleep(100);

@@ -105,6 +105,8 @@ document.addEventListener('click', async e => {
 const openFromLink = () => {
   try {
     const q = new URLSearchParams(location.search), id = q.get('fiche'), jour = q.get('jour');
+    // Notification d'un événement : ?evenements=AAAA-MM-JJ ouvre le calendrier des événements sur ce jour.
+    if (q.has('evenements')) { openEventsOn(q.get('evenements')); history.replaceState(null, '', location.pathname + location.hash); return true; }
     if (!id || !C.some(c => c.id === id)) return false;
     if (jour && jour !== isoDay(rpDay)) {
       const [y, m, d] = jour.split('-').map(Number);

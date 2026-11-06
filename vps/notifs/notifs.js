@@ -52,7 +52,12 @@ async function pushNews(id) {
     return d;
   });
   if (!n) return;
-  const url = n.charId ? `${APP}?fiche=${encodeURIComponent(n.charId)}` : APP;
+  // Événement de l'Iloh : la notification ouvre le calendrier sur le jour de l'événement.
+  let url = n.charId ? `${APP}?fiche=${encodeURIComponent(n.charId)}` : APP;
+  if (String(n.key || '').startsWith('event:')) {
+    const ev = (await db.doc('shared/events').get()).data()?.[n.key.split(':')[1]];
+    url = `${APP}?evenements=${encodeURIComponent(ev?.date || '')}`;
+  }
   const sent = await sendTo(n.to, { title: 'Iloh Khurdan', body: n.text, tag: 'news-' + id, url });
   log(`nouvelle pour ${n.to} : ${sent} appareil(s)`);
 }
