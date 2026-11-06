@@ -184,6 +184,29 @@ html, body, #view { overflow-anchor: none; }
 .act:has(input:checked) span { color: var(--gold); }
 .act-wrap { display: grid; gap: .35rem; }
 .with-pick { padding-left: 2.7rem; }
+.shared-acts { display: grid; gap: .3rem; padding: .7rem .8rem; margin: .2rem 0 .6rem; border: 1px dashed var(--rule); border-radius: 6px; }
+.shared-h { display: flex; align-items: center; gap: .4rem; margin: 0; font-size: .78rem; letter-spacing: .12em; text-transform: uppercase; color: var(--gold); }
+.shared-h .ico { width: 1rem; height: 1rem; }
+.shared-item { display: grid; gap: .35rem; justify-items: start; text-align: left; font-style: normal; }
+.join-btn { display: inline-flex; align-items: center; gap: .35rem; padding: .35rem .85rem; border: 1px solid var(--gold); border-radius: 999px;
+  background: none; color: var(--gold); font: inherit; font-size: .88rem; cursor: pointer; }
+.join-btn .ico { width: .95rem; height: .95rem; }
+.shared-acts .joined { color: var(--dim); }
+.group-events { display: grid; gap: .6rem; }
+.group-events h2 { display: flex; align-items: center; gap: .5rem; }
+.g-event { display: flex; align-items: flex-start; gap: .7rem; padding: .7rem .8rem; border: 1px solid var(--gold); border-radius: 8px; background: color-mix(in srgb, var(--gold) 9%, var(--surface)); }
+.g-event > .ico { width: 1.3rem; height: 1.3rem; color: var(--gold); flex: none; margin-top: .15rem; }
+.g-event > div { display: grid; gap: .15rem; flex: 1; min-width: 0; }
+.g-event b { font: 500 .8rem/1.2 var(--display); letter-spacing: .1em; text-transform: uppercase; color: var(--gold); }
+.g-event span { overflow-wrap: anywhere; }
+.g-event small { color: var(--dim); font-size: .8rem; }
+.g-del { display: flex; flex-direction: column; align-items: flex-end; gap: .2rem; }
+.ev-new summary { display: flex; align-items: center; gap: .4rem; cursor: pointer; color: var(--dim); list-style: none; }
+.ev-new summary::-webkit-details-marker { display: none; }
+.ev-new summary .ico { width: 1rem; height: 1rem; }
+.ev-form { display: grid; gap: .6rem; margin-top: .6rem; }
+.ev-until { display: grid; gap: .2rem; font-size: .85rem; color: var(--dim); }
+.ev-form .btn { justify-self: start; }
 .with-pick summary { display: flex; align-items: center; gap: .4rem; cursor: pointer; font-size: .85rem; color: var(--dim); list-style: none; }
 .with-pick summary::-webkit-details-marker { display: none; }
 .with-pick summary .ico { width: 1rem; height: 1rem; flex: none; }
@@ -765,13 +788,30 @@ const withTxt = (wa, l) => (w => w.length ? ' avec ' + andList(w.map(nameOf)) : 
 const withKey = (id, other, l) => 'with:' + keyOf(rpDay) + ':' + id + ':' + other + ':' + l;
 // Pas d'activité commune sur un voyage (il a sa section) ni sur une activité intime.
 const canShareAct = l => l !== 'Voyage' && !/^Sexe avec /i.test(l);
-const setWith = (id, l, other, on) => {
+const setWith = (id, l, other, on, quiet = false) => {
   const s = state[id], cur = new Set(withOf(s.withActs, l));
   on ? cur.add(other) : cur.delete(other);
   s.withActs ||= {};
   if (cur.size) s.withActs[l] = [...cur]; else delete s.withActs[l];
-  if (on) notify(id, other, `${nameOf(id)} a noté « ${l} » avec ${nameOf(other)}.`, withKey(id, other, l));
+  if (on && !quiet) notify(id, other, `${nameOf(id)} a noté « ${l} » avec ${nameOf(other)}.`, withKey(id, other, l));
   else dropNews([withKey(id, other, l)]);
+};
+// Activités où un autre personnage (fiche validée) a mentionné celui-ci aujourd'hui.
+const sharedActsOf = id => C.filter(x => x.id !== id && state[x.id]?.done).flatMap(x => Object.entries(state[x.id].withActs || {})
+  .filter(([l, ids]) => ids.includes(id) && state[x.id].checked?.has(l)).map(([l, ids]) => ({ from: x.id, act: l, others: ids.filter(o => o !== id && isChar(o)) })));
+const sharedActsHtml = (id, canJoin) => {
+  const L = sharedActsOf(id); if (!L.length) return '';
+  return `<div class="shared-acts"><p class="shared-h">${icon('users')}Activités communes du jour</p>${L.map(a => `<div class="shared-item"><span>${esc(nameOf(a.from))} a noté « ${esc(a.act)} » avec ${esc(andList([nameOf(id), ...a.others.map(nameOf)]))}.</span>
+    ${canJoin ? state[id].checked.has(a.act) ? '<small class="joined">✓ Sur la fiche</small>' : `<button type="button" class="join-btn" data-join-from="${a.from}" data-join-act="${esc(a.act)}">${icon('plus')}L'ajouter à la fiche ${deName(nameOf(id))}</button>` : ''}</div>`).join('')}</div>`;
+};
+// Reprend l'activité d'un autre personnage : cochée (en activité spéciale si elle n'est pas dans la liste), mêmes moments, mêmes personnages.
+const joinAct = (id, from, l) => {
+  const s = state[id], c = C.find(x => x.id === id);
+  if (!allActs(c).includes(l) && !s.specials.includes(l)) s.specials.push(l);
+  s.checked.add(l);
+  if (!s.slots[l] && state[from].slots?.[l]?.length) s.slots[l] = [...state[from].slots[l]];
+  const told = new Set([playerOf(id)]);   // une seule nouvelle par joueur
+  [from, ...withOf(state[from].withActs, l).filter(o => o !== id)].forEach(o => { setWith(id, l, o, true, told.has(playerOf(o))); told.add(playerOf(o)); });
 };
 const clearWith = (id, l) => { const s = state[id]; withOf(s.withActs, l).forEach(o => dropNews([withKey(id, o, l)])); if (s.withActs) delete s.withActs[l]; };
 const pairKeys = (a, b) => { const d = keyOf(rpDay); return ['night:' + d + ':' + [a, b].sort().join('+'), 'risk:' + d + ':' + a + ':' + b, 'risk:' + d + ':' + b + ':' + a]; };
@@ -788,6 +828,57 @@ const checkRisk = id => {
   const text = `${whoLabel(man)} ne s'est pas protégé. ${nameOf(woman)} est-elle enceinte ?`;
   NEWS.unshift({ to: playerOf(woman), text, charId: woman, key, read: false, src: id, at: Date.now() });
 };
+// ---------- Événements du groupe : annoncés par un joueur, une nouvelle (et une notification) pour tous les autres ----------
+const EVENT_TYPES = [
+  { id:'info', label:"Information importante pour l'Iloh", icon:'warn' },
+  { id:'chasse', label:'Grand événement de chasse', icon:'target' },
+  { id:'fete', label:'Fête ou rassemblement', icon:'star' },
+  { id:'autre', label:'Annonce au groupe', icon:'flag' },
+];
+const GROUP_EVENTS = {};   // id → { type, text, by (joueur), at, until (AAAA-MM-JJ ou null) } — rempli par sync.js (shared/events)
+const evType = t => EVENT_TYPES.find(x => x.id === t) || EVENT_TYPES[EVENT_TYPES.length - 1];
+const evText = e => `${evType(e.type).label} : ${e.text}`;
+const activeEvents = () => Object.entries(GROUP_EVENTS).filter(([, e]) => e && (!e.until || e.until >= isoDay(rpDay))).sort((a, b) => b[1].at - a[1].at);
+const evView = { open: false, del: null, type: 'info' };
+const addGroupEvent = (type, text, until) => {
+  const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6), at = Date.now();
+  const e = { type, text, by: me, at, until: until || null };
+  GROUP_EVENTS[id] = e; window.RP_SYNC?.saveEvent(id, e);
+  PLAYERS.filter(p => p.id !== me).forEach(p => NEWS.unshift({ to: p.id, text: evText(e), charId: null, key: 'event:' + id + ':' + p.id, read: false, at }));
+};
+const removeGroupEvent = id => { delete GROUP_EVENTS[id]; window.RP_SYNC?.saveEvent(id, null); dropNews(PLAYERS.map(p => 'event:' + id + ':' + p.id)); };
+const fmtIso = iso => { const [y, m, d] = iso.split('-').map(Number); return fmtDay(new Date(y, m - 1, d)); };
+const groupEventsHtml = () => {
+  const list = activeEvents();
+  return `<section class="group-events"><h2>${icon('flag')}Événements du groupe</h2>
+    ${list.map(([id, e]) => `<div class="g-event">${icon(evType(e.type).icon)}<div><b>${esc(evType(e.type).label)}</b><span>${esc(e.text)}</span>
+      <small>Annoncé par ${esc(PLAYER_NAME[e.by] || '?')} le ${fmtDay(new Date(e.at))}${e.until ? ` · jusqu'au ${fmtIso(e.until)}` : ''}</small></div>
+      ${e.by === me || isAdminMe() ? evView.del === id ? `<span class="g-del"><button type="button" class="link small danger" data-ev-del-ok="${id}">Retirer l'annonce</button> <button type="button" class="link small" data-ev-del-no>Annuler</button></span>`
+        : `<button type="button" class="link small ico-btn" data-ev-del="${id}" title="Retirer l'annonce" aria-label="Retirer l'annonce">${icon('trash')}</button>` : ''}</div>`).join('')}
+    ${list.length ? '' : '<p class="reserved">Aucun événement en cours.</p>'}
+    <details class="ev-new"${evView.open ? ' open' : ''}><summary>${icon('plus')}Annoncer un événement au groupe</summary>
+      <div class="ev-form">
+        <div class="place-list" role="group" aria-label="Type d'événement">${EVENT_TYPES.map(t => `<button type="button" data-ev-type="${t.id}" aria-pressed="${evView.type === t.id}">${icon(t.icon)}${esc(t.label)}</button>`).join('')}</div>
+        <input type="text" id="ev-text" maxlength="200" placeholder="Ex. : Couvre-feu à partir de ce soir" enterkeyhint="send">
+        <label class="ev-until"><span>Jusqu'au (facultatif)</span><input type="date" id="ev-until" min="${isoDay(rpDay)}"></label>
+        <button type="button" class="btn" id="ev-add">Annoncer à tout le groupe</button>
+        <p class="reserved">Tous les autres joueurs recevront une nouvelle et une notification.</p>
+      </div></details></section>`;
+};
+document.addEventListener('toggle', e => { if (e.target.classList?.contains('ev-new')) evView.open = e.target.open; }, true);
+document.addEventListener('click', e => {
+  const t = e.target.closest('[data-ev-type]'), add = e.target.closest('#ev-add'), del = e.target.closest('[data-ev-del]'), ok = e.target.closest('[data-ev-del-ok]');
+  if (t) { evView.type = t.dataset.evType; document.querySelectorAll('[data-ev-type]').forEach(b => b.setAttribute('aria-pressed', b === t)); return; }
+  if (e.target.closest('[data-ev-del-no]')) { evView.del = null; return go('home'); }
+  if (del) { evView.del = del.dataset.evDel; return go('home'); }
+  if (ok) { evView.del = null; removeGroupEvent(ok.dataset.evDelOk); return go('home'); }
+  if (add) {
+    const f = document.getElementById('ev-text'), text = f.value.trim(); if (!text) return f.focus();
+    addGroupEvent(evView.type, text, document.getElementById('ev-until').value || null);
+    evView.open = false; go('home');
+  }
+});
+document.addEventListener('keydown', e => { if (e.target.id === 'ev-text' && e.key === 'Enter') { e.preventDefault(); document.getElementById('ev-add')?.click(); } });
 const MS_NEWS = {
   'Rencontre':   (a, b) => `${a} et ${b} se sont rencontrés !`,
   'Fiançailles': (a, b) => `${a} et ${b} sont fiancés !`,
@@ -2166,11 +2257,12 @@ function renderHome() {
       ${Object.entries(PLAYER_NAME).map(([k, n]) => `<button type="button" data-me="${k}" aria-pressed="${me === k}">${n}</button>`).join('')}</div>
     <header><p class="kicker">${APP_NAME}</p><h1>Aujourd'hui</h1><p class="date">${today}<br>${eorzeaDate}</p>${(f => f ? `<p class="fest home-fest">${icon('star')}En Eorzea : ${f.name}</p>` : '')(festivalOn(rpDay))}</header>
     ${((unread, day) => `<section class="news"><h2>${icon('bell')}Nouvelles${unread.length ? ` <span class="badge">${unread.length}</span>` : ''}</h2>
-      ${unread.length ? `<ul>${unread.slice(0, 8).map(n => `<li class="unread"><button type="button" class="link" data-go="${n.charId}">${esc(n.text)}</button></li>`).join('')}</ul>
+      ${unread.length ? `<ul>${unread.slice(0, 8).map(n => `<li class="unread">${n.charId ? `<button type="button" class="link" data-go="${n.charId}">${esc(n.text)}</button>` : `<span>${esc(n.text)}</span>`}</li>`).join('')}</ul>
       <button type="button" class="link ico-btn" id="news-read" title="Tout marquer comme lu" aria-label="Tout marquer comme lu">${icon('checks')}</button>` : '<p class="reserved">Rien de nouveau pour l\'instant.</p>'}
       <details class="news-day"${newsDayOpen ? ' open' : ''}><summary>Nouvelles du jour (${day.length})</summary>
-        ${day.length ? `<ul>${day.map(n => `<li class="${n.read ? '' : 'unread'}"><button type="button" class="link" data-go="${n.charId}"><small>${newsHour(n)}</small> ${esc(n.text)}</button></li>`).join('')}</ul>` : '<p class="reserved">Aucune nouvelle depuis 5 h ce matin.</p>'}</details>
+        ${day.length ? `<ul>${day.map(n => `<li class="${n.read ? '' : 'unread'}">${n.charId ? `<button type="button" class="link" data-go="${n.charId}"><small>${newsHour(n)}</small> ${esc(n.text)}</button>` : `<span><small>${newsHour(n)}</small> ${esc(n.text)}</span>`}</li>`).join('')}</ul>` : '<p class="reserved">Aucune nouvelle depuis 5 h ce matin.</p>'}</details>
       </section>`)(myNews().filter(n => !n.read), newsOfToday())}
+    ${groupEventsHtml()}
     ${wrapBanner(`<div class="wrap-open">${C.filter(c => c.player === me).map(c => `<button type="button" class="btn" data-wrap-open="${c.id}">${c.name}</button>`).join('')}</div>`)}
     <div class="grid">
       ${visible.map(c => { const t = THEMES[c.theme]; const s = state[c.id];
@@ -2346,6 +2438,7 @@ function renderCharNow(id) {
   if (s.done || readOnly) {
     document.getElementById('view').innerHTML = `
     ${tabsHtml(id)}
+    ${sharedActsHtml(id, false)}
     ${readOnly ? `<p class="readonly-note">${icon('eye')}${isMirror(id) ? `Fiche tenue par ${PLAYER_NAME[c.player]} dans Journée RP, recopiée ici : lecture seule.` : `Fiche de ${PLAYER_NAME[c.player]} : lecture seule.`}</p>` : `<p class="preview-note">Aperçu de la journée validée. C'est ce résumé qui sert de base au récap Discord et à l'encart « Aujourd'hui » de la fiche.</p>`}
     <article class="recap">
       ${alertBlock(id, false)}
@@ -2412,6 +2505,7 @@ function renderCharNow(id) {
     <section class="chrono"><h2>Chronologie du jour</h2>
     ${prevNightBlock(id)}
     <div class="chrono-part"><h3 class="chrono-h">Activités</h3>
+      ${sharedActsHtml(id, true)}
       ${cats.length ? '' : `<p class="reserved">Liste d'activités à définir. En attendant, utilise le champ « Activité spéciale » et coche « L'ajouter aussi à la liste ».</p>`}
       ${!s.manageActs && cats.length > 1 ? `<div class="fold-all"><button type="button" class="link small ico-btn" data-fold-all="1" title="Tout replier" aria-label="Tout replier">${icon('foldall')}</button><button type="button" class="link small ico-btn" data-fold-all="0" title="Tout déplier" aria-label="Tout déplier">${icon('unfoldall')}</button></div>` : ''}
       ${cats.map(k => !s.manageActs ? (list => `<details class="cat fold" data-fold="${k}" ${isFolded(id, k) ? '' : 'open'}>
@@ -2675,6 +2769,7 @@ function renderCharNow(id) {
     else { s.checked.delete(l); delete s.slots[l]; clearWith(id, l); if (RANDOM_ACTS[l] && s.details) delete s.details[l]; if (s.huntSet) delete s.huntSet[l]; }
     renderChar(id);
   }));
+  document.querySelectorAll('[data-join-from]').forEach(b => b.addEventListener('click', () => { joinAct(id, b.dataset.joinFrom, b.dataset.joinAct); renderChar(id); }));
   document.querySelectorAll('[data-share]').forEach(b => b.addEventListener('click', () => {
     setWith(id, b.dataset.shareAct, b.dataset.share, b.getAttribute('aria-pressed') !== 'true'); renderChar(id);
   }));

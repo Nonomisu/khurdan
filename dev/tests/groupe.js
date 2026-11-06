@@ -150,6 +150,19 @@ const ok = (cond, label) => { console.log((cond ? '  ok  ' : '  ÉCHEC ') + labe
   ok(!JSON.stringify(Object.entries(d).filter(([k]) => k.startsWith('shared/') || k.startsWith('days/') || k.startsWith('today/'))).match(/"hot"|Une voyageuse/),
     'ni nuit chaude ni amant dans les données lues par tout le groupe');
 
+  console.log('Événement du groupe (Nono)');
+  await nono.evaluate(() => go('home')); await nono.waitForTimeout(200);
+  ok((await nono.textContent('.group-events')).includes('Aucun événement'), 'aucun événement au départ');
+  await nono.click('.ev-new summary'); await nono.click('[data-ev-type="chasse"]');
+  await nono.fill('#ev-text', 'Inscrivez-vous'); await nono.click('#ev-add'); await nono.waitForTimeout(1500);
+  ok((await nono.textContent('.group-events')).includes('Grand événement de chasse') && (await nono.textContent('.group-events')).includes('Inscrivez-vous'), 'annonce affichée sur l\'accueil');
+  d = await db(nono);
+  const evs = Object.values(d['shared/events'] || {});
+  ok(evs.length === 1 && evs[0].by === 'nono' && evs[0].type === 'chasse', 'annonce enregistrée pour tout le groupe');
+  const evNews = Object.values(d).filter(v => v?.key?.startsWith?.('event:'));
+  ok(evNews.length === 5 && evNews.every(n => n.from === 'nono' && n.to !== 'nono' && n.text === 'Grand événement de chasse : Inscrivez-vous'), 'une nouvelle pour chacun des 5 autres joueurs');
+  ok(await nono.locator('[data-ev-del]').count() === 1, 'l\'auteur peut retirer son annonce');
+
   console.log('Joueur (Idriss)');
   const idr = await open('idriss', 'idriss@test.fr');
   ok((await idr.textContent('.news')).match(/Reaksa|Oldaghar/) !== null, 'Idriss voit la nouvelle de la nuit');
@@ -172,6 +185,16 @@ const ok = (cond, label) => { console.log((cond ? '  ok  ' : '  ÉCHEC ') + labe
   const before = posts.length;
   const ed = await open('eden', 'eden@test.fr');
   ok((await ed.textContent('.news')).includes('a noté'), 'Eden voit la nouvelle de l\'activité commune');
+  ok((await ed.textContent('.news')).includes('Grand événement de chasse : Inscrivez-vous'), 'Eden reçoit la nouvelle de l\'événement');
+  ok((await ed.textContent('.group-events')).includes('Annoncé par Nono'), 'Eden voit l\'annonce sur l\'accueil');
+  ok(await ed.locator('[data-ev-del]').count() === 0, 'Eden ne peut pas retirer l\'annonce de Nono');
+  await ed.evaluate(() => go('buyan')); await ed.waitForTimeout(200);
+  ok((await ed.textContent('.shared-acts')).includes('Oldaghar a noté « Chasse au faucon » avec Buyan et Shuna'), 'fiche de Buyan : activité commune notée par Oldaghar');
+  await ed.click('[data-join-from="oldaghar"]'); await ed.waitForTimeout(200);
+  ok(await ed.evaluate(() => state.buyan.checked.has('Chasse au faucon') && state.buyan.specials.includes('Chasse au faucon')), 'activité ajoutée à la fiche de Buyan (activité spéciale du jour)');
+  ok(await ed.evaluate(() => JSON.stringify(state.buyan.withActs['Chasse au faucon'])) === '["oldaghar","shuna"]', 'avec Oldaghar et Shuna');
+  ok(await ed.evaluate(() => NEWS.filter(n => n.key.startsWith('with:') && n.to === 'sheyla').length) === 1, 'une seule nouvelle pour Sheyla (Oldaghar et Shuna sont à elle)');
+  ok((await ed.textContent('.shared-acts')).includes('Sur la fiche'), 'repère « Sur la fiche » à la place du bouton');
   await ed.evaluate(() => go('buyan')); await ed.waitForTimeout(200);
   ok(await ed.locator('#mood-buyan').count() === 1, 'Eden remplit Buyan');
   ok(await ed.locator('#hot-buyan').count() === 0, 'pas de nuit chaude pour Buyan');

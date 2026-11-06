@@ -198,6 +198,29 @@ html, body, #view { overflow-anchor: none; }
 .act:has(input:checked) span { color: var(--gold); }
 .act-wrap { display: grid; gap: .35rem; }
 .with-pick { padding-left: 2.7rem; }
+.shared-acts { display: grid; gap: .3rem; padding: .7rem .8rem; margin: .2rem 0 .6rem; border: 1px dashed var(--rule); border-radius: 6px; }
+.shared-h { display: flex; align-items: center; gap: .4rem; margin: 0; font-size: .78rem; letter-spacing: .12em; text-transform: uppercase; color: var(--gold); }
+.shared-h .ico { width: 1rem; height: 1rem; }
+.shared-item { display: grid; gap: .35rem; justify-items: start; text-align: left; font-style: normal; }
+.join-btn { display: inline-flex; align-items: center; gap: .35rem; padding: .35rem .85rem; border: 1px solid var(--gold); border-radius: 999px;
+  background: none; color: var(--gold); font: inherit; font-size: .88rem; cursor: pointer; }
+.join-btn .ico { width: .95rem; height: .95rem; }
+.shared-acts .joined { color: var(--dim); }
+.group-events { display: grid; gap: .6rem; }
+.group-events h2 { display: flex; align-items: center; gap: .5rem; }
+.g-event { display: flex; align-items: flex-start; gap: .7rem; padding: .7rem .8rem; border: 1px solid var(--gold); border-radius: 8px; background: color-mix(in srgb, var(--gold) 9%, var(--surface)); }
+.g-event > .ico { width: 1.3rem; height: 1.3rem; color: var(--gold); flex: none; margin-top: .15rem; }
+.g-event > div { display: grid; gap: .15rem; flex: 1; min-width: 0; }
+.g-event b { font: 500 .8rem/1.2 var(--display); letter-spacing: .1em; text-transform: uppercase; color: var(--gold); }
+.g-event span { overflow-wrap: anywhere; }
+.g-event small { color: var(--dim); font-size: .8rem; }
+.g-del { display: flex; flex-direction: column; align-items: flex-end; gap: .2rem; }
+.ev-new summary { display: flex; align-items: center; gap: .4rem; cursor: pointer; color: var(--dim); list-style: none; }
+.ev-new summary::-webkit-details-marker { display: none; }
+.ev-new summary .ico { width: 1rem; height: 1rem; }
+.ev-form { display: grid; gap: .6rem; margin-top: .6rem; }
+.ev-until { display: grid; gap: .2rem; font-size: .85rem; color: var(--dim); }
+.ev-form .btn { justify-self: start; }
 .with-pick summary { display: flex; align-items: center; gap: .4rem; cursor: pointer; font-size: .85rem; color: var(--dim); list-style: none; }
 .with-pick summary::-webkit-details-marker { display: none; }
 .with-pick summary .ico { width: 1rem; height: 1rem; flex: none; }
@@ -541,6 +564,6 @@ button.link.danger { color: #e0a24d; }
 <div class="sync-state" id="sync-state" aria-live="polite"></div>
 </div>
 
-<script src="app.js?v=330a1fb706" charset="utf-8"></script>
-<script type="module" src="sync.js?v=f09365e606"></script>
+<script src="app.js?v=e93a2ec710" charset="utf-8"></script>
+<script type="module" src="sync.js?v=6b528f2857"></script>
 
