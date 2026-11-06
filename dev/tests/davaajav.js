@@ -37,6 +37,8 @@ const ok = (cond, label) => { console.log((cond ? '  ok  ' : '  ÉCHEC ') + labe
     'access/idriss@test.fr': { player: 'idriss', role: 'joueur' },
     'shared/discord': { webhook: 'https://discord.com/api/webhooks/1/test' },
     // Telles que recopiées : fiches sans nuit ni activité intime ; la nuit de Taiga avec Davaajav dans l'espace du couple Taiga-Tamachag.
+    // Message groupé envoyé par l'ancienne version de l'appli : remplacé par un message par fiche
+    [`shared/recaps-${ym}-${day.padStart(2, '0')}`]: { _batch: { msg: 'ancien', ids: ['davaajav', 'taiga'], sigs: {} } },
     [`days/davaajav/months/${ym}`]: { [day]: { mood: 'Invité comblé', done: true, checked: { $set: ['Travail du bois'] }, slots: {}, nightNotes: {} } },
     [`days/taiga/months/${ym}`]: { [day]: { mood: 'Rêveuse', done: true, checked: { $set: [] }, nightNotes: {} } },
     [`couples/taiga-tamachag/months/${ym}`]: { [day]: { nights: { taiga: { hot: true, with: 'davaajav' } } },
@@ -74,6 +76,8 @@ const ok = (cond, label) => { console.log((cond ? '  ok  ' : '  ÉCHEC ') + labe
   ok(!/nuit chaude|Sexe avec|Taiga/i.test(dav), 'image de Davaajav : ni nuit chaude ni mention de Taiga');
   ok(!/nuit chaude|Sexe avec|Davaajav/i.test(tai), 'image de Taiga : ni nuit chaude ni mention de Davaajav');
   ok(caps.every(t => !/Nuit (à venir|précédente)/.test(t)), 'ni nuit à venir ni nuit précédente');
+  ok(sent.length === 2 && sent.every(t => t.caps.length === 1), 'un message par fiche');
+  ok(posts.filter(t => t.method === 'DELETE').length === 1, 'ancien message groupé du jour supprimé');
   // Fiche validée de nouveau (modification dans Journée RP) : l'image remplacée reste propre
   await nono.evaluate(([ym, day]) => { const m = JSON.parse(localStorage.getItem('mockdb')); m[`days/davaajav/months/${ym}`][day].mood = 'Invité comblé, encore'; localStorage.setItem('mockdb', JSON.stringify(m)); }, [ym, day]);
   const n2 = await open('nono', 'nono@test.fr');

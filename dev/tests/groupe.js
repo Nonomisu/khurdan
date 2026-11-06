@@ -73,19 +73,20 @@ const ok = (cond, label) => { console.log((cond ? '  ok  ' : '  ÉCHEC ') + labe
   ok(d['characters/buyan']?.player === 'eden' && d['characters/tsewang']?.player === 'jynette', 'joueurs des fiches repris de la config');
   ok(await nono.locator('.discord-set').count() === 1, 'réglage Discord visible pour l\'admin');
   const mir = () => posts.filter(t => t.titles?.length && t.method === 'POST');
-  ok(mir().length === 1, 'fiches recopiées : un seul message Discord à l\'ouverture');
-  ok(mir()[0]?.files === 2 && mir()[0].titles.some(t => t.includes('Tamachag')) && mir()[0].titles.some(t => t.includes('Tengis')), 'le message contient les 2 fiches (Tamachag et Tengis), une image chacune');
-  ok(mir()[0]?.caps.length === 2 && mir()[0].caps.every(t => !t.includes('Nuit chaude')), 'aucune image avec la nuit chaude, même ouverte par un joueur du couple');
-  ok(mir()[0]?.caps.every(t => !/Nuit (à venir|précédente)/.test(t)), 'ni nuit à venir ni nuit précédente dans les images');
+  ok(mir().length === 2, 'fiches recopiées : un message Discord par fiche à l\'ouverture');
+  ok(mir().every(t => t.files === 1 && t.caps.length === 1 && t.titles.length === 1) && mir().some(t => t.titles[0].includes('Tamachag')) && mir().some(t => t.titles[0].includes('Tengis')), 'Tamachag et Tengis : chacun son message, avec son image');
+  ok(mir().every(t => !t.caps[0].includes('Nuit chaude')), 'aucune image avec la nuit chaude, même ouverte par un joueur du couple');
+  ok(mir().every(t => !/Nuit (à venir|précédente)/.test(t.caps[0])), 'ni nuit à venir ni nuit précédente dans les images');
   ok(await nono.locator('#mirror-update').count() === 0, 'écran « Mise à jour des fiches » refermé');
   d = await db(nono);
-  ok(!!d[`shared/recaps-${ym}-${String(rp.getDate()).padStart(2, '0')}`]?._batch?.msg, 'envoi noté (verrou partagé)');
+  const rcp = () => d[`shared/recaps-${ym}-${String(rp.getDate()).padStart(2, '0')}`] || {};
+  ok(!!rcp().tamachag?.msg && !!rcp().tengis?.msg && rcp().tamachag.msg !== rcp().tengis.msg, 'envoi noté fiche par fiche (verrou partagé)');
   ok((await nono.textContent('#view header .kicker')).includes('Iloh Khurdan'), 'retour à l\'écran d\'avant après l\'envoi');
   // Relance de l'appli (et reprise automatique) : pas de nouvel envoi sans changement
   await nono.evaluate(() => go('tamachag')); await nono.waitForTimeout(300); await nono.evaluate(() => go('home'));
   await nono.evaluate(() => window.RP_DISCORD.sendMirrors()); await nono.waitForTimeout(2500);
   const nono2 = await open('nono', 'nono@test.fr'); await nono2.waitForTimeout(3500); await nono2.close();
-  ok(mir().length === 1 && !posts.some(t => t.method === 'PATCH'), 'relance de l\'appli : rien n\'est renvoyé');
+  ok(mir().length === 2 && !posts.some(t => t.method === 'PATCH'), 'relance de l\'appli : rien n\'est renvoyé');
   // Filtre Eden
   await nono.click('#f-eden'); await nono.waitForTimeout(150);
   ok(await nono.locator('.grid .card').count() === 3, 'filtre Eden : 3 personnages');
@@ -267,7 +268,11 @@ const ok = (cond, label) => { console.log((cond ? '  ok  ' : '  ÉCHEC ') + labe
   await nono.fill('#xadd-tamachag', 'Chasse en groupe'); await nono.click('[data-xadd="tamachag"]'); await nono.waitForTimeout(300);
   ok((await nono.textContent('.compl')).includes('Chasse en groupe · ajoutée dans Iloh'), 'activité ajoutée dans Iloh');
   ok((await nono.textContent('.recap')).includes('Travail du bois avec Buyan') && (await nono.textContent('.recap')).includes('Chasse en groupe'), 'récap : fiche de Journée RP + compléments');
-  await nono.waitForTimeout(1200);
+  await nono.evaluate(() => go('home')); await nono.waitForTimeout(4000);
+  const patches = posts.filter(t => t.method === 'PATCH');
+  ok(patches.length >= 1 && patches.every(t => t.titles.length === 1 && t.titles[0].includes('Tamachag')) && patches.at(-1).caps[0]?.includes('Travail du bois avec Buyan') && patches.at(-1).caps[0].includes('Chasse en groupe'),
+    'Discord : seule l\'image de Tamachag est remplacée, avec les compléments Iloh');
+  ok(mir().filter(t => /Tamachag|Tengis/.test(t.titles[0])).length === 2, 'pas de nouveau message (mise à jour du message existant)');
   d = await db(nono);
   const xd = d[`extras/tamachag/months/${ym}`]?.[day];
   ok(JSON.stringify(xd?.withActs?.['Travail du bois']) === '["buyan"]' && JSON.stringify(xd?.added) === '["Chasse en groupe"]', 'compléments enregistrés à part (extras)');

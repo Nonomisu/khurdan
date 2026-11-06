@@ -215,8 +215,8 @@ window.RP_DISCORD.autoWraps = autoWraps;
 // recopiées du jour en un seul message Discord (une seule notification), en vue publique (sans nuit chaude).
 // Un seul message par journée : une fiche nouvelle → nouveau message (et l'ancien est supprimé) ; une fiche seulement
 // modifiée → le message est mis à jour sans nouvelle notification. Verrou et suivi : shared/recaps-AAAA-MM-JJ.
-let mirrorBusy = false, mirrorDoneSig = null;
-const MAX_FILES = 10;   // limite de Discord par message
+let mirrorBusy = false;
+const mirrorDone = {};   // id → signature déjà envoyée (ou vérifiée) pour cette fiche
 const updateScreen = (names, i) => {
   let o = document.getElementById('mirror-update');
   if (names == null) { o?.remove(); return; }
@@ -230,58 +230,46 @@ const updateScreen = (names, i) => {
     <p style="margin:0;font:700 1.5rem/1.2 'Alegreya SC',Georgia,serif;letter-spacing:.05em">Mise à jour des fiches</p>
     <p style="margin:0;color:#a2988c;font-style:italic">${i < names.length ? `Fiche ${deName(esc(names[i]))} (${i + 1} / ${names.length})…` : 'Envoi sur Discord…'}</p></div>`;
 };
+// Fiches recopiées de Journée RP (et leurs compléments Iloh) : un message par fiche, envoyé une seule fois ;
+// une fiche modifiée remplace l'image de SON message (les autres ne bougent pas).
 const updateMirrors = async () => {
   if (window.RP_TEST_COPY) return;
   if (mirrorBusy || !hookFor() || !window.RP_SYNC || isTyping(document.activeElement) || document.getElementById('wrap-sending')) return;
-  const list = C.filter(x => x.mirror && state[x.id].done).slice(0, MAX_FILES);
-  if (!list.length) return;
-  const sigs = Object.fromEntries(list.map(c => [c.id, RP_SYNC.entrySig(c.id)]));
-  if (mirrorDoneSig === JSON.stringify(sigs)) return;
+  const todo = C.filter(x => x.mirror && state[x.id].done).map(c => ({ c, sig: RP_SYNC.entrySig(c.id) })).filter(x => mirrorDone[x.c.id] !== x.sig);
+  if (!todo.length) return;
   mirrorBusy = true;
-  const back = { current, views: Object.fromEntries(list.map(c => [c.id, state[c.id].view])) };
+  const back = { current, views: Object.fromEntries(todo.map(x => [x.c.id, state[x.c.id].view])) };
+  let batch = null, shown = false;
   try {
-    const claim = await RP_SYNC.recapBatchClaim(sigs);
-    if (claim === 'done') { mirrorDoneSig = JSON.stringify(sigs); return; }
-    if (!claim) return;                                   // envoi en cours sur un autre appareil
-    const names = list.map(c => c.name), blobs = [];
-    try {
-      publicView = true;
-      for (let i = 0; i < list.length; i++) {
-        updateScreen(names, i);
-        state[list[i].id].view = 'day'; go(list[i].id); await pause(350);
-        blobs.push(await recapBlob(list.length > 4 ? 1.5 : 2));
-      }
-      updateScreen(names, list.length);
-      // Discord : 25 Mo par message au plus ; au-delà, images moins grandes.
-      if (blobs.reduce((a, b) => a + b.size, 0) > 20e6) {
-        for (let i = 0; i < list.length; i++) { state[list[i].id].view = 'day'; go(list[i].id); await pause(250); blobs[i] = await recapBlob(1); }
-      }
-      const msg = await postMirrors(list, blobs, claim.newOnes ? null : claim.msg);
-      // Ancien message du jour (et anciens messages fiche par fiche) : supprimés, il n'en reste qu'un.
-      const old = [...(claim.newOnes && claim.msg ? [claim.msg] : []), ...claim.single].filter(m => m && m !== msg);
-      for (const m of old) await fetch(`${hookFor()}/messages/${m}`, { method: 'DELETE' }).catch(() => {});
-      await RP_SYNC.recapBatchSent(sigs, msg, list.map(c => c.id));
-      mirrorDoneSig = JSON.stringify(sigs);
-    } catch (e) { console.error(e); await RP_SYNC.recapBatchFailed().catch(() => {}); }
+    // Chaque fiche est réservée avant envoi : deux appareils ne l'envoient jamais en double.
+    const claimed = [];
+    for (const x of todo) {
+      const claim = await RP_SYNC.recapClaim(x.c.id, x.sig).catch(e => { console.error(e); return null; });
+      if (claim === 'done') mirrorDone[x.c.id] = x.sig;
+      else if (claim) { claimed.push({ ...x, prev: claim.msg }); batch ||= claim.batch; }
+    }
+    const names = claimed.map(x => x.c.name);
+    publicView = true;
+    for (let i = 0; i < claimed.length; i++) {
+      const { c, sig, prev } = claimed[i];
+      try {
+        updateScreen(names, i); shown = true;
+        state[c.id].view = 'day'; go(c.id); await pause(350);
+        const msg = await postRecap(c, await recapBlob(2), prev);
+        await RP_SYNC.recapSent(c.id, sig, msg); mirrorDone[c.id] = sig;
+      } catch (e) { console.error(e); await RP_SYNC.recapFailed(c.id).catch(() => {}); }
+    }
+    // Ancien message groupé (version précédente de l'appli) : remplacé par les messages fiche par fiche.
+    if (batch && claimed.length && claimed.every(x => mirrorDone[x.c.id] === x.sig)) {
+      await fetch(`${hookFor()}/messages/${batch}`, { method: 'DELETE' }).catch(() => {});
+      await RP_SYNC.recapBatchGone().catch(() => {});
+    }
   } finally {
     publicView = false;
     Object.entries(back.views).forEach(([id, v]) => { state[id].view = v; });
-    if (document.getElementById('mirror-update')) { go(back.current); updateScreen(null); }
+    if (shown || document.getElementById('mirror-update')) { go(back.current); updateScreen(null); }
     mirrorBusy = false;
   }
-};
-// Un seul message : un encadré par fiche, chacun avec son image.
-const postMirrors = async (list, blobs, prev) => {
-  const hook = hookFor();
-  const payload = { username: `Iloh Khurdan`, avatar_url: APP_URL + 'icon-512.png',
-    embeds: list.map((c, i) => ({ ...embedFor(c.id), image: { url: `attachment://recap-${c.id}.png` } })),
-    attachments: list.map((c, i) => ({ id: i, filename: `recap-${c.id}.png` })) };
-  const form = () => { const f = new FormData(); f.append('payload_json', JSON.stringify(payload)); blobs.forEach((b, i) => f.append(`files[${i}]`, b, `recap-${list[i].id}.png`)); return f; };
-  let res = prev ? await fetch(`${hook}/messages/${prev}`, { method: 'PATCH', body: form() }) : null;
-  if (res && res.ok) return prev;
-  res = await fetch(`${hook}?wait=true`, { method: 'POST', body: form() });
-  if (!res.ok) throw new Error('Discord ' + res.status);
-  return (await res.json().catch(() => null))?.id || null;
 };
 let mirrorTimer = null;
 window.RP_DISCORD.updateMirrors = updateMirrors;
