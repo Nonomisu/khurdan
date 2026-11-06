@@ -5,6 +5,7 @@ const THEMES = {
 const CATS = { quotidien:'Quotidien', metier:'Charge & métier', liens:'Liens' };
 // Catégories repliées (par personnage), gardées sur cet appareil.
 const FOLDED = (() => { try { return new Set(JSON.parse(localStorage.getItem('rp-folded') || '[]')); } catch { return new Set(); } })();
+const withOpen = new Set();   // sélecteurs « Avec d'autres personnages ? » ouverts (le temps de la session)
 const isFolded = (id, k) => FOLDED.has(id + ':' + k);
 const setFolded = (id, k, on) => { on ? FOLDED.add(id + ':' + k) : FOLDED.delete(id + ':' + k); try { localStorage.setItem('rp-folded', JSON.stringify([...FOLDED])); } catch {} };
 // Catégories propres à un personnage (c.customCats) et activités déplacées d'une catégorie à l'autre (c.actCat),
@@ -128,6 +129,7 @@ ICONS.shield = '<path d="M12 3l7 3v5c0 4.6-3 8.2-7 10-4-1.8-7-5.4-7-10V6z"/><pat
 ICONS.globe = '<circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.6 2.4 3.8 5.3 3.8 8.5s-1.2 6.1-3.8 8.5c-2.6-2.4-3.8-5.3-3.8-8.5s1.2-6.1 3.8-8.5z"/>';
 ICONS.route = '<circle cx="6" cy="18" r="2.2"/><circle cx="18" cy="6" r="2.2"/><path d="M8.2 18H15a3 3 0 0 0 0-6H9a3 3 0 0 1 0-6h6.8"/>';
 ICONS.warn = '<path d="M12 3.5 21.5 20h-19z"/><path d="M12 10v4.5"/><circle cx="12" cy="17.2" r=".6" style="fill:currentColor"/>';
+ICONS.users = '<circle cx="9" cy="8" r="3.2"/><path d="M3 19.5c.6-3.4 3-5.3 6-5.3s5.4 1.9 6 5.3"/><circle cx="16.8" cy="8.8" r="2.6"/><path d="M16.5 14.3c2.4.2 4 1.8 4.5 4.6"/>';
 ICONS.flag = '<path d="M5 21V4"/><path d="M5 4h11l-2 4 2 4H5"/>';
 ICONS.zone = '<path d="M3 19 9.5 8l4 6.5 2.5-4L21 19z"/>';
 ICONS.star = '<path d="M12 3l2.6 5.6 6 .7-4.5 4.1 1.2 6L12 16.4 6.7 19.4l1.2-6L3.4 9.3l6-.7z"/>';
@@ -257,6 +259,22 @@ const RISK_LINES = [
 ];
 // Retire les nouvelles du jour devenues fausses (nuit annulée, partenaire changé, protection cochée).
 const dropNews = keys => { for (let i = NEWS.length - 1; i >= 0; i--) if (keys.includes(NEWS[i].key)) NEWS.splice(i, 1); window.RP_SYNC?.dropNews(keys); };
+// ---------- Activités communes : d'autres personnages de l'appli cochés sur une activité (withActs[activité] = [ids]) ----------
+const withOf = (wa, l) => (wa?.[l] || []).filter(isChar);
+const andList = a => a.length < 2 ? a.join('') : a.slice(0, -1).join(', ') + ' et ' + a[a.length - 1];
+const withTxt = (wa, l) => (w => w.length ? ' avec ' + andList(w.map(nameOf)) : '')(withOf(wa, l));
+const withKey = (id, other, l) => 'with:' + keyOf(rpDay) + ':' + id + ':' + other + ':' + l;
+// Pas d'activité commune sur un voyage (il a sa section) ni sur une activité intime.
+const canShareAct = l => l !== 'Voyage' && !/^Sexe avec /i.test(l);
+const setWith = (id, l, other, on) => {
+  const s = state[id], cur = new Set(withOf(s.withActs, l));
+  on ? cur.add(other) : cur.delete(other);
+  s.withActs ||= {};
+  if (cur.size) s.withActs[l] = [...cur]; else delete s.withActs[l];
+  if (on) notify(id, other, `${nameOf(id)} a noté « ${l} » avec ${nameOf(other)}.`, withKey(id, other, l));
+  else dropNews([withKey(id, other, l)]);
+};
+const clearWith = (id, l) => { const s = state[id]; withOf(s.withActs, l).forEach(o => dropNews([withKey(id, o, l)])); if (s.withActs) delete s.withActs[l]; };
 const pairKeys = (a, b) => { const d = keyOf(rpDay); return ['night:' + d + ':' + [a, b].sort().join('+'), 'risk:' + d + ':' + a + ':' + b, 'risk:' + d + ':' + b + ':' + a]; };
 const checkRisk = id => {
   const n = nightOf(id); if (!n.hot || !n.with) return;
@@ -930,7 +948,7 @@ const dayRecord = (c, d) => {
     const filled = s.done || s.mood || s.checked.size || rpPlayed[c.id] || s.trip;
     return filled ? { rp: rpPlayed[c.id] || null, mood: s.mood, acts: [...s.checked], slots: s.slots, place: s.places.size ? [...s.places][0] : '', region: s.region || homeRegion(c.id),
       cond, hot: nightOf(c.id).hot, with: nightOf(c.id).with || null, trip: !!s.trip, tripInfo: s.trip ? { from: s.trip.from.region, to: s.trip.to.region, modes: [...(s.trip.modes || [])], minutes: s.trip.minutes || 0, reason: s.trip.reason || '' } : null,
-      phys: [...(s.phys || [])], mental: [...(s.mental || [])], nightStates: [...(s.nightStates || [])], nightNote: s.nightNote || '', nightNotes: { ...(s.nightNotes || {}) }, calmWith: calmWithOf(c.id), faits: s.faits || '', notes: { ...(s.stateNotes || {}) }, real: true } : null;
+      phys: [...(s.phys || [])], mental: [...(s.mental || [])], nightStates: [...(s.nightStates || [])], nightNote: s.nightNote || '', nightNotes: { ...(s.nightNotes || {}) }, calmWith: calmWithOf(c.id), faits: s.faits || '', notes: { ...(s.stateNotes || {}) }, withActs: { ...(s.withActs || {}) }, real: true } : null;
   }
   if (d > rpDay) return null;
   const e0 = HISTORY[c.id]?.[keyOf(d)];
@@ -942,7 +960,7 @@ const dayRecord = (c, d) => {
     cond, hot: !publicView && !!e.night?.hot, with: e.night?.with || null, trip: !!e.trip,
     tripInfo: e.trip ? { from: e.trip.from?.region, to: e.trip.to?.region, modes: [...(e.trip.modes || [])], minutes: e.trip.minutes || 0, reason: e.trip.reason || '' } : null,
     phys: [...(e.phys || [])].filter(p => !MORAL.includes(p)), mental: [...(e.mental || []), ...[...(e.phys || [])].filter(p => MORAL.includes(p))],
-    notes: e.stateNotes || {}, nightStates: [...(e.nightStates || [])], nightNote: e.nightNote || '', nightNotes: e.nightNotes || {}, calmWith: e.calmWith || null, intime: e.intime || '', nefaste: e.nefaste || '', faits: e.faits || '', intimeWith: [...(e.intimeWith || [])], real: true };
+    notes: e.stateNotes || {}, nightStates: [...(e.nightStates || [])], nightNote: e.nightNote || '', nightNotes: e.nightNotes || {}, calmWith: e.calmWith || null, withActs: e.withActs || {}, intime: e.intime || '', nefaste: e.nefaste || '', faits: e.faits || '', intimeWith: [...(e.intimeWith || [])], real: true };
 };
 // Journées enregistrées, par personnage puis par date (clé keyOf) — remplies par sync.js.
 const HISTORY = {};
@@ -1030,7 +1048,7 @@ const wrapExtras = (c, y) => {
   const snow = withCond.filter(([, r]) => ['Neige', 'Blizzard'].includes(r.cond.label)).length;
   const hot = withCond.reduce((a, [d, r]) => !a || r.cond.tp.max > a.t ? { t:r.cond.tp.max, d, where:r.place } : a, null);
   // liens
-  const names = tally(filled.flatMap(([, r]) => r.acts.flatMap(a => (a.match(/(?:avec|de|à) ([A-ZÉ][\wéèï'-]+)/g) || []).map(m => m.replace(/^(avec|de|à) /, '')))
+  const names = tally(filled.flatMap(([, r]) => r.acts.flatMap(a => [...(a.match(/(?:avec|de|à) ([A-ZÉ][\wéèï'-]+)/g) || []).map(m => m.replace(/^(avec|de|à) /, '')), ...withOf(r.withActs, a).map(nameOf)])
     .filter(n => !['Rhalgr', 'Werlyt', 'Bazar', 'Gridania', 'Ala', 'Rocasternes', 'Khurdans', 'Ul', 'La'].includes(n))));
   const nightsByMonth = tally(filled.filter(([, r]) => r.hot).map(([d]) => d.getMonth()));
   // fêtes et jours spéciaux
@@ -1240,7 +1258,7 @@ function renderHistory(id) {
           ${selRec.faits ? `<p class="where">${icon('star')}<span>Faits notoires : ${esc(selRec.faits)}</span></p>` : ''}
           ${selRec.cond ? `<p class="where">${icon(selRec.cond.icon)}<span>${selRec.cond.label} · ${deg(selRec.cond.tp.max)} / ${deg(selRec.cond.tp.min)}</span></p>` : ''}
           ${selRec.place ? `<p class="where">${icon('pin')}<span>${esc(selRec.place)}</span></p>` : ''}
-          ${selRec.acts.length ? `<p class="where">${icon('matin')}<span>${selRec.acts.map(esc).join(' · ')}</span></p>` : ''}
+          ${selRec.acts.length ? `<p class="where">${icon('matin')}<span>${selRec.acts.map(a => esc(a + withTxt(selRec.withActs, a))).join(' · ')}</span></p>` : ''}
           ${seesNights(id) && (selRec.nightStates?.length || selRec.nightNote || selRec.nightNotes?.['Nuit chaude']) ? `<p class="where">${icon('lips')}<span>Nuit : ${esc([nightStatesText(id, selRec.nightStates, selRec.nightNotes, selRec.calmWith), selRec.nightNote].filter(Boolean).join(' · '))}</span></p>` : ''}
           ${statesLine(id, selRec.phys, selRec.notes, 'heartbeat')}${statesLine(id, selRec.mental, selRec.notes, 'brain')}
           ${selRec.trip ? `<p class="where">${icon('route')}<span>Voyage${selRec.tripInfo?.from ? ' : ' + esc(REGIONS[selRec.tripInfo.from]?.label || '') + (selRec.tripInfo.to ? ' → ' + esc(REGIONS[selRec.tripInfo.to]?.label || '') : '') : ''}${selRec.tripInfo && tripBits(selRec.tripInfo) ? ' · ' + esc(tripBits(selRec.tripInfo)) : ''}</span></p>` : ''}
@@ -1755,9 +1773,15 @@ function renderCharNow(id) {
           <button type="button" class="btn" data-hunt-add="${esc(label)}">Ajouter</button></div>
         <datalist id="game-${id}-${hunt.mode}">${huntGame(id, label).map(g => `<option value="${esc(g)}">`).join('')}</datalist>
         ${hunt.catches.length ? '' : '<p class="reserved">Aucune prise ajoutée : la chasse compte comme bredouille.</p>'}` : ''}</div>` : '';
-    return `<div class="act-wrap"><label class="act ${special?'special':''}"><input type="checkbox" data-act="${esc(label)}" ${on?'checked':''}><span>${label === 'Voyage' ? icon('route') : ''}${esc(label)}</span></label>${huntRow}${drawn}${detail}${contract}${trip}${slots}</div>`;
+    const withIds = withOf(s.withActs, label);
+    const withRow = on && canShareAct(label) ? `<details class="with-pick" data-with-fold="${esc(label)}" ${withOpen.has(id + ':' + label) ? 'open' : ''}>
+        <summary>${icon('users')}<span>${withIds.length ? 'Avec ' + esc(andList(withIds.map(nameOf))) : 'Avec d\'autres personnages ?'}</span></summary>
+        <div class="place-list subs" role="group" aria-label="Personnages présents">${C.filter(x => x.id !== id).sort((a, b) => a.name.localeCompare(b.name, 'fr'))
+          .map(x => `<button type="button" data-share-act="${esc(label)}" data-share="${x.id}" aria-pressed="${withIds.includes(x.id)}">${esc(x.name)}</button>`).join('')}</div></details>` : '';
+    return `<div class="act-wrap"><label class="act ${special?'special':''}"><input type="checkbox" data-act="${esc(label)}" ${on?'checked':''}><span>${label === 'Voyage' ? icon('route') : ''}${esc(label)}</span></label>${huntRow}${drawn}${detail}${contract}${trip}${slots}${withRow}</div>`;
   };
-  const dispLabel = l => l === CONTRACT_ACT && activeContract(id) ? l + contractText(activeContract(id)) : s.details?.[l] && (DETAIL_ACTS[l] || RANDOM_ACTS[l]) ? `${l} : ${s.details[l]}` : huntFor(id, l) ? `${l} (${huntText(huntFor(id, l))})` : l === 'Voyage' && s.trip ? `Voyage${s.trip.modes?.size ? ` (${[...s.trip.modes].join(', ').toLowerCase()})` : ''} : ${legLabel(s.trip.from)} → ${legLabel(s.trip.to)}` : l;
+  const dispLabel = l => dispBase(l) + withTxt(s.withActs, l);
+  const dispBase = l => l === CONTRACT_ACT && activeContract(id) ? l + contractText(activeContract(id)) : s.details?.[l] && (DETAIL_ACTS[l] || RANDOM_ACTS[l]) ? `${l} : ${s.details[l]}` : huntFor(id, l) ? `${l} (${huntText(huntFor(id, l))})` : l === 'Voyage' && s.trip ? `Voyage${s.trip.modes?.size ? ` (${[...s.trip.modes].join(', ').toLowerCase()})` : ''} : ${legLabel(s.trip.from)} → ${legLabel(s.trip.to)}` : l;
   const picked = [...s.checked];
   const byKey = {};
   // Une activité sur plusieurs périodes apparaît dans chacune (plus de période combinée « Aube → Matin »).
@@ -2132,9 +2156,13 @@ function renderCharNow(id) {
       if (e.target.checked && !activeContract(id)) CONTRACTS[id] = { start: isoDay(rpDay) };
       if (!e.target.checked && CONTRACTS[id]?.start === isoDay(rpDay)) delete CONTRACTS[id]; }   // contrat créé par erreur aujourd'hui
     if (e.target.checked) { s.checked.add(l); if (!s.slots[l] && guessSlot(l)) s.slots[l] = [...guessSlot(l)]; if (RANDOM_ACTS[l] && !s.details?.[l]) (s.details ||= {})[l] = drawFor(l); }
-    else { s.checked.delete(l); delete s.slots[l]; if (RANDOM_ACTS[l] && s.details) delete s.details[l]; if (s.huntSet) delete s.huntSet[l]; }
+    else { s.checked.delete(l); delete s.slots[l]; clearWith(id, l); if (RANDOM_ACTS[l] && s.details) delete s.details[l]; if (s.huntSet) delete s.huntSet[l]; }
     renderChar(id);
   }));
+  document.querySelectorAll('[data-share]').forEach(b => b.addEventListener('click', () => {
+    setWith(id, b.dataset.shareAct, b.dataset.share, b.getAttribute('aria-pressed') !== 'true'); renderChar(id);
+  }));
+  document.querySelectorAll('details[data-with-fold]').forEach(d => d.addEventListener('toggle', () => { const k = id + ':' + d.dataset.withFold; d.open ? withOpen.add(k) : withOpen.delete(k); }));
   document.querySelectorAll('[data-slot]').forEach(b => b.addEventListener('click', () => {
     const l = b.dataset.for;
     const cur = new Set(s.slots[l] || []), id2 = b.dataset.slot;
@@ -2213,7 +2241,7 @@ initPlaces();
 // ---------- Persistance : ce que sync.js lit et enregistre dans Firestore ----------
 // Journée d'un personnage (champs enregistrés ; le reste de state[id] ne sert qu'à l'affichage).
 const ENTRY_KEYS = ['mood', 'checked', 'specials', 'slots', 'places', 'region', 'zone', 'trip', 'done', 'doneAt', 'phys', 'physNote',
-  'details', 'mental', 'stateNotes', 'nightStates', 'nightNote', 'nightNotes', 'huntSet', 'faits', 'dayEvents', 'infos', 'violet', 'contractOff', 'discordMsg'];
+  'details', 'mental', 'stateNotes', 'nightStates', 'nightNote', 'nightNotes', 'huntSet', 'faits', 'dayEvents', 'infos', 'violet', 'contractOff', 'discordMsg', 'withActs'];
 const freshEntry = () => ({ mood:'', checked:new Set(), specials:[], slots:{}, places:new Set(), done:false, phys:new Set(), mental:new Set(), stateNotes:{}, nightStates:new Set() });
 // Firestore ne connaît ni les Set ni les Date : on les encode.
 const enc = v => v instanceof Set ? { $set: [...v].map(enc) } : v instanceof Date ? { $date: v.toISOString() }

@@ -113,6 +113,19 @@ const ok = (cond, label) => { console.log((cond ? '  ok  ' : '  ÉCHEC ') + labe
   await sh.fill('#lover-new-oldaghar', 'Ogloo'); await sh.click('#lover-add-oldaghar'); await sh.waitForTimeout(150);
   ok((await sh.textContent('#view')).includes('seul un PNJ'), 'un personnage du groupe ne peut pas être ajouté comme amant');
   await sh.fill('#lover-new-oldaghar', 'Une voyageuse'); await sh.click('#lover-add-oldaghar'); await sh.waitForTimeout(300);
+  // Activité commune : plusieurs personnages sur une même activité
+  await sh.evaluate(() => { C.find(x => x.id === 'oldaghar').acts.quotidien = ['Chasse au faucon']; go('oldaghar'); }); await sh.waitForTimeout(150);
+  const act = await sh.evaluate(() => [...document.querySelectorAll('#view [data-act]')].map(x => x.dataset.act).find(l => l !== 'Voyage' && l !== 'Contrat de chasse'));
+  await sh.click(`[data-act="${act}"]`); await sh.waitForTimeout(150);
+  const y0 = await sh.evaluate(() => scrollY);
+  await sh.click(`details[data-with-fold="${act}"] summary`); await sh.waitForTimeout(100);
+  for (const w of ['buyan', 'tengis', 'shuna']) { await sh.click(`[data-share-act="${act}"][data-share="${w}"]`); await sh.waitForTimeout(120); }
+  await sh.click(`[data-share-act="${act}"][data-share="tengis"]`); await sh.waitForTimeout(150);
+  ok(Math.abs(await sh.evaluate(() => scrollY) - y0) < 5, 'choisir des personnages ne fait pas sauter la page');
+  ok(await sh.isVisible(`[data-share-act="${act}"][data-share="buyan"]`), 'le sélecteur reste ouvert après un choix');
+  ok((await sh.textContent(`details[data-with-fold="${act}"] summary`)).includes('Avec Buyan et Shuna'), 'résumé : « Avec Buyan et Shuna »');
+  ok(await sh.locator(`[data-share-act="${act}"][data-share="oldaghar"]`).count() === 0, 'on ne peut pas se choisir soi-même');
+  ok(await sh.evaluate(() => NEWS.filter(n => n.key.startsWith('with:')).length) === 1, 'une seule nouvelle en attente : Eden (Buyan) ; ni Tengis retiré, ni Shuna (même joueuse)');
   await sh.click('#done-oldaghar'); await sh.waitForTimeout(1500);
   d = await db(sh);
   ok(d[`days/oldaghar/months/${ym}`]?.[day]?.mood === 'Serein ce matin.', 'journée d\'Oldaghar enregistrée');
@@ -125,6 +138,10 @@ const ok = (cond, label) => { console.log((cond ? '  ok  ' : '  ÉCHEC ') + labe
   const news = Object.entries(d).filter(([k]) => k.startsWith('news/')).map(([, v]) => v);
   ok(news.some(n => n.to === 'idriss' && n.from === 'sheyla'), 'nouvelle pour Idriss (nuit chaude), auteur noté');
   ok(news.every(n => n.to !== n.from), 'aucune nouvelle vers soi-même');
+  ok(news.some(n => n.to === 'eden' && n.charId === 'buyan' && n.text.includes('Oldaghar') && n.text.includes(act)), 'activité commune : nouvelle pour Eden (Buyan)');
+  ok(!news.some(n => n.key?.startsWith('with:') && n.to !== 'eden'), 'aucune nouvelle d\'activité pour Nono (Tengis retiré) ni pour Sheyla');
+  ok(JSON.stringify(d[`days/oldaghar/months/${ym}`]?.[day]?.withActs?.[act]) === '["buyan","shuna"]', 'personnages de l\'activité enregistrés');
+  ok(old[0]?.includes(act + ' avec Buyan et Shuna'), 'récap et image Discord : « avec Buyan et Shuna »');
   // Confidentialité : la nuit chaude n'est que dans l'espace du couple
   ok(d['couples/oldaghar-reaksa']?.players?.length === 2, 'espace du couple Oldaghar & Reaksa créé (2 joueurs)');
   ok(Object.keys(d).filter(k => /^couples\/[^/]+$/.test(k)).length === 4, '4 espaces de couple créés');
@@ -154,6 +171,7 @@ const ok = (cond, label) => { console.log((cond ? '  ok  ' : '  ÉCHEC ') + labe
   console.log('Joueuse (Eden)');
   const before = posts.length;
   const ed = await open('eden', 'eden@test.fr');
+  ok((await ed.textContent('.news')).includes('a noté'), 'Eden voit la nouvelle de l\'activité commune');
   await ed.evaluate(() => go('buyan')); await ed.waitForTimeout(200);
   ok(await ed.locator('#mood-buyan').count() === 1, 'Eden remplit Buyan');
   ok(await ed.locator('#hot-buyan').count() === 0, 'pas de nuit chaude pour Buyan');

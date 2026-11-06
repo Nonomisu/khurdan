@@ -196,6 +196,11 @@ html, body, #view { overflow-anchor: none; }
 .act:has(input:checked) { border-color: var(--rule); }
 .act:has(input:checked) span { color: var(--gold); }
 .act-wrap { display: grid; gap: .35rem; }
+.with-pick { padding-left: 2.7rem; }
+.with-pick summary { display: flex; align-items: center; gap: .4rem; cursor: pointer; font-size: .85rem; color: var(--dim); list-style: none; }
+.with-pick summary::-webkit-details-marker { display: none; }
+.with-pick summary .ico { width: 1rem; height: 1rem; flex: none; }
+.with-pick .place-list { margin-top: .4rem; }
 .slots { display: flex; flex-wrap: wrap; gap: .3rem; padding-left: 2.7rem; }
 .slots button {
   background: none; border: 1px solid var(--rule); border-radius: 999px; cursor: pointer;
@@ -535,6 +540,6 @@ button.link.danger { color: #e0a24d; }
 <div class="sync-state" id="sync-state" aria-live="polite"></div>
 </div>
 
-<script src="app.js?v=26af58e1c3" charset="utf-8"></script>
+<script src="app.js?v=330a1fb706" charset="utf-8"></script>
 <script type="module" src="sync.js?v=f09365e606"></script>
 
