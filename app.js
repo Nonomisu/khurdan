@@ -2443,6 +2443,7 @@ const postRecap = async (c, blob, prev) => {
   return (await res.json().catch(() => null))?.id || null;
 };
 const sendDiscord = async id => {
+  if (window.RP_TEST_COPY) return;   // copie de test : rien n'est envoyé
   const hook = hookFor(C.find(x => x.id === id)?.player);
   if (!hook || !owns(id) || !state[id].done) return;
   discordState[id] = 'sending'; if (current === id) rerender();
@@ -2581,6 +2582,7 @@ const sendWraps = async ({ hook, sent = {}, test = false }) => {
 
 let wrapsRunning = false;
 const autoWraps = async () => {
+  if (window.RP_TEST_COPY) return;
   if (wrapsRunning || !anyHook() || !wrapDayReal() || !window.RP_SYNC?.wrapClaim) return;
   wrapsRunning = true;
   try {
@@ -2615,6 +2617,7 @@ const updateScreen = (names, i) => {
     <p style="margin:0;color:#a2988c;font-style:italic">${i < names.length ? `Fiche ${deName(esc(names[i]))} (${i + 1} / ${names.length})…` : 'Envoi sur Discord…'}</p></div>`;
 };
 const updateMirrors = async () => {
+  if (window.RP_TEST_COPY) return;
   if (mirrorBusy || !hookFor() || !window.RP_SYNC || isTyping(document.activeElement) || document.getElementById('wrap-sending')) return;
   const list = C.filter(x => x.mirror && state[x.id].done).slice(0, MAX_FILES);
   if (!list.length) return;
@@ -2751,3 +2754,14 @@ document.addEventListener('click', async e => {
   } catch (err) { console.error(err); adminSay('Invitation impossible : ' + (err.message || err)); }
 });
 document.addEventListener('keydown', e => { const f = e.target.closest?.('.admin-set input[type="email"]'); if (f && e.key === 'Enter') { e.preventDefault(); f.nextElementSibling?.click(); } });
+
+// Copie de test (test/) : bandeau permanent ; l'admin y choisit le joueur dont il veut voir l'appli.
+const testBanner = () => {
+  if (!window.RP_TEST_COPY || !me || document.getElementById('view-as')) return;
+  const b = document.createElement('div'); b.id = 'view-as'; b.setAttribute('role', 'status');
+  b.innerHTML = `${icon('eye')}<span><b>Copie de test</b> : rien n'est enregistré ni envoyé.${window.RP_VIEW_AS ? ` Vue de <b>${esc(PLAYER_NAME[me])}</b>.` : ''}</span>
+    ${window.RP_TEST_ADMIN ? `<span class="view-as-pick">Voir comme : ${PLAYERS.map(p => `<a href="?voir=${p.id}" ${p.id === me ? 'aria-current="true"' : ''}>${esc(p.name)}</a>`).join(' ')}</span>` : ''}`;
+  document.body.prepend(b);
+};
+const testTimer = setInterval(() => { if (window.RP_TEST_COPY && me) { testBanner(); clearInterval(testTimer); } }, 300);
+setTimeout(() => clearInterval(testTimer), 60000);

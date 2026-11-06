@@ -45,7 +45,9 @@ const wrapsRef = y => doc(db, 'shared', 'wraps-' + y);
 const recapsRef = () => doc(db, 'shared', 'recaps-' + A.iso);
 const newsRef = key => doc(db, 'news', String(key).replace(/\//g, '_'));
 
-let me = null, started = false, timer = null, base = null;
+let me = null, started = false, timer = null, base = null, viewAs = null;
+// Copie de test (test/index.html) : même base, mais rien n'y est jamais enregistré ni envoyé.
+const TEST_COPY = !!window.RP_TEST_COPY, noWrites = TEST_COPY;
 const loaded = new Set();               // mois déjà chargés (AAAA-MM)
 const seenToday = {};                   // dernière version distante de la journée du jour, par personnage
 const seenCouple = {};                  // idem pour la journée de chaque couple
@@ -78,19 +80,21 @@ const report = e => { console.error(e); showState(e?.code === 'permission-denied
 // ---------------------------------------------------------------- API utilisée par app.js
 window.RP_SYNC = {
   signOut: async () => { await flush(); await signOut(auth); location.reload(); },
-  dropNews: keys => { if (!started) return; keys.forEach(k => { base?.news.delete(k); deleteDoc(newsRef(k)).catch(report); }); },
+  dropNews: keys => { if (!started || noWrites) return; keys.forEach(k => { base?.news.delete(k); deleteDoc(newsRef(k)).catch(report); }); },
   hasMonth: (y, m) => loaded.has(ymOf(y, m)),
   loadMonth: (y, m) => loadMonth(ymOf(y, m)),
   save: () => schedule(),
   saveNow: () => flush(),
   // Nuit précédente : complète la journée d'hier (même nuit) sur la fiche du personnage.
   patchPast: (id, d, patch) => {
+    if (noWrites) return;
     if (!A.owned().includes(id)) return;
     const ym = ymOf(d.getFullYear(), d.getMonth());
     setDoc(monthRef(id, ym), { [String(d.getDate())]: JSON.parse(J(patch)) }, { merge: true }).catch(report);
   },
   // Nuit précédente, partie « nuit chaude » : dans l'espace du couple.
   patchPastNight: (id, d, night) => {
+    if (noWrites) return;
     const k = A.myCouples().find(x => x.chars.includes(id)); if (!k) return;
     const ym = ymOf(d.getFullYear(), d.getMonth());
     setDoc(coupleMonthRef(k.id, ym), { [String(d.getDate())]: { nights: { [id]: JSON.parse(J(night)) } } }, { merge: true }).catch(report);
@@ -178,12 +182,12 @@ async function boot() {
   A.setMe(me);
   const [g, d, cs, ns, dc] = await Promise.all([
     getDoc(gRef), getDoc(dRef), getDocs(collection(db, 'characters')),
-    getDocs(query(collection(db, 'news'), where('to', '==', me))),
+    viewAs ? { docs: [] } : getDocs(query(collection(db, 'news'), where('to', '==', me))),   // aperçu : nouvelles d'un autre joueur illisibles pour l'admin
     getDoc(doc(db, 'shared', 'discord')),
   ]);
   if (window.RP_DISCORD) window.RP_DISCORD.webhook = dc.data()?.webhook || null;
-  if (!g.exists()) await setDoc(gRef, {});
-  if (!d.exists()) await setDoc(dRef, {});
+  if (!g.exists() && !noWrites) await setDoc(gRef, {});
+  if (!d.exists() && !noWrites) await setDoc(dRef, {});
   const chars = {};
   cs.forEach(x => { chars[x.id] = x.data(); });
   const mine = A.owned();
@@ -202,8 +206,8 @@ async function boot() {
   A.hydrate({ global: g.data() || {}, day: d.data() || {}, chars, news: ns.docs.map(x => x.data()) });
   await loadMonth(prevYm(A.ym));
   await loadMonth(A.ym);
-  await Promise.all(mine.map(id => setDoc(monthRef(id, A.ym), {}, { merge: true })));
-  await Promise.all(A.myCouples().filter(k => !k.mirror).flatMap(k => [setDoc(coupleMonthRef(k.id, A.ym), {}, { merge: true }), setDoc(coupleStateRef(k.id), {}, { merge: true })]));
+  if (!noWrites) await Promise.all(mine.map(id => setDoc(monthRef(id, A.ym), {}, { merge: true })));
+  if (!noWrites) await Promise.all(A.myCouples().filter(k => !k.mirror).flatMap(k => [setDoc(coupleMonthRef(k.id, A.ym), {}, { merge: true }), setDoc(coupleStateRef(k.id), {}, { merge: true })]));
   base = {
     global: clone(g.data() || {}), day: clone(d.data() || {}),
     entries: Object.fromEntries(mine.map(id => [id, clone(seenToday[id])])),
@@ -239,6 +243,12 @@ onAuthStateChanged(auth, async user => {
     const acc = await getDoc(doc(db, 'access', (user.email || '').trim().toLowerCase()));
     if (!acc.exists() || !A.isPlayer(acc.data().player)) return noAccess();
     me = acc.data().player; window.RP_ADMIN = acc.data().role === 'admin';
+    // Copie de test : l'admin peut voir l'appli comme un autre joueur (?voir=eden) ; pas d'administration ni de réglages.
+    if (TEST_COPY) {
+      window.RP_TEST_ADMIN = window.RP_ADMIN; window.RP_ADMIN = false;
+      const want = new URLSearchParams(location.search).get('voir');
+      if (want && window.RP_TEST_ADMIN && A.isPlayer(want) && want !== me) { viewAs = want; me = want; window.RP_VIEW_AS = want; }
+    }
     await boot();
   }
   catch (e) {
@@ -265,7 +275,7 @@ function listen() {
     // Une nuit (ou une journée RP) cochée par un autre joueur sur l'un de nos personnages : on met à jour sa fiche enregistrée.
     if ('rp' in ch || 'calm' in ch) schedule();
   });
-  onSnapshot(query(collection(db, 'news'), where('to', '==', me)), s => {
+  if (!viewAs) onSnapshot(query(collection(db, 'news'), where('to', '==', me)), s => {
     if (s.metadata.hasPendingWrites) return;
     const list = s.docs.map(x => x.data()).filter(n => !base.news.has(n.key) || base.news.get(n.key) !== !!n.read);
     if (!list.length) return;
@@ -304,7 +314,7 @@ function listen() {
 }
 
 // ---------------------------------------------------------------- enregistrement
-function schedule() { if (!started) return; clearTimeout(timer); timer = setTimeout(flush, 700); }
+function schedule() { if (!started || noWrites) return; clearTimeout(timer); timer = setTimeout(flush, 700); }
 
 // Différences sur deux niveaux, pour ne réécrire que ce qui a changé (et ne pas écraser les modifications des autres).
 function diff2(prev = {}, next = {}, at = []) {
@@ -324,6 +334,7 @@ function diff2(prev = {}, next = {}, at = []) {
 
 let flushing = Promise.resolve();
 function flush() {
+  if (noWrites) return Promise.resolve();   // copie de test : rien n'est enregistré
   if (!started) return Promise.resolve();
   clearTimeout(timer); timer = null;
   flushing = flushing.then(doFlush).catch(report);

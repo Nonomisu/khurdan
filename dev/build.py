@@ -7,7 +7,15 @@ Chaque remplacement est vérifié (il doit trouver exactement une occurrence).
 import re, sys, pathlib
 
 SRC = pathlib.Path(__file__).with_name('apercu.html')
-OUT = pathlib.Path(sys.argv[1]) if len(sys.argv) > 1 else pathlib.Path(__file__).resolve().parent.parent
+ROOT = pathlib.Path(__file__).resolve().parent.parent
+# « python3 dev/build.py test » : copie de test dans test/ (même base, rien n'y est enregistré ni envoyé)
+TEST = len(sys.argv) > 1 and sys.argv[1] == 'test'
+OUT = ROOT / 'test' if TEST else pathlib.Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT
+OUT.mkdir(exist_ok=True)
+if TEST:   # fichiers partagés, recopiés tels quels dans la copie de test
+    import shutil
+    for f in ['sync.js', 'firebase-config.js', 'logo.png', 'favicon.png', 'icon-180.png', 'icon-192.png', 'icon-512.png']:
+        shutil.copy(ROOT / f, OUT / f)
 html = SRC.read_text()
 
 def one(s, a, b, label=''):
@@ -63,6 +71,12 @@ LOGIN_CSS = """
 .admin-name small, .admin-mail small { color: var(--dim); }
 .admin-mail { display: flex; flex-wrap: wrap; align-items: center; gap: .3rem; overflow-wrap: anywhere; }
 .admin-set .special-row input { min-width: 0; }
+#view-as { position: sticky; top: 0; z-index: 40; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: .4rem .6rem;
+  padding: .45rem .8rem calc(.45rem) ; background: #b9785a; color: #111a2a; font-size: .85rem; text-align: center; }
+#view-as .ico { width: 1rem; height: 1rem; }
+#view-as a { color: #111a2a; font-weight: 600; }
+#view-as a[aria-current] { text-decoration: none; background: #111a2a; color: #ece3d6; padding: 0 .35rem; border-radius: 4px; }
+.view-as-pick { display: inline-flex; flex-wrap: wrap; gap: .2rem .45rem; justify-content: center; }
 """
 page = page.replace('</style>', LOGIN_CSS + '</style>', 1)
 page = one(page, '<main><div class="wrap" id="view"></div></main>',
@@ -179,5 +193,9 @@ page = '<!doctype html>\n<html lang="fr" class="t-khurdan">\n<head>\n<meta chars
 import hashlib
 ver = lambda f: hashlib.sha256((OUT / f).read_bytes()).hexdigest()[:10]
 page_out = page + f'<script src="app.js?v={ver("app.js")}" charset="utf-8"></script>\n<script type="module" src="sync.js?v={ver("sync.js")}"></script>\n' + tail.strip() + '\n'
+if TEST:
+    page_out = page_out.replace('<title>Iloh Khurdan</title>', '<title>Iloh Khurdan (test)</title>\n<meta name="robots" content="noindex">\n<script>window.RP_TEST_COPY = true;</script>')
+    page_out = page_out.replace('<link rel="manifest" href="manifest.webmanifest">\n', '')
+    assert 'RP_TEST_COPY' in page_out and 'manifest' not in page_out
 (OUT / 'index.html').write_text(page_out)
 print('ok', len(js.splitlines()), 'lignes JS')

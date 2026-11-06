@@ -18,6 +18,13 @@ L'appli publiée (`index.html` + `app.js` à la racine) est **générée** à pa
 3. `node --check app.js`, puis tests ci-dessous.
 4. `git commit` puis `git push` : GitHub Pages publie en 1 à 2 minutes.
 
+## Copie de test
+
+`python3 dev/build.py test` régénère `test/` (même base Firebase, mais rien n'y est enregistré ni envoyé sur Discord).
+En ligne : `https://nonomisu.github.io/khurdan/test/` ; l'admin y choisit, dans le bandeau, le joueur dont il veut voir l'appli
+(`?voir=eden`). Les nouvelles d'un autre joueur n'y sont pas visibles (les règles ne les montrent qu'à leur destinataire).
+À relancer après chaque `python3 dev/build.py` pour que la copie de test suive l'appli.
+
 ## Tests
 
 `dev/tests/` contient un test de bout en bout (Playwright) avec un Firestore simulé (`dev/tests/mockfb/`,

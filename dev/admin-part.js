@@ -47,3 +47,14 @@ document.addEventListener('click', async e => {
   } catch (err) { console.error(err); adminSay('Invitation impossible : ' + (err.message || err)); }
 });
 document.addEventListener('keydown', e => { const f = e.target.closest?.('.admin-set input[type="email"]'); if (f && e.key === 'Enter') { e.preventDefault(); f.nextElementSibling?.click(); } });
+
+// Copie de test (test/) : bandeau permanent ; l'admin y choisit le joueur dont il veut voir l'appli.
+const testBanner = () => {
+  if (!window.RP_TEST_COPY || !me || document.getElementById('view-as')) return;
+  const b = document.createElement('div'); b.id = 'view-as'; b.setAttribute('role', 'status');
+  b.innerHTML = `${icon('eye')}<span><b>Copie de test</b> : rien n'est enregistré ni envoyé.${window.RP_VIEW_AS ? ` Vue de <b>${esc(PLAYER_NAME[me])}</b>.` : ''}</span>
+    ${window.RP_TEST_ADMIN ? `<span class="view-as-pick">Voir comme : ${PLAYERS.map(p => `<a href="?voir=${p.id}" ${p.id === me ? 'aria-current="true"' : ''}>${esc(p.name)}</a>`).join(' ')}</span>` : ''}`;
+  document.body.prepend(b);
+};
+const testTimer = setInterval(() => { if (window.RP_TEST_COPY && me) { testBanner(); clearInterval(testTimer); } }, 300);
+setTimeout(() => clearInterval(testTimer), 60000);

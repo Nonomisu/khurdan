@@ -55,6 +55,7 @@ const postRecap = async (c, blob, prev) => {
   return (await res.json().catch(() => null))?.id || null;
 };
 const sendDiscord = async id => {
+  if (window.RP_TEST_COPY) return;   // copie de test : rien n'est envoyé
   const hook = hookFor(C.find(x => x.id === id)?.player);
   if (!hook || !owns(id) || !state[id].done) return;
   discordState[id] = 'sending'; if (current === id) rerender();
@@ -193,6 +194,7 @@ const sendWraps = async ({ hook, sent = {}, test = false }) => {
 
 let wrapsRunning = false;
 const autoWraps = async () => {
+  if (window.RP_TEST_COPY) return;
   if (wrapsRunning || !anyHook() || !wrapDayReal() || !window.RP_SYNC?.wrapClaim) return;
   wrapsRunning = true;
   try {
@@ -227,6 +229,7 @@ const updateScreen = (names, i) => {
     <p style="margin:0;color:#a2988c;font-style:italic">${i < names.length ? `Fiche ${deName(esc(names[i]))} (${i + 1} / ${names.length})…` : 'Envoi sur Discord…'}</p></div>`;
 };
 const updateMirrors = async () => {
+  if (window.RP_TEST_COPY) return;
   if (mirrorBusy || !hookFor() || !window.RP_SYNC || isTyping(document.activeElement) || document.getElementById('wrap-sending')) return;
   const list = C.filter(x => x.mirror && state[x.id].done).slice(0, MAX_FILES);
   if (!list.length) return;
