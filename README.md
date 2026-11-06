@@ -23,6 +23,6 @@ l'appli du couple ni ses données.
 4. Administration : inviter un joueur, retirer un accès — fait ; nuits chaudes dans l'espace privé de chaque couple — fait
 5. Recopie continue Journée RP → Iloh Khurdan pour les 10 personnages communs (`vps/miroir`) — code prêt, à installer sur le VPS
 6. Fiche du jour, récap, historique, Discord — à vérifier avec les joueurs
-7. Nouvelles, puis notifications push (clés VAPID propres à ce projet) — à faire
+7. Nouvelles, puis notifications push (service `vps/notifs`, clés VAPID propres à ce projet) — fait
 8. Sauvegarde hebdomadaire sur le VPS — à faire
 9. Wrap du 26 décembre — à vérifier

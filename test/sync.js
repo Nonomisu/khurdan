@@ -35,8 +35,8 @@ const coupleRef = cid => doc(db, 'couples', cid);
 const coupleMonthRef = (cid, ym) => doc(db, 'couples', cid, 'months', ym);
 const coupleStateRef = cid => doc(db, 'couples', cid, 'state', 'main');
 // Notifications push : clé publique VAPID du service du VPS (la clé privée reste sur le VPS).
-// Clé propre à Iloh Khurdan, à renseigner à l'étape des notifications : tant qu'elle est vide, le bouton reste masqué.
-const VAPID_PUBLIC = '';
+// Clé propre à Iloh Khurdan (~/secrets/iloh-vapid.json sur le VPS, service iloh-notifs).
+const VAPID_PUBLIC = 'BISJ56MxcuAx2cLBCjqkmm6AUjosL0aLNe-2wCAeb1739mO_BZr4aiZny6tpm6XKCWdlGGa5FmoDiLTQOl_jDp8';
 const pushSupported = () => !!VAPID_PUBLIC && 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
 const swReg = pushSupported() ? navigator.serviceWorker.register('sw.js').catch(e => { console.error(e); return null; }) : Promise.resolve(null);
 const b64u = s => { const b = atob((s + '='.repeat((4 - s.length % 4) % 4)).replace(/-/g, '+').replace(/_/g, '/')); return Uint8Array.from(b, c => c.charCodeAt(0)); };
