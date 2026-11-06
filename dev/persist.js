@@ -157,6 +157,17 @@ window.RP_APP = {
     if (withToday && ym === curYm) applyCoupleDay(k, data?.[dayNum]);
   },
   applyCoupleState: (cid, d) => { const k = COUPLES.find(x => x.id === cid); if (k) applyCoupleState(k, d); },
+  mirrors: () => C.filter(c => c.mirror).map(c => c.id),
+  // Fiche recopiée + compléments Iloh (forme enregistrée : ensembles en { $set: [...] }).
+  mergeExtra: (id, e, x) => {
+    if (!x || (!x.added?.length && !Object.keys(x.withActs || {}).length)) return e;
+    const out = JSON.parse(JSON.stringify(e || {})), c = C.find(k => k.id === id), set = new Set(out.checked?.$set || []);
+    (x.added || []).forEach(l => { set.add(l); if (!allActs(c).includes(l)) { out.specials ||= []; if (!out.specials.includes(l)) out.specials.push(l); } });
+    out.checked = { $set: [...set] };
+    if (x.slots) out.slots = { ...(out.slots || {}), ...x.slots };
+    out.withActs = { ...(out.withActs || {}), ...(x.withActs || {}) };
+    return out;
+  },
   applyRequests: list => { Object.keys(REQUESTS).forEach(k => delete REQUESTS[k]); list.forEach(({ id, ...r }) => { REQUESTS[id] = r; }); },
   applyIloh: d => { if (d?.guests) { Object.keys(ILOH_GUESTS).forEach(k => delete ILOH_GUESTS[k]); Object.assign(ILOH_GUESTS, d.guests); } },
   applyEvents: d => { Object.keys(GROUP_EVENTS).forEach(k => delete GROUP_EVENTS[k]); Object.assign(GROUP_EVENTS, d || {}); },

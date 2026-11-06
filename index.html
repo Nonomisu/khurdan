@@ -213,11 +213,11 @@ html, body, #view { overflow-anchor: none; }
 .home-links { margin: .6rem 0 0; display: flex; justify-content: center; }
 .chip-link { display: inline-flex; align-items: center; gap: .4rem; padding: .35rem .9rem; border: 1px solid var(--gold); border-radius: 999px; background: none; color: var(--gold); font: inherit; font-size: .9rem; cursor: pointer; }
 .chip-link .ico { width: 1.05rem; height: 1.05rem; }
-.iloh-wrap { position: relative; }
+.iloh-wrap { position: relative; min-width: 0; max-width: 100%; }   /* la carte zoomée défile dans son cadre, sans élargir la page */
 .iloh-zoom { display: flex; align-items: center; justify-content: flex-end; gap: .5rem; margin-bottom: .5rem; font-size: .85rem; color: var(--dim); }
 .iloh-zoom .btn { min-width: 2.4rem; padding: .2rem .6rem; font-size: 1.1rem; line-height: 1.2; }
 .iloh-zoom .btn:disabled { opacity: .35; }
-.iloh-scroll { overflow: auto; border-radius: 8px; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+.iloh-scroll { max-width: 100%; overflow: auto; border-radius: 8px; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
 .iloh-scroll.zoomed { max-height: 72vh; cursor: grab; }
 .iloh-scroll.zoomed .yurt-hit, .iloh-scroll.zoomed .iloh-spot { cursor: pointer; }
 .iloh-scroll.dragging, .iloh-scroll.dragging * { cursor: grabbing !important; user-select: none; }
@@ -228,6 +228,10 @@ html, body, #view { overflow-anchor: none; }
 .iloh-spot.k-zone { border-radius: 50%; }
 .iloh-spot:hover, .iloh-spot:focus-visible { border-color: color-mix(in srgb, var(--gold) 55%, transparent); background: color-mix(in srgb, var(--gold) 8%, transparent); outline: none; }
 .iloh-spot.sel { border-color: var(--gold); background: color-mix(in srgb, var(--gold) 14%, transparent); box-shadow: 0 0 18px color-mix(in srgb, var(--gold) 60%, transparent); }
+.compl { display: grid; gap: .45rem; padding: .7rem .8rem; margin: .2rem 0 .8rem; border: 1px dashed var(--gold); border-radius: 6px; text-align: left; }
+.compl .with-pick { padding-left: 0; }
+.compl-act { display: grid; gap: .2rem; padding-top: .35rem; border-top: 1px solid var(--rule); }
+.compl-name { margin: 0; font-weight: 500; } .compl-name small { color: var(--dim); font-weight: 400; }
 .logi { display: grid; gap: .6rem; text-align: left; margin-top: 1rem; }
 .logi h2 { display: flex; align-items: center; gap: .5rem; }
 .logi h3 { margin: .4rem 0 0; font: 500 .85rem/1.2 var(--display); letter-spacing: .12em; text-transform: uppercase; color: var(--gold); }
@@ -632,6 +636,6 @@ button.link.danger { color: #e0a24d; }
 <div class="sync-state" id="sync-state" aria-live="polite"></div>
 </div>
 
-<script src="app.js?v=e3385cc901" charset="utf-8"></script>
-<script type="module" src="sync.js?v=dff1d41568"></script>
+<script src="app.js?v=0bfd064160" charset="utf-8"></script>
+<script type="module" src="sync.js?v=286d83244e"></script>
 

@@ -117,11 +117,13 @@ const ok = (cond, label) => { console.log((cond ? '  ok  ' : '  ÉCHEC ') + labe
   await sh.evaluate(() => { C.find(x => x.id === 'oldaghar').acts.quotidien = ['Chasse au faucon']; go('oldaghar'); }); await sh.waitForTimeout(150);
   const act = await sh.evaluate(() => [...document.querySelectorAll('#view [data-act]')].map(x => x.dataset.act).find(l => l !== 'Voyage' && l !== 'Contrat de chasse'));
   await sh.click(`[data-act="${act}"]`); await sh.waitForTimeout(150);
-  const y0 = await sh.evaluate(() => scrollY);
   await sh.click(`details[data-with-fold="${act}"] summary`); await sh.waitForTimeout(100);
-  for (const w of ['buyan', 'tengis', 'shuna']) { await sh.click(`[data-share-act="${act}"][data-share="${w}"]`); await sh.waitForTimeout(120); }
-  await sh.click(`[data-share-act="${act}"][data-share="tengis"]`); await sh.waitForTimeout(150);
-  ok(Math.abs(await sh.evaluate(() => scrollY) - y0) < 5, 'choisir des personnages ne fait pas sauter la page');
+  // Repère : position à l'écran du sélecteur (Playwright fait défiler la page jusqu'aux boutons s'ils sont hors de l'écran)
+  await sh.evaluate(act => document.querySelector(`details[data-with-fold="${act}"]`).scrollIntoView({ block: 'center' }), act); await sh.waitForTimeout(150);
+  const y0 = await sh.evaluate(act => document.querySelector(`details[data-with-fold="${act}"]`).getBoundingClientRect().top, act);
+  for (const w of ['buyan', 'tengis', 'shuna']) { await sh.evaluate(([a, w]) => document.querySelector(`[data-share-act="${a}"][data-share="${w}"]`).click(), [act, w]); await sh.waitForTimeout(120); }
+  await sh.evaluate(a => document.querySelector(`[data-share-act="${a}"][data-share="tengis"]`).click(), act); await sh.waitForTimeout(150);   // (clic direct : sans le défilement automatique de Playwright)
+  ok(Math.abs(await sh.evaluate(act => document.querySelector(`details[data-with-fold="${act}"]`).getBoundingClientRect().top, act) - y0) < 5, 'choisir des personnages ne fait pas sauter la page');
   ok(await sh.isVisible(`[data-share-act="${act}"][data-share="buyan"]`), 'le sélecteur reste ouvert après un choix');
   ok((await sh.textContent(`details[data-with-fold="${act}"] summary`)).includes('Avec Buyan et Shuna'), 'résumé : « Avec Buyan et Shuna »');
   ok(await sh.locator(`[data-share-act="${act}"][data-share="oldaghar"]`).count() === 0, 'on ne peut pas se choisir soi-même');
@@ -209,17 +211,18 @@ const ok = (cond, label) => { console.log((cond ? '  ok  ' : '  ÉCHEC ') + labe
   const w0 = await nono.evaluate(() => document.querySelector('.iloh-map').offsetWidth);
   await nono.click('[data-iloh-zoom="1"]'); await nono.click('[data-iloh-zoom="1"]'); await nono.waitForTimeout(200);
   ok(Math.abs(await nono.evaluate(() => document.querySelector('.iloh-map').offsetWidth) - w0 * 2) < 3, 'zoom : carte deux fois plus grande');
+  ok(await nono.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), 'zoomée, la carte défile dans son cadre sans élargir la page');
   await nono.click('[data-yurt="43"]'); await nono.waitForTimeout(700);
   ok((await nono.textContent('.yurt-card')).includes('Yourte Commune') && await nono.evaluate(() => { const c = document.querySelector('.yurt-card').getBoundingClientRect(), w = document.querySelector('.iloh-wrap').getBoundingClientRect(); return c.left >= w.left - 1 && c.right <= w.right + 1; }), 'zoomée : la fiche s\'ouvre et reste entière');
   // Carte zoomée : glisser à la souris pour se déplacer, sans ouvrir de fiche
-  await nono.click('[data-yurt-close]'); await nono.waitForTimeout(800);
+  await nono.click('[data-yurt-close]'); await nono.evaluate(() => document.querySelector('.iloh-scroll').scrollIntoView({ block: 'center' })); await nono.waitForTimeout(800);
   const bx = await nono.locator('.iloh-scroll').boundingBox(), sl0 = await nono.evaluate(() => document.querySelector('.iloh-scroll').scrollLeft);
   await nono.mouse.move(bx.x + bx.width * .6, bx.y + bx.height * .5); await nono.mouse.down();
   await nono.mouse.move(bx.x + bx.width * .4, bx.y + bx.height * .4, { steps: 8 }); await nono.mouse.up(); await nono.waitForTimeout(200);
   ok(await nono.evaluate(() => document.querySelector('.iloh-scroll').scrollLeft) > sl0 + 20 && !(await nono.isVisible('.yurt-card')), 'glisser la carte zoomée la fait défiler, sans ouvrir de fiche');
   await nono.click('[data-iloh-zoom="-1"]'); await nono.click('[data-iloh-zoom="-1"]'); await nono.waitForTimeout(150);
   // Molette de la souris : zoom autour du pointeur
-  await nono.waitForTimeout(800);   // (après le garde-fou de position)
+  await nono.evaluate(() => document.querySelector('.iloh-scroll').scrollIntoView({ block: 'center' })); await nono.waitForTimeout(800);   // (après le garde-fou de position)
   const box = await nono.locator('.iloh-scroll').boundingBox();
   await nono.mouse.move(box.x + box.width * .3, box.y + box.height * .5);
   const yPage = await nono.evaluate(() => scrollY);
@@ -255,6 +258,27 @@ const ok = (cond, label) => { console.log((cond ? '  ok  ' : '  ÉCHEC ') + labe
   await nono.evaluate(() => go('home'));
   ok(await nono.locator('.home-links [data-go="iloh"]').count() === 1, 'accès à la carte depuis l\'accueil');
 
+  console.log('Compléments Iloh d\'une fiche recopiée (Nono, Tamachag)');
+  await nono.evaluate(() => go('tamachag')); await nono.waitForTimeout(300);
+  ok(await nono.isVisible('.compl') && !(await nono.textContent('.compl')).includes('ajoutée dans Iloh'), 'Tamachag : bloc « Compléments pour l\'Iloh », activités de Journée RP reconnues');
+  await nono.click('details[data-xwith-fold="Travail du bois"] summary'); await nono.waitForTimeout(100);
+  await nono.click('[data-xshare-act="Travail du bois"][data-xshare="buyan"]'); await nono.waitForTimeout(300);
+  ok((await nono.textContent('details[data-xwith-fold="Travail du bois"] summary')).includes('Avec Buyan') && await nono.isVisible('[data-xshare="buyan"]'), 'Buyan ajouté sur « Travail du bois », sélecteur resté ouvert');
+  await nono.fill('#xadd-tamachag', 'Chasse en groupe'); await nono.click('[data-xadd="tamachag"]'); await nono.waitForTimeout(300);
+  ok((await nono.textContent('.compl')).includes('Chasse en groupe · ajoutée dans Iloh'), 'activité ajoutée dans Iloh');
+  ok((await nono.textContent('.recap')).includes('Travail du bois avec Buyan') && (await nono.textContent('.recap')).includes('Chasse en groupe'), 'récap : fiche de Journée RP + compléments');
+  await nono.waitForTimeout(1200);
+  d = await db(nono);
+  const xd = d[`extras/tamachag/months/${ym}`]?.[day];
+  ok(JSON.stringify(xd?.withActs?.['Travail du bois']) === '["buyan"]' && JSON.stringify(xd?.added) === '["Chasse en groupe"]', 'compléments enregistrés à part (extras)');
+  ok(JSON.stringify(d[`days/tamachag/months/${ym}`][day].checked) === '{"$set":["Travail du bois","Contrat de chasse"]}' && !d[`days/tamachag/months/${ym}`][day].withActs, 'fiche recopiée de Journée RP inchangée');
+  ok(Object.values(d).some(v => v?.key?.startsWith?.('with:') && v.to === 'eden' && v.text === 'Tamachag a noté « Travail du bois » avec Buyan.'), 'nouvelle pour Eden (Buyan)');
+  // Nouvelle recopie depuis Journée RP : les compléments restent
+  await nono.evaluate(([ym, day]) => { const m = JSON.parse(localStorage.getItem('mockdb')); m[`days/tamachag/months/${ym}`][day].mood = 'Changé dans Journée RP'; localStorage.setItem('mockdb', JSON.stringify(m)); }, [ym, day]);
+  const n4 = await open('nono', 'nono@test.fr'); await n4.evaluate(() => go('tamachag')); await n4.waitForTimeout(300);
+  ok((await n4.textContent('.recap')).includes('Changé dans Journée RP') && (await n4.textContent('.recap')).includes('Travail du bois avec Buyan') && (await n4.textContent('.recap')).includes('Chasse en groupe'), 'après une nouvelle recopie : fiche à jour, compléments gardés');
+  await n4.close();
+
   console.log('Joueur (Idriss)');
   const idr = await open('idriss', 'idriss@test.fr');
   ok((await idr.textContent('.news')).match(/Reaksa|Oldaghar/) !== null, 'Idriss voit la nouvelle de la nuit');
@@ -270,6 +294,7 @@ const ok = (cond, label) => { console.log((cond ? '  ok  ' : '  ÉCHEC ') + labe
   ok((await jy.textContent('#view')).includes('Nuit chaude'), 'Taiga : nuit chaude recopiée visible pour Jynette');
   await jy.evaluate(() => go('tamachag')); await jy.waitForTimeout(200);
   ok((await jy.textContent('#view')).includes('Cauchemar'), 'la joueuse du couple voit les lignes de nuit de Tamachag');
+  ok(await jy.locator('.compl').count() === 0 && (await jy.textContent('.recap')).includes('Travail du bois avec Buyan'), 'Jynette voit les compléments de Tamachag, sans pouvoir les modifier');
   await jy.evaluate(() => go('shiruun')); await jy.waitForTimeout(200);
   ok(await jy.locator('#mood-shiruun').count() === 1, 'Shiruun (absent de Journée RP) se remplit dans Iloh');
 
@@ -289,6 +314,7 @@ const ok = (cond, label) => { console.log((cond ? '  ok  ' : '  ÉCHEC ') + labe
   await ed.evaluate(() => go('home')); await ed.waitForTimeout(150);
   await ed.evaluate(() => go('buyan')); await ed.waitForTimeout(200);
   ok((await ed.textContent('.shared-acts')).includes('Oldaghar a noté « Chasse au faucon » avec Buyan et Shuna'), 'fiche de Buyan : activité commune notée par Oldaghar');
+  ok((await ed.textContent('.shared-acts')).includes('Tamachag a noté « Travail du bois » avec Buyan'), 'et celle notée par Tamachag (fiche recopiée)');
   await ed.click('[data-join-from="oldaghar"]'); await ed.waitForTimeout(200);
   ok(await ed.evaluate(() => state.buyan.checked.has('Chasse au faucon') && state.buyan.specials.includes('Chasse au faucon')), 'activité ajoutée à la fiche de Buyan (activité spéciale du jour)');
   ok(await ed.evaluate(() => JSON.stringify(state.buyan.withActs['Chasse au faucon'])) === '["oldaghar","shuna"]', 'avec Oldaghar et Shuna');

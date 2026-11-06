@@ -28,6 +28,10 @@ const rpIso = () => { const d = new Date(Date.now() - 5 * 3600e3); return `${d.g
 const gRef = doc(db, 'shared', 'global');
 const dRef = doc(db, 'shared', 'day-' + A.iso);
 const monthRef = (id, ym) => doc(db, 'days', id, 'months', ym);
+// Compléments Iloh des fiches recopiées de Journée RP (personnages présents, activités communes) : à part, jamais écrasés.
+const extrasRef = (id, ym) => doc(db, 'extras', id, 'months', ym);
+const EXTRA = {}, RAWM = {};   // mois en cours : compléments et mois bruts (tels que recopiés) des fiches recopiées
+const mergedMonth = (id, raw, ex) => { const out = { ...(raw || {}) }; Object.entries(ex || {}).forEach(([d, x]) => { out[d] = A.mergeExtra(id, raw?.[d], x); }); return out; };
 const charRef = id => doc(db, 'characters', id);
 const todayRef = id => doc(db, 'today', id);
 // Espace privé d'un couple : couples/{couple}, puis months/{AAAA-MM} (un champ par jour) et state/main.
@@ -128,6 +132,15 @@ window.RP_SYNC = {
   }),
   // Signature de la journée telle que recopiée dans la base (et non telle qu'affichée, que l'affichage peut retoucher).
   entrySig: id => stableJ(seenToday[id]),
+  rawToday: id => RAWM[id]?.[A.day],
+  saveExtra: (id, x) => {
+    EXTRA[id] = { ...(EXTRA[id] || {}), [A.day]: x };
+    const e = mergedMonth(id, RAWM[id], EXTRA[id])[A.day]; seenToday[id] = clone(e); A.applyMonth(id, A.ym, { [A.day]: e }, false);
+    window.RP_DISCORD?.sendMirrors?.();
+    if (noWrites) return Promise.resolve();
+    const ref = extrasRef(id, A.ym);
+    return setDoc(ref, {}, { merge: true }).then(() => updateDoc(ref, new FieldPath(A.day), JSON.parse(J(x)))).catch(report);
+  },
   // Fiches recopiées de Journée RP : un message Discord par journée, verrou partagé (shared/recaps-AAAA-MM-JJ).
   // Renvoie 'done' si rien n'a changé, null si un autre appareil envoie, sinon { msg, newOnes, single }.
   recapBatchClaim: sigs => runTransaction(db, async tx => {
@@ -173,7 +186,12 @@ async function loadMonth(ym) {
   loaded.add(ym);
   await Promise.all(A.ids.map(async id => {
     const s = await getDoc(monthRef(id, ym));
-    const data = s.data() || {};
+    let data = s.data() || {};
+    if (A.mirrors().includes(id)) {
+      const ex = (await getDoc(extrasRef(id, ym))).data() || {};
+      if (ym === A.ym) { RAWM[id] = data; EXTRA[id] = ex; }
+      data = mergedMonth(id, data, ex);
+    }
     A.applyMonth(id, ym, data, ym === A.ym && !started);
     if (ym === A.ym) seenToday[id] = clone(data[A.day]);
   }));
@@ -313,9 +331,8 @@ function listen() {
       A.applyCoupleState(k.id, ch); base.couples[k.id].state = { ...base.couples[k.id].state, ...clone(ch) }; A.rerender();
     });
   });
-  A.ids.forEach(id => onSnapshot(monthRef(id, A.ym), s => {
-    if (s.metadata.hasPendingWrites) return;
-    const data = s.data() || {}, e = data[A.day];
+  const onMonth = (id, data) => {
+    const e = data[A.day];
     A.applyMonth(id, A.ym, data, false);
     if (J(e) === J(seenToday[id])) return;
     seenToday[id] = clone(e);
@@ -324,6 +341,17 @@ function listen() {
     if (id in base.entries) base.entries[id] = clone(e);
     A.rerender();
     window.RP_DISCORD?.sendMirrors?.();
+  };
+  A.ids.forEach(id => onSnapshot(monthRef(id, A.ym), s => {
+    if (s.metadata.hasPendingWrites) return;
+    let data = s.data() || {};
+    if (A.mirrors().includes(id)) { RAWM[id] = data; data = mergedMonth(id, data, EXTRA[id]); }
+    onMonth(id, data);
+  }));
+  A.mirrors().forEach(id => onSnapshot(extrasRef(id, A.ym), s => {
+    if (s.metadata.hasPendingWrites) return;
+    EXTRA[id] = s.data() || {};
+    onMonth(id, mergedMonth(id, RAWM[id], EXTRA[id]));
   }));
 }
 

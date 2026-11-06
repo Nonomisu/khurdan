@@ -293,8 +293,50 @@ const joinAct = (id, from, l) => {
   if (!s.slots[l] && state[from].slots?.[l]?.length) s.slots[l] = [...state[from].slots[l]];
   const told = new Set([playerOf(id)]);   // une seule nouvelle par joueur
   [from, ...withOf(state[from].withActs, l).filter(o => o !== id)].forEach(o => { setWith(id, l, o, true, told.has(playerOf(o))); told.add(playerOf(o)); });
+  saveComplement(id);
 };
 const clearWith = (id, l) => { const s = state[id]; withOf(s.withActs, l).forEach(o => dropNews([withKey(id, o, l)])); if (s.withActs) delete s.withActs[l]; };
+// ---------- Compléments Iloh des fiches recopiées de Journée RP ----------
+// La fiche vient de Journée RP (lecture seule ici) ; son joueur peut y ajouter, dans Iloh seulement, les personnages
+// présents sur une activité, les activités communes reprises d'autres fiches, et des activités propres à l'Iloh.
+// Enregistré à part (extras/{id}/months/{AAAA-MM}), jamais écrasé par la recopie, jamais renvoyé vers Journée RP.
+const canComplete = id => isMirror(id) && playerOf(id) === me;
+// Activités du jour venues de Journée RP (le reste a été ajouté dans Iloh).
+const mirrorBase = id => new Set(window.RP_SYNC?.rawToday?.(id)?.checked?.$set || []);
+const extraOf = id => {
+  const s = state[id], base = mirrorBase(id), added = [...s.checked].filter(l => !base.has(l));
+  return { added, slots: Object.fromEntries(added.filter(l => s.slots?.[l]?.length).map(l => [l, [...s.slots[l]]])), withActs: JSON.parse(JSON.stringify(s.withActs || {})) };
+};
+const saveComplement = id => { if (canComplete(id)) window.RP_SYNC?.saveExtra?.(id, extraOf(id)); };
+const complOpen = new Set();
+const withPickHtml = (id, label, attr) => { const withIds = withOf(state[id].withActs, label), fold = attr === 'x' ? 'data-xwith-fold' : 'data-with-fold';
+  return `<details class="with-pick" ${fold}="${esc(label)}" ${(attr === 'x' ? complOpen : withOpen).has(id + ':' + label) ? 'open' : ''}>
+    <summary>${icon('users')}<span>${withIds.length ? 'Avec ' + esc(andList(withIds.map(nameOf))) : 'Avec d\'autres personnages ?'}</span></summary>
+    <div class="place-list subs" role="group" aria-label="Personnages présents">${C.filter(x => x.id !== id).sort((a, b) => a.name.localeCompare(b.name, 'fr'))
+      .map(x => `<button type="button" data-${attr === 'x' ? 'xshare' : 'share'}-act="${esc(label)}" data-${attr === 'x' ? 'xshare' : 'share'}="${x.id}" aria-pressed="${withIds.includes(x.id)}">${esc(x.name)}</button>`).join('')}</div></details>`; };
+const complementHtml = id => {
+  if (!canComplete(id)) return '';
+  const s = state[id], c = C.find(x => x.id === id), base = mirrorBase(id), acts = [...s.checked].filter(canShareAct);
+  return `<section class="compl"><p class="shared-h">${icon('users')}Compléments pour l'Iloh</p>
+    <p class="reserved">La fiche vient de Journée RP. Ici, tu ajoutes seulement ce qui concerne le groupe ; Journée RP n'est pas modifié.</p>
+    ${acts.map(l => `<div class="compl-act"><p class="compl-name">${esc(l)}${base.has(l) ? '' : ` <small>· ajoutée dans Iloh</small> <button type="button" class="link small" data-xdel="${esc(l)}" aria-label="Retirer ${esc(l)}">Retirer</button>`}</p>
+      ${withPickHtml(id, l, 'x')}</div>`).join('') || '<p class="reserved">Aucune activité pour l\'instant aujourd\'hui.</p>'}
+    <div class="special-row"><input type="text" id="xadd-${id}" list="xacts-${id}" placeholder="Ajouter une activité de l'Iloh" enterkeyhint="done">
+      <button type="button" class="btn" data-xadd="${id}">Ajouter</button></div>
+    <datalist id="xacts-${id}">${allActs(c).filter(l => !s.checked.has(l) && l !== 'Voyage').map(l => `<option value="${esc(l)}">`).join('')}</datalist></section>`;
+};
+document.addEventListener('toggle', e => { const d = e.target; if (!d.matches?.('details[data-xwith-fold]')) return; const k = current + ':' + d.dataset.xwithFold; d.open ? complOpen.add(k) : complOpen.delete(k); }, true);
+document.addEventListener('click', e => {
+  const id = current; if (!canComplete(id)) return;
+  const sh = e.target.closest('[data-xshare]'), del = e.target.closest('[data-xdel]'), add = e.target.closest('[data-xadd]'), join = e.target.closest('.compl-join');
+  if (sh) { setWith(id, sh.dataset.xshareAct, sh.dataset.xshare, sh.getAttribute('aria-pressed') !== 'true'); saveComplement(id); return renderChar(id); }
+  if (del) { const l = del.dataset.xdel, s = state[id]; s.checked.delete(l); delete s.slots[l]; clearWith(id, l); s.specials = s.specials.filter(x => x !== l); saveComplement(id); return renderChar(id); }
+  if (add) { const f = document.getElementById('xadd-' + id), l = f.value.trim(); if (!l) return f.focus();
+    const s = state[id], c = C.find(x => x.id === id); if (!allActs(c).includes(l) && !s.specials.includes(l)) s.specials.push(l);
+    s.checked.add(l); saveComplement(id); return renderChar(id); }
+});
+document.addEventListener('keydown', e => { if (e.target.id?.startsWith?.('xadd-') && e.key === 'Enter') { e.preventDefault(); document.querySelector(`[data-xadd="${e.target.id.slice(5)}"]`)?.click(); } });
+
 const pairKeys = (a, b) => { const d = keyOf(rpDay); return ['night:' + d + ':' + [a, b].sort().join('+'), 'risk:' + d + ':' + a + ':' + b, 'risk:' + d + ':' + b + ':' + a]; };
 const checkRisk = id => {
   const n = nightOf(id); if (!n.hot || !n.with) return;
@@ -2187,11 +2229,7 @@ function renderCharNow(id) {
           <button type="button" class="btn" data-hunt-add="${esc(label)}">Ajouter</button></div>
         <datalist id="game-${id}-${hunt.mode}">${huntGame(id, label).map(g => `<option value="${esc(g)}">`).join('')}</datalist>
         ${hunt.catches.length ? '' : '<p class="reserved">Aucune prise ajoutée : la chasse compte comme bredouille.</p>'}` : ''}</div>` : '';
-    const withIds = withOf(s.withActs, label);
-    const withRow = on && canShareAct(label) ? `<details class="with-pick" data-with-fold="${esc(label)}" ${withOpen.has(id + ':' + label) ? 'open' : ''}>
-        <summary>${icon('users')}<span>${withIds.length ? 'Avec ' + esc(andList(withIds.map(nameOf))) : 'Avec d\'autres personnages ?'}</span></summary>
-        <div class="place-list subs" role="group" aria-label="Personnages présents">${C.filter(x => x.id !== id).sort((a, b) => a.name.localeCompare(b.name, 'fr'))
-          .map(x => `<button type="button" data-share-act="${esc(label)}" data-share="${x.id}" aria-pressed="${withIds.includes(x.id)}">${esc(x.name)}</button>`).join('')}</div></details>` : '';
+    const withRow = on && canShareAct(label) ? withPickHtml(id, label) : '';
     return `<div class="act-wrap"><label class="act ${special?'special':''}"><input type="checkbox" data-act="${esc(label)}" ${on?'checked':''}><span>${label === 'Voyage' ? icon('route') : ''}${esc(label)}</span></label>${huntRow}${drawn}${detail}${contract}${trip}${slots}${withRow}</div>`;
   };
   const dispLabel = l => dispBase(l) + withTxt(s.withActs, l);
@@ -2245,7 +2283,8 @@ function renderCharNow(id) {
   if (s.done || readOnly) {
     document.getElementById('view').innerHTML = `
     ${tabsHtml(id)}
-    ${sharedActsHtml(id, false)}
+    ${sharedActsHtml(id, canComplete(id))}
+    ${complementHtml(id)}
     ${logisticsHtml(id)}
     ${readOnly ? `<p class="readonly-note">${icon('eye')}${isMirror(id) ? `Fiche tenue par ${PLAYER_NAME[c.player]} dans Journée RP, recopiée ici : lecture seule.` : `Fiche de ${PLAYER_NAME[c.player]} : lecture seule.`}</p>` : ''}
     <article class="recap">
@@ -2280,6 +2319,7 @@ function renderCharNow(id) {
     <div id="png-out-${id}" class="png-out" aria-live="polite"></div>`;
     document.getElementById('png-'+id)?.addEventListener('click', () => recapPng(id));
     document.getElementById('edit-'+id)?.addEventListener('click', () => { s.done = false; renderNav(); renderChar(id); });
+    document.querySelectorAll('#view [data-join-from]').forEach(b => b.addEventListener('click', () => { joinAct(id, b.dataset.joinFrom, b.dataset.joinAct); renderChar(id); }));
     bindTabs(id);
     return;
   }
@@ -2814,6 +2854,17 @@ window.RP_APP = {
     if (withToday && ym === curYm) applyCoupleDay(k, data?.[dayNum]);
   },
   applyCoupleState: (cid, d) => { const k = COUPLES.find(x => x.id === cid); if (k) applyCoupleState(k, d); },
+  mirrors: () => C.filter(c => c.mirror).map(c => c.id),
+  // Fiche recopiée + compléments Iloh (forme enregistrée : ensembles en { $set: [...] }).
+  mergeExtra: (id, e, x) => {
+    if (!x || (!x.added?.length && !Object.keys(x.withActs || {}).length)) return e;
+    const out = JSON.parse(JSON.stringify(e || {})), c = C.find(k => k.id === id), set = new Set(out.checked?.$set || []);
+    (x.added || []).forEach(l => { set.add(l); if (!allActs(c).includes(l)) { out.specials ||= []; if (!out.specials.includes(l)) out.specials.push(l); } });
+    out.checked = { $set: [...set] };
+    if (x.slots) out.slots = { ...(out.slots || {}), ...x.slots };
+    out.withActs = { ...(out.withActs || {}), ...(x.withActs || {}) };
+    return out;
+  },
   applyRequests: list => { Object.keys(REQUESTS).forEach(k => delete REQUESTS[k]); list.forEach(({ id, ...r }) => { REQUESTS[id] = r; }); },
   applyIloh: d => { if (d?.guests) { Object.keys(ILOH_GUESTS).forEach(k => delete ILOH_GUESTS[k]); Object.assign(ILOH_GUESTS, d.guests); } },
   applyEvents: d => { Object.keys(GROUP_EVENTS).forEach(k => delete GROUP_EVENTS[k]); Object.assign(GROUP_EVENTS, d || {}); },
