@@ -61,7 +61,13 @@ const S = stores['journee-rp'] = {
     alerts: { ankhbayar: 'En exil temporaire', khopses: 'Malade' }, milestones: { tamachag: [{ key: '2026-1-1', type: 'Mariage', with: 'taiga' }] } },
   'characters/tamachag': { player: 'corentin', addedActs: ['Pêche', 'Sexe avec Taiga'] },
   'today/tamachag': { mood: 'ok', activities: ['Pêche', 'Sexe avec Taiga'], place: 'Khurdan Iloh' },
+  // Nuit chaude de Davaajav (invité, hors couple) avec Taiga, passée et du jour
+  [`days/davaajav/months/2026-03`]: { '5': { mood: 'Nuit agitée', done: true, checked: { $set: ['Travail du bois', 'Sexe avec Taiga'] }, slots: { 'Sexe avec Taiga': ['nuit'] },
+    night: { hot: true, with: 'taiga' }, nightNotes: { 'Nuit chaude': 'Sous la yourte des invités' }, intime: 'détails', intimeWith: { $set: ['taiga'] } } },
+  [`days/taiga/months/2026-03`]: { '5': { mood: 'Rêveuse', done: true, checked: { $set: ['Sexe avec Davaajav'] }, night: { hot: true, with: 'davaajav' }, nightNotes: { 'Nuit chaude': 'Avec Davaajav' } } },
+  [`days/davaajav/months/${ym}`]: { [day]: { mood: 'Invité comblé', done: true, checked: { $set: ['Sexe avec Taiga'] }, night: { hot: true, with: 'taiga' } } },
 };
+S[`shared/day-${iso}`].nights.davaajav = { hot: true, with: 'taiga' };
 const before = JSON.stringify(S);
 
 // ---------- 1. Recopie complète ----------
@@ -88,6 +94,12 @@ process.exit = code => {
   ok(D['characters/tamachag']?.addedActs?.length === 1 && !('player' in D['characters/tamachag']), 'fiche recopiée, sans activité intime ni joueur de Journée RP');
   ok(D['today/tamachag']?.activities?.length === 1, 'encart public sans activité intime');
   ok(Object.keys(D).every(k => /^(days|couples|shared|characters|today)\//.test(k)), 'écriture seulement dans les collections prévues');
+  const dv = JSON.stringify(D['days/davaajav/months/2026-03'] || {}) + JSON.stringify(D[`days/davaajav/months/${ym}`] || {});
+  ok(D['days/davaajav/months/2026-03']?.['5']?.mood === 'Nuit agitée' && !/"night"|intime|Sexe avec|Nuit chaude|Sous la yourte/.test(dv), 'Davaajav : fiche recopiée sans sa nuit chaude avec Taiga');
+  ok(!Object.keys(D).some(k => k.startsWith('couples/') && k.includes('davaajav')), 'Davaajav (hors couple) : aucun espace de couple créé');
+  ok(D['couples/taiga-tamachag/months/2026-03']?.['5']?.nights?.taiga?.with === 'davaajav' && !JSON.stringify(D['days/taiga/months/2026-03']).match(/"night"|Sexe avec|Nuit chaude|Davaajav/),
+    'Taiga : nuit avec Davaajav seulement dans l\'espace du couple Taiga-Tamachag');
+  ok(!JSON.stringify(D[`shared/day-${iso}`] || {}).includes('davaajav'), 'rien de la nuit de Davaajav dans la journée partagée');
   // Un champ écrit par un joueur d'Iloh ne doit pas être écrasé
   D[`shared/day-${iso}`].rp.buyan = 'cheyenne';
   live(D);
