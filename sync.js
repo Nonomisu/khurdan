@@ -17,6 +17,8 @@ const auth = getAuth(fb);
 const db = initializeFirestore(fb, { ignoreUndefinedProperties: true });
 
 const J = v => JSON.stringify(v ?? null);
+// Texte stable d'une valeur (clés triées) : même résultat d'un lancement à l'autre.
+const stableJ = v => JSON.stringify(v ?? null, (k, x) => x && typeof x === 'object' && !Array.isArray(x) ? Object.fromEntries(Object.keys(x).sort().map(y => [y, x[y]])) : x);
 const clone = v => v === undefined ? undefined : JSON.parse(J(v));
 const isMap = v => v && typeof v === 'object' && !Array.isArray(v) && !Array.isArray(v.$set) && typeof v.$date !== 'string';
 const ymOf = (y, m) => `${y}-${String(m + 1).padStart(2, '0')}`;
@@ -122,6 +124,8 @@ window.RP_SYNC = {
     tx.set(ref, { [id]: { ...r, claimedBy: me, claimedAt: Date.now() } }, { merge: true });
     return { msg: r.msg || null };
   }),
+  // Signature de la journée telle que recopiée dans la base (et non telle qu'affichée, que l'affichage peut retoucher).
+  entrySig: id => stableJ(seenToday[id]),
   recapSent: (id, sig, msg) => setDoc(recapsRef(), { [id]: { sig, msg, claimedBy: null, claimedAt: 0, sentBy: me, sentAt: Date.now() } }, { merge: true }),
   recapFailed: id => setDoc(recapsRef(), { [id]: { claimedAt: 0 } }, { merge: true }),
   wrapSent: (y, id, msg) => setDoc(wrapsRef(y), { sent: { [id]: msg } }, { merge: true }),

@@ -29,7 +29,8 @@ const ok = (cond, label) => { console.log((cond ? '  ok  ' : '  ÉCHEC ') + labe
     'access/eden@test.fr': { player: 'eden', role: 'joueur' }, 'access/sheyla@test.fr': { player: 'sheyla', role: 'joueur' },
     'access/idriss@test.fr': { player: 'idriss', role: 'joueur' },
     'shared/discord': { webhook: 'https://discord.com/api/webhooks/1/test' },
-    [`days/tamachag/months/${ym}`]: { [day]: { mood: 'Recopié de Journée RP.', done: true } },
+    // « Contrat de chasse » coché sans contrat en cours : l'affichage le retire (cas qui faisait renvoyer la fiche à chaque lancement)
+    [`days/tamachag/months/${ym}`]: { [day]: { mood: 'Recopié de Journée RP.', done: true, checked: { $set: ['Travail du bois', 'Contrat de chasse'] } } },
     [`couples/taiga-tamachag/months/${ym}`]: { [day]: { nights: { tamachag: { hot: true, with: 'taiga' }, taiga: { hot: true, with: 'tamachag' } } } } };
   const open = async (name, email, first = false) => {
     const p = await ctx.newPage();
@@ -37,7 +38,8 @@ const ok = (cond, label) => { console.log((cond ? '  ok  ' : '  ÉCHEC ') + labe
     p.on('console', m => { if (m.type() === 'error') errs.push(name + ' console: ' + m.text()); });
     await p.addInitScript(([n, e, s, IDS]) => { try { localStorage.setItem('rp-night-open', JSON.stringify(IDS.flatMap(i => [i + ':data-next-night', i + ':data-prev-night']))); } catch {} window.name = n; window.MOCK_EMAIL = e; window.MOCK_WRITES = []; if (s && !localStorage.getItem('mockdb')) localStorage.setItem('mockdb', JSON.stringify(s)); }, [name, email, first ? seed : null, IDS]);
     await p.goto('http://localhost:8765/'); await p.waitForTimeout(400);
-    await p.click('#login-btn'); await p.waitForTimeout(1200);
+    if (await p.isVisible('#login-btn')) await p.click('#login-btn');   // session déjà ouverte : pas de bouton
+    await p.waitForTimeout(1200);
     return p;
   };
   const db = p => p.evaluate(() => JSON.parse(localStorage.getItem('mockdb')));
@@ -63,6 +65,11 @@ const ok = (cond, label) => { console.log((cond ? '  ok  ' : '  ÉCHEC ') + labe
   d = await db(nono);
   ok(!!d[`shared/recaps-${ym}-${String(rp.getDate()).padStart(2, '0')}`]?.tamachag?.msg, 'envoi noté (verrou partagé)');
   ok((await nono.textContent('#view header .kicker')).includes('Iloh Khurdan'), 'retour à l\'écran d\'avant après l\'envoi');
+  // Relance de l'appli (et reprise automatique) : pas de nouvel envoi sans changement
+  await nono.evaluate(() => go('tamachag')); await nono.waitForTimeout(300); await nono.evaluate(() => go('home'));
+  await nono.evaluate(() => window.RP_DISCORD.sendMirrors()); await nono.waitForTimeout(2500);
+  const nono2 = await open('nono', 'nono@test.fr'); await nono2.waitForTimeout(3500); await nono2.close();
+  ok(posts.filter(t => t.includes('Recopié de Journée RP.')).length === 1, 'relance de l\'appli : la fiche n\'est pas renvoyée');
   // Filtre Eden
   await nono.click('#f-eden'); await nono.waitForTimeout(150);
   ok(await nono.locator('.grid .card').count() === 3, 'filtre Eden : 3 personnages');

@@ -2517,7 +2517,7 @@ const sendMirrors = async () => {
   mirrorBusy = true;
   try {
     for (const c of C.filter(x => x.mirror && state[x.id].done)) {
-      const sig = JSON.stringify(entryOf(c.id));
+      const sig = RP_SYNC.entrySig(c.id);   // journée telle que dans la base : stable d'un lancement à l'autre
       if (mirrorSent[c.id] === sig) continue;
       const claim = await RP_SYNC.recapClaim(c.id, sig);
       if (claim === 'done') { mirrorSent[c.id] = sig; continue; }
