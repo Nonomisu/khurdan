@@ -1069,7 +1069,7 @@ const travelTime = (c, y) => Array.from({ length:366 }, (_, i) => new Date(y, 0,
 // Palme du plus grand voyageur / de la plus grande voyageuse : tous personnages confondus (mise en cache avec le duo).
 const topTraveler = y => hotDuoCache['travel:' + y] ||= C.map(c => ({ id: c.id, min: travelTime(c, y) })).filter(x => x.min > 0).sort((a, b) => b.min - a.min)[0] || null;
 const travelerTitle = id => isFem(id) ? 'Plus grande voyageuse' : 'Plus grand voyageur';
-const hottestDuo = y => hotDuoCache[y] ||= PAIRS.map(p => {
+const hottestDuo = y => hotDuoCache[y + (publicView ? ':pub' : '')] ||= PAIRS.map(p => {
   const days = Array.from({ length:366 }, (_, i) => new Date(y, 0, 1 + i)).filter(d => d.getFullYear() === y && d <= rpDay);
   const n = days.filter(d => p.some(id => { const r = dayRecord(C.find(c => c.id === id), d); return r?.hot && (!r.with || p.includes(r.with)); })).length;   // nuits passées ensemble
   return { pair:p, n };
@@ -1135,13 +1135,13 @@ const wrapExtrasHtml = (c, y) => {
     <h3 class="wrap-sec">Liens et fêtes</h3>
     <div class="fx-grid">
       ${x.duo ? card("Duo de l'année", esc(x.duo[0]), x.duo[1] + ' moments partagés') : ''}
-      ${(h => h && h.n && h.pair.includes(c.id) ? `<div class="fx hot-duo">${icon('lips')}<span class="fx-label">Duo le plus chaud de l'année</span><b>${h.pair.map(nameOf).join(' & ')}</b><small>${h.n} nuits torrides, record toutes fiches confondues</small><em class="cheer">Bravo les petits coquins</em></div>` : '')(hottestDuo(y))}
-      ${x.nightsMonth ? card('Mois le plus torride', MONTHS[x.nightsMonth[0]], x.nightsMonth[1] + ' nuits chaudes') : ''}
+      ${(h => h && h.n && h.pair.includes(c.id) && seesNights(c.id) ? `<div class="fx hot-duo">${icon('lips')}<span class="fx-label">Duo le plus chaud de l'année</span><b>${h.pair.map(nameOf).join(' & ')}</b><small>${h.n} nuits torrides, record toutes fiches confondues</small><em class="cheer">Bravo les petits coquins</em></div>` : '')(hottestDuo(y))}
+      ${x.nightsMonth && seesNights(c.id) ? card('Mois le plus torride', MONTHS[x.nightsMonth[0]], x.nightsMonth[1] + ' nuits chaudes') : ''}
       ${x.fests.size ? card('Fêtes vécues', x.fests.size, [...x.fests].slice(0, 3).join(', ')) : ''}
       ${x.bdays ? card('Anniversaires fêtés', x.bdays) : ''}
       ${x.khurdan.length ? card('Grands jours khurdans', x.khurdan.length + ' jours', [...new Set(x.khurdan.map(k => k.startsWith('Départ') ? 'transhumances' : k))].join(', ')) : ''}
     </div>
-    ${hasHot(c.id) && nightPartners(c, x).length >= 2 ? battleHtml(c, x) : ''}
+    ${hasHot(c.id) && seesNights(c.id) && nightPartners(c, x).length >= 2 ? battleHtml(c, x) : ''}
     ${huntYearHtml(c, x)}
     <h3 class="wrap-sec">Météo intérieure</h3>
     <div class="frieze">${x.frieze.map((mo, i) => `<span style="background:${mo ? MOOD_COLORS[mo] || MOOD_COLORS[MOOD_MASC[mo]] || '#888' : 'transparent'}" title="${MONTHS[i]} : ${mo ? esc(mo) : '—'}"><i>${MONTHS[i][0].toUpperCase()}</i></span>`).join('')}</div>
@@ -1155,7 +1155,7 @@ const wrapExtrasHtml = (c, y) => {
         <tr><th>Voyages</th><td>${me.trips}</td><td>${ps.trips}</td></tr>
         <tr><th>Kilomètres</th><td>${me.km.toLocaleString('fr-FR')}</td><td>${ps.km.toLocaleString('fr-FR')}</td></tr>
         <tr><th>Activité phare</th><td>${esc(me.top)}</td><td>${esc(ps.top)}</td></tr></tbody></table>` : ''}
-    ${!hasHot(c.id) ? '' : `<h3 class="wrap-sec">Les petites hontes</h3>
+    ${`<h3 class="wrap-sec">Les petites hontes</h3>
     <ul class="shames">
       ${x.drunk ? `<li>A fini ivre ${x.drunk} fois.</li>` : `<li>Pas une seule ivresse. Exemplaire, ou très discret${x.fem ? 'e' : ''}.</li>`}
       ${x.hurt ? `<li>${x.hurt} blessure${x.hurt > 1 ? 's' : ''} au compteur.</li>` : ''}
@@ -1200,7 +1200,7 @@ function renderHistory(id) {
         <p class="kicker">L'année ${wy} de</p>
         <h2 class="wrap-name">${c.name}</h2>
         <div class="wrap-big"><div><b>${ws.filled}</b><span>journées racontées</span></div>
-          <div><b>${ws.nights}</b><span>nuits chaudes</span></div>
+          ${hasHot(id) && seesNights(id) ? `<div><b>${ws.nights}</b><span>nuits chaudes</span></div>` : ''}
           <div><b>${ws.trips}</b><span>voyages</span></div>
           <div><b>${doneArcs.length}</b><span>arcs bouclés</span></div></div>
         <dl class="stats-list">
