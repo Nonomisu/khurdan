@@ -113,6 +113,12 @@ main {
 }
 @media (min-width: 52rem) { main { padding-block: 2.5rem 4rem; } }
 .wrap { max-width: 40rem; margin: 0 auto; display: grid; gap: 1.6rem; }
+/* Animation météo de l'accueil : canvas hors du flux (aucun décalage), derrière le contenu, jamais cliquable. */
+#view.fx-on { position: relative; overflow: hidden; }
+#view.fx-on > :not(.wx-fx) { position: relative; }
+.wx-fx { position: absolute; top: 0; left: 0; pointer-events: none; z-index: 0; border-radius: inherit; }
+.fx-toggle { justify-self: center; font-size: .85rem; color: var(--dim); }
+.fx-toggle small { font-size: .78rem; }
 .preview-note {
   font-size: .85rem; font-style: italic; color: var(--dim);
   border: 1px dashed var(--rule); padding: .5rem .8rem; border-radius: 6px;
@@ -523,6 +529,6 @@ button.link.danger { color: #e0a24d; }
 <div class="sync-state" id="sync-state" aria-live="polite"></div>
 </div>
 
-<script src="app.js?v=7302c68d93" charset="utf-8"></script>
+<script src="app.js?v=55e968ec02" charset="utf-8"></script>
 <script type="module" src="sync.js?v=5a0a5917ce"></script>
 

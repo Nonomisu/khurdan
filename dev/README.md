@@ -27,6 +27,7 @@ stockage dans localStorage, partagé entre onglets) : admin, deux joueuses, un c
 python3 -m http.server 8765        # à la racine du dépôt, dans un autre terminal
 node dev/tests/groupe.js           # largeur téléphone (420 px)
 node dev/tests/groupe.js 1280      # largeur PC
+node dev/tests/meteo.js            # animation météo de l'accueil
 ```
 
 ## Données Firestore

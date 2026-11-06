@@ -1535,6 +1535,91 @@ function renderNav() {
   }
 }
 
+
+// ---------- Animation météo de l'accueil ----------
+// Météo de Khurdan Iloh pour tous. Particules dessinées dans un canvas placé derrière le contenu de l'accueil :
+// elles ne prennent aucune place (pas de saut de page), ne captent aucun clic, restent sous 40, s'arrêtent quand l'appli
+// n'est pas à l'écran ou quand on quitte l'accueil, et sont coupées si l'appareil demande moins d'animations.
+const FX_CITY = PLACE_CLIMATE['Khurdan Iloh'];
+const fxKind = () => {
+  if (window.FX_FORCE !== undefined) return window.FX_FORCE;   // tests : forcer un temps
+  const w = cityWeather(FX_CITY, tempAt(FX_CITY, rpDay)), k = Object.keys(W).find(x => W[x] === w);
+  const h = new Date().getHours(), night = h >= 21 || h < 6;
+  return { snow:'snow', blizzard:'blizzard', rain:'rain', thunder:'storm', wind:'wind', gales:'wind', fog:'fog' }[k] || (night && (k === 'clear' || k === 'fair') ? 'fireflies' : null);
+};
+const FX_PREF = 'rp-anim-meteo';
+const fxWanted = () => { try { return localStorage.getItem(FX_PREF) !== 'off'; } catch { return true; } };
+const fxReduced = () => { try { return matchMedia('(prefers-reduced-motion: reduce)').matches; } catch { return false; } };
+const FX = { canvas: null, ctx: null, parts: [], kind: null, raf: 0, last: 0, flash: 0, nextBolt: 0 };
+const rnd = (a, b) => a + Math.random() * (b - a);
+const FX_COUNT = { snow: 32, blizzard: 40, rain: 38, storm: 40, wind: 14, fog: 6, fireflies: 14 };
+const fxSpawn = (k, w, h, anywhere) => {
+  const y0 = anywhere ? rnd(0, h) : -20;
+  if (k === 'snow') return { x: rnd(0, w), y: y0, r: rnd(1.2, 2.8), vy: rnd(12, 26), drift: rnd(0, 6.3), sway: rnd(8, 20), a: rnd(.35, .7) };
+  if (k === 'blizzard') return { x: anywhere ? rnd(0, w) : rnd(-w * .3, w), y: y0, r: rnd(1, 2.4), vy: rnd(70, 120), vx: rnd(90, 160), a: rnd(.35, .75) };
+  if (k === 'rain' || k === 'storm') return { x: anywhere ? rnd(0, w) : rnd(-w * .2, w), y: y0, len: rnd(9, 16), vy: rnd(260, 380), vx: 55, a: rnd(.18, .35) };
+  if (k === 'wind') return { x: anywhere ? rnd(0, w) : -30, y: rnd(0, h), len: rnd(6, 14), vx: rnd(90, 170), wob: rnd(0, 6.3), rot: rnd(-.5, .5), a: rnd(.25, .5), grass: Math.random() < .5 };
+  if (k === 'fog') return { x: anywhere ? rnd(-w * .3, w) : -w * .6, y: rnd(h * .1, h * .9), rx: rnd(w * .35, w * .7), ry: rnd(50, 110), vx: rnd(6, 14), a: rnd(.1, .16) };
+  if (k === 'fireflies') return { x: rnd(0, w), y: rnd(h * .2, h), r: rnd(1.4, 2.4), t: rnd(0, 6.3), sp: rnd(.6, 1.4), vx: rnd(-8, 8), vy: rnd(-6, 6) };
+};
+const fxView = () => document.getElementById('view');
+const fxStop = () => { cancelAnimationFrame(FX.raf); FX.raf = 0; };
+const fxOff = () => { fxStop(); FX.canvas?.remove(); fxView()?.classList.remove('fx-on'); };
+const fxFrame = now => {
+  const view = fxView(), cv = FX.canvas;
+  if (!cv || !cv.isConnected || current !== 'home' || document.hidden) { FX.raf = 0; return; }
+  // Le canvas suit la partie visible de l'accueil (déplacement par transform : rien ne bouge dans la page).
+  const r = view.getBoundingClientRect(), top = Math.max(0, -r.top), w = Math.round(r.width), h = Math.max(0, Math.round(Math.min(innerHeight, r.bottom) - Math.max(0, r.top)));
+  const dpr = Math.min(2, devicePixelRatio || 1);
+  if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); cv.style.width = w + 'px'; cv.style.height = h + 'px'; }
+  cv.style.transform = `translateY(${top}px)`;
+  const dt = Math.min(.05, (now - (FX.last || now)) / 1000); FX.last = now;
+  const c = FX.ctx, k = FX.kind; c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, w, h);
+  while (FX.parts.length < FX_COUNT[k]) FX.parts.push(fxSpawn(k, w, h, true));
+  const gold = '201,174,143', cream = '236,227,214', ember = '185,120,90';
+  for (let i = 0; i < FX.parts.length; i++) {
+    const p = FX.parts[i]; let gone = false;
+    if (k === 'snow') { p.y += p.vy * dt; p.drift += dt * .8; const x = p.x + Math.sin(p.drift) * p.sway;
+      c.fillStyle = `rgba(${cream},${p.a})`; c.beginPath(); c.arc(x, p.y, p.r, 0, 6.3); c.fill(); gone = p.y > h + 10; }
+    else if (k === 'blizzard') { p.y += p.vy * dt; p.x += p.vx * dt;
+      c.fillStyle = `rgba(${cream},${p.a})`; c.beginPath(); c.arc(p.x, p.y, p.r, 0, 6.3); c.fill(); gone = p.y > h + 10 || p.x > w + 10; }
+    else if (k === 'rain' || k === 'storm') { p.y += p.vy * dt; p.x += p.vx * dt;
+      c.strokeStyle = `rgba(${gold},${p.a})`; c.lineWidth = 1; c.beginPath(); c.moveTo(p.x, p.y); c.lineTo(p.x - p.len * .2, p.y - p.len); c.stroke(); gone = p.y - p.len > h; }
+    else if (k === 'wind') { p.x += p.vx * dt; p.wob += dt * 3; const y = p.y + Math.sin(p.wob) * 4;
+      c.strokeStyle = `rgba(${p.grass ? ember : gold},${p.a})`; c.lineWidth = p.grass ? 1.2 : 1.6; c.lineCap = 'round';
+      c.beginPath(); if (p.grass) { c.moveTo(p.x, y); c.quadraticCurveTo(p.x + p.len * .5, y - 3 + p.rot * 6, p.x + p.len, y + p.rot * 4); } else { c.moveTo(p.x, y); c.lineTo(p.x + 1.5, y); } c.stroke(); gone = p.x > w + 30; }
+    else if (k === 'fog') { p.x += p.vx * dt;
+      const g = c.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.rx); g.addColorStop(0, `rgba(${cream},${p.a})`); g.addColorStop(1, `rgba(${cream},0)`);
+      c.fillStyle = g; c.save(); c.translate(p.x, p.y); c.scale(1, p.ry / p.rx); c.translate(-p.x, -p.y); c.beginPath(); c.arc(p.x, p.y, p.rx, 0, 6.3); c.fill(); c.restore(); gone = p.x - p.rx > w; }
+    else if (k === 'fireflies') { p.t += dt * p.sp; p.x += (p.vx + Math.sin(p.t * 1.3) * 6) * dt; p.y += (p.vy + Math.cos(p.t) * 5) * dt;
+      const a = .25 + .55 * Math.max(0, Math.sin(p.t * 2)); const g = c.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r * 5);
+      g.addColorStop(0, `rgba(232,200,122,${a})`); g.addColorStop(1, 'rgba(232,200,122,0)'); c.fillStyle = g; c.beginPath(); c.arc(p.x, p.y, p.r * 5, 0, 6.3); c.fill();
+      c.fillStyle = `rgba(250,226,160,${Math.min(1, a + .25)})`; c.beginPath(); c.arc(p.x, p.y, p.r * .7, 0, 6.3); c.fill();
+      gone = p.x < -20 || p.x > w + 20 || p.y < -20 || p.y > h + 20; }
+    if (gone) FX.parts[i] = fxSpawn(k, w, h, k === 'fireflies');
+  }
+  // Orage : un éclair discret de temps en temps (léger voile clair, jamais de flash vif).
+  if (k === 'storm') {
+    if (now > FX.nextBolt) { FX.flash = .5; FX.nextBolt = now + rnd(7000, 16000); }
+    if (FX.flash > 0) { c.fillStyle = `rgba(${cream},${.09 * FX.flash})`; c.fillRect(0, 0, w, h); FX.flash = Math.max(0, FX.flash - dt * 2.5); }
+  }
+  FX.raf = requestAnimationFrame(fxFrame);
+};
+const fxStart = () => {
+  const view = fxView();
+  if (current !== 'home' || !view || !fxWanted() || fxReduced()) return fxOff();
+  const k = fxKind(); if (!k) return fxOff();
+  if (!FX.canvas) { FX.canvas = document.createElement('canvas'); FX.canvas.className = 'wx-fx'; FX.canvas.setAttribute('aria-hidden', 'true'); FX.ctx = FX.canvas.getContext('2d'); }
+  if (FX.kind !== k) { FX.kind = k; FX.parts = []; FX.nextBolt = performance.now() + rnd(3000, 8000); }
+  view.classList.add('fx-on'); view.prepend(FX.canvas);
+  if (!FX.raf && !document.hidden) { FX.last = 0; FX.raf = requestAnimationFrame(fxFrame); }
+};
+document.addEventListener('visibilitychange', () => { if (document.hidden) fxStop(); else if (current === 'home') fxStart(); });
+try { matchMedia('(prefers-reduced-motion: reduce)').addEventListener('change', () => current === 'home' ? fxStart() : fxOff()); } catch {}
+document.addEventListener('change', e => { if (e.target.id !== 'fx-toggle') return;
+  try { localStorage.setItem(FX_PREF, e.target.checked ? 'on' : 'off'); } catch {} fxStart(); });
+const fxToggleHtml = () => `<label class="check-inline fx-toggle"><input type="checkbox" id="fx-toggle" ${fxWanted() ? 'checked' : ''} ${fxReduced() ? 'disabled' : ''}> Animation de la météo${fxReduced() ? ' <small>(coupée : l\'appareil demande moins d\'animations)</small>' : ''}</label>`;
+
 function renderHome() {
   root.className = 't-khurdan';
   const visible = C.filter(shown);
@@ -1556,9 +1641,11 @@ function renderHome() {
           ${alerts[c.id] ? `<span class="card-alert">${icon('warn')}${esc(alerts[c.id])}</span>` : ''}
           <span class="state ${s.done || rpPlayed[c.id] ? 'done' : ''}">${s.done ? '✓ Terminé' : rpPlayed[c.id] ? '✓ Jouée en RP' : (s.mood || s.checked.size || s.trip ? 'En cours' : 'À remplir')}</span></button>`; }).join('')}
     </div>
+    ${fxToggleHtml()}
     ${window.RP_PUSH ? RP_PUSH.html() : ''}
     ${isAdminMe() && window.RP_DISCORD ? RP_DISCORD.settingsHtml() : ''}
     ${window.RP_ADMIN_UI ? RP_ADMIN_UI.html() : ''}`;
+  fxStart();
 }
 
 // Réaffichage sans saut de page : la hauteur est gardée pendant le remplacement, et l'élément touché
@@ -2092,7 +2179,7 @@ function renderCharNow(id) {
   document.getElementById('done-'+id).addEventListener('click', () => { s.done = true; s.doneAt ??= Date.now(); renderNav(); renderChar(id); window.RP_SYNC?.saveNow(); window.RP_DISCORD?.send(id); });
 }
 
-function go(id) { resetSpacer(); lastPage = null; current = id; renderNav(); id === 'home' ? renderHome() : renderChar(id); window.scrollTo({ top:0 }); }
+function go(id) { resetSpacer(); lastPage = null; current = id; renderNav(); if (id !== 'home') fxOff(); id === 'home' ? renderHome() : renderChar(id); window.scrollTo({ top:0 }); }
 document.addEventListener('click', e => { const b = e.target.closest('[data-go]'); if (b) go(b.dataset.go); });
 document.addEventListener('click', async e => {
   const b = e.target.closest('[data-wrap-open]'); if (!b) return;

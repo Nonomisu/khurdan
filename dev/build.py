@@ -162,8 +162,10 @@ js = one(js, "document.getElementById('done-'+id).addEventListener('click', () =
 js = one(js, '<footer class="recap-foot"><span>✓ Journée validée</span>', '<footer class="recap-foot"><span>✓ Journée validée${window.RP_DISCORD ? RP_DISCORD.status(id) : \'\'}</span>')
 # Réglage Discord (Nono) : discret, tout en bas de l'accueil
 js = one(js, """          <span class="state ${s.done || rpPlayed[c.id] ? 'done' : ''}">${s.done ? '✓ Terminé' : rpPlayed[c.id] ? '✓ Jouée en RP' : (s.mood || s.checked.size || s.trip ? 'En cours' : 'À remplir')}</span></button>`; }).join('')}
-    </div>`;""", """          <span class="state ${s.done || rpPlayed[c.id] ? 'done' : ''}">${s.done ? '✓ Terminé' : rpPlayed[c.id] ? '✓ Jouée en RP' : (s.mood || s.checked.size || s.trip ? 'En cours' : 'À remplir')}</span></button>`; }).join('')}
     </div>
+    ${fxToggleHtml()}`;""", """          <span class="state ${s.done || rpPlayed[c.id] ? 'done' : ''}">${s.done ? '✓ Terminé' : rpPlayed[c.id] ? '✓ Jouée en RP' : (s.mood || s.checked.size || s.trip ? 'En cours' : 'À remplir')}</span></button>`; }).join('')}
+    </div>
+    ${fxToggleHtml()}
     ${window.RP_PUSH ? RP_PUSH.html() : ''}
     ${isAdminMe() && window.RP_DISCORD ? RP_DISCORD.settingsHtml() : ''}
     ${window.RP_ADMIN_UI ? RP_ADMIN_UI.html() : ''}`;""")
