@@ -12,6 +12,15 @@ const ok = (cond, label) => { console.log((cond ? '  ok  ' : '  ÉCHEC ') + labe
   await ctx.route('https://www.gstatic.com/firebasejs/**', r => r.fulfill({ body: fs.readFileSync(path.join(MOCK, r.request().url().split('/').pop())), contentType: 'application/javascript' }));
   await ctx.route('**fonts.googleapis.com**', r => r.fulfill({ body: '', contentType: 'text/css' }));
   await ctx.route('**fonts.gstatic.com**', r => r.fulfill({ body: '' }));
+  // Bibliothèque d'image servie en local, webhook Discord simulé (on note ce que montre la fiche au moment de l'envoi)
+  const H2I = path.join(require.resolve('html-to-image/package.json'), '..', 'dist', 'html-to-image.js');
+  await ctx.route('https://cdn.jsdelivr.net/npm/html-to-image@*/**', r => r.fulfill({ body: fs.readFileSync(H2I), contentType: 'application/javascript' }));
+  const posts = [];
+  await ctx.route('https://discord.com/api/webhooks/**', async (r, req) => {
+    if (req.method() === 'GET') return r.fulfill({ status: 200, body: '{}' });
+    const pg = req.frame().page(); posts.push(await pg.evaluate(() => document.querySelector('#view .recap')?.textContent || ''));
+    r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ id: 'm' + posts.length }) });
+  });
   const errs = [];
   // Journée RP en cours (elle commence à 5 h), comme dans l'appli.
   const rp = new Date(Date.now() - 5 * 3600e3), ym = `${rp.getFullYear()}-${String(rp.getMonth() + 1).padStart(2, '0')}`, day = String(rp.getDate());
@@ -19,6 +28,7 @@ const ok = (cond, label) => { console.log((cond ? '  ok  ' : '  ÉCHEC ') + labe
   const seed = { 'access/nono@test.fr': { player: 'nono', role: 'admin' }, 'access/jynette@test.fr': { player: 'jynette', role: 'joueur' },
     'access/eden@test.fr': { player: 'eden', role: 'joueur' }, 'access/sheyla@test.fr': { player: 'sheyla', role: 'joueur' },
     'access/idriss@test.fr': { player: 'idriss', role: 'joueur' },
+    'shared/discord': { webhook: 'https://discord.com/api/webhooks/1/test' },
     [`couples/taiga-tamachag/months/${ym}`]: { [day]: { nights: { tamachag: { hot: true, with: 'taiga' }, taiga: { hot: true, with: 'tamachag' } } } } };
   const open = async (name, email, first = false) => {
     const p = await ctx.newPage();
@@ -73,6 +83,10 @@ const ok = (cond, label) => { console.log((cond ? '  ok  ' : '  ÉCHEC ') + labe
   await sh.click('#done-oldaghar'); await sh.waitForTimeout(1500);
   d = await db(sh);
   ok(d[`days/oldaghar/months/${ym}`]?.[day]?.mood === 'Serein ce matin.', 'journée d\'Oldaghar enregistrée');
+  ok(posts.length === 1 && posts[0].includes('Serein ce matin.'), 'récap d\'Oldaghar envoyé sur le salon commun');
+  ok(!posts[0].includes('Nuit chaude') && !posts[0].includes('voyageuse'), 'image Discord sans nuit chaude, même envoyée par la joueuse du couple');
+  await sh.waitForTimeout(300);
+  ok((await sh.textContent('#view')).includes('Nuit chaude'), 'après l\'envoi, Sheyla revoit la nuit chaude dans l\'appli');
   const news = Object.entries(d).filter(([k]) => k.startsWith('news/')).map(([, v]) => v);
   ok(news.some(n => n.to === 'idriss' && n.from === 'sheyla'), 'nouvelle pour Idriss (nuit chaude), auteur noté');
   ok(news.every(n => n.to !== n.from), 'aucune nouvelle vers soi-même');

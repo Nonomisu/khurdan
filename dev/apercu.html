@@ -1144,13 +1144,16 @@ const loversOf = id => (LOVERS[id] ||= []);
 const isChar = x => C.some(c => c.id === x);
 // Nuit chaude, protection, risque de grossesse : seulement pour les personnages qui ont l'option (couples).
 const hasHot = id => !!C.find(c => c.id === id)?.hotNights;
+// Vue publique (images envoyées sur le salon Discord commun) : aucune nuit chaude, même pour les joueurs du couple.
+let publicView = false;
 const partnerOf = id => pairOf(id)?.find(x => x !== id) || null;
 const charByName = v => C.find(c => c.name.toLowerCase() === v.toLowerCase())?.id || null;
 const whoLabel = x => isChar(x) ? nameOf(x) : x;
 const nightOf = id => {
   const p = partnerOf(id), r = nightsBy[id] || {}, pr = p ? nightsBy[p] : null;
-  return { partner: p, solo: !p, isMan: !isFem(id), hot: !!r.hot, with: r.hot ? (r.with ?? p ?? '') : null,
-    partnerAway: p && pr?.hot && pr.with && pr.with !== id ? pr.with : null };
+  const hot = !!r.hot && !publicView, phot = !!pr?.hot && !publicView;
+  return { partner: p, solo: !p, isMan: !isFem(id), hot, with: hot ? (r.with ?? p ?? '') : null,
+    partnerAway: p && phot && pr.with && pr.with !== id ? pr.with : null };
 };
 // « Monsieur se protège » : le dernier choix de chaque homme est repris d'une nuit à l'autre,
 // y compris quand c'est sa partenaire qui coche la nuit.
@@ -1265,8 +1268,8 @@ const setPrev = (id, patch) => {
 };
 const prevNight = id => {
   const e = prevEntry(id), c = C.find(x => x.id === id);
-  const own = e?.night?.hot ? { with: e.night.with || null, own: true } : null;
-  const viaPartner = !own && typeof nightOn === 'function' && typeof HISTORY !== 'undefined' ? nightOn(c, prevDay()) : null;
+  const own = e?.night?.hot && !publicView ? { with: e.night.with || null, own: true } : null;
+  const viaPartner = !own && !publicView && typeof nightOn === 'function' && typeof HISTORY !== 'undefined' ? nightOn(c, prevDay()) : null;
   return { hot: own || viaPartner, states: [...(e?.nightStates || [])], note: e?.nightNote || '', notes: { ...(e?.nightNotes || {}) }, calmWith: e?.calmWith || null };
 };
 const prevNightLine = id => { const n = prevNight(id); if (!n.hot && !n.states.length && !n.note) return '';
@@ -1437,7 +1440,7 @@ const dayRecord = (c, d) => {
     mood: moodFor(c.id, MOODS[Math.floor(seeded(k + 'm') * MOODS.length)]),
     acts, slots, place, region: place ? PLACE_REGION[place] : home,
     // les nuits d'un couple sont tirées ensemble, pour que les deux fiches concordent
-    cond, hot: hotNight, trip: !!tripInfo, tripInfo,
+    cond, hot: hotNight && !publicView, trip: !!tripInfo, tripInfo,
     with: hotNight ? (loversOf(c.id).length && seeded(k + 'with') < .4 ? loversOf(c.id)[Math.floor(seeded(k + 'w2') * loversOf(c.id).length)] : partnerOf(c.id)) : null,   // exemple : partenaire tiré au hasard
     phys: hotNight && seeded(k + 'ep') < .35 ? ['Éprouvé de la nuit'] : physRoll < .15 ? [PHYS[1 + Math.floor(seeded(k + 'ff') * (PHYS.length - 2))]] : [],
   };
@@ -1447,6 +1450,7 @@ const tally = arr => Object.entries(arr.reduce((o, x) => (o[x] = (o[x] || 0) + 1
 // Nuit chaude d'un personnage un jour donné : celle de sa fiche, ou celle cochée par son ou sa partenaire
 // (la fiche du partenaire suffit, même si la sienne n'a pas été remplie ce jour-là).
 const nightOn = (c, d) => {
+  if (publicView) return null;
   const r = dayRecord(c, d); if (r?.hot) return { with: r.with };
   if (d > rpDay || sameDay(d, rpDay) || typeof HISTORY === 'undefined') return null;
   const k = keyOf(d), n = id => HISTORY[id]?.[k]?.night;
@@ -1753,7 +1757,7 @@ function renderHistory(id) {
         ${st.hottest ? `<div><dt>Températures</dt><dd>de ${deg(st.coldest.min)} (${fmtDay(st.coldest.d)}) à ${deg(st.hottest.max)} (${fmtDay(st.hottest.d)})</dd></div>` : ''}
         ${st.phys.length ? `<div><dt>État physique</dt><dd>${listOf(st.phys)}</dd></div>` : ''}
         ${st.mental.length ? `<div><dt>État mental</dt><dd>${listOf(st.mental)}</dd></div>` : ''}
-        <div><dt>Nuits chaudes</dt><dd>${st.nights}</dd></div>
+        ${hasHot(id) && !publicView ? `<div><dt>Nuits chaudes</dt><dd>${st.nights}</dd></div>` : ''}
         ${st.trips ? `<div><dt>Voyages</dt><dd>${st.trips}</dd></div>` : ''}
       </dl>
     </section>

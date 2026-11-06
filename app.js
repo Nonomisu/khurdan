@@ -656,13 +656,16 @@ const loversOf = id => (LOVERS[id] ||= []);
 const isChar = x => C.some(c => c.id === x);
 // Nuit chaude, protection, risque de grossesse : seulement pour les personnages qui ont l'option (couples).
 const hasHot = id => !!C.find(c => c.id === id)?.hotNights;
+// Vue publique (images envoyées sur le salon Discord commun) : aucune nuit chaude, même pour les joueurs du couple.
+let publicView = false;
 const partnerOf = id => pairOf(id)?.find(x => x !== id) || null;
 const charByName = v => C.find(c => c.name.toLowerCase() === v.toLowerCase())?.id || null;
 const whoLabel = x => isChar(x) ? nameOf(x) : x;
 const nightOf = id => {
   const p = partnerOf(id), r = nightsBy[id] || {}, pr = p ? nightsBy[p] : null;
-  return { partner: p, solo: !p, isMan: !isFem(id), hot: !!r.hot, with: r.hot ? (r.with ?? p ?? '') : null,
-    partnerAway: p && pr?.hot && pr.with && pr.with !== id ? pr.with : null };
+  const hot = !!r.hot && !publicView, phot = !!pr?.hot && !publicView;
+  return { partner: p, solo: !p, isMan: !isFem(id), hot, with: hot ? (r.with ?? p ?? '') : null,
+    partnerAway: p && phot && pr.with && pr.with !== id ? pr.with : null };
 };
 // « Monsieur se protège » : le dernier choix de chaque homme est repris d'une nuit à l'autre,
 // y compris quand c'est sa partenaire qui coche la nuit.
@@ -777,8 +780,8 @@ const setPrev = (id, patch) => {
 };
 const prevNight = id => {
   const e = prevEntry(id), c = C.find(x => x.id === id);
-  const own = e?.night?.hot ? { with: e.night.with || null, own: true } : null;
-  const viaPartner = !own && typeof nightOn === 'function' && typeof HISTORY !== 'undefined' ? nightOn(c, prevDay()) : null;
+  const own = e?.night?.hot && !publicView ? { with: e.night.with || null, own: true } : null;
+  const viaPartner = !own && !publicView && typeof nightOn === 'function' && typeof HISTORY !== 'undefined' ? nightOn(c, prevDay()) : null;
   return { hot: own || viaPartner, states: [...(e?.nightStates || [])], note: e?.nightNote || '', notes: { ...(e?.nightNotes || {}) }, calmWith: e?.calmWith || null };
 };
 const prevNightLine = id => { const n = prevNight(id); if (!n.hot && !n.states.length && !n.note) return '';
@@ -932,7 +935,7 @@ const dayRecord = (c, d) => {
   if (!rp && (!e0 || !(e0.done || e0.mood || e0.checked?.size || e0.checked?.length || e0.trip))) return null;
   const e = e0 || {};
   return { rp, mood: e.mood || '', acts: [...(e.checked || [])].filter(a => a !== 'Voyage'), slots: e.slots || {}, place: [...(e.places || [])][0] || '', region: e.region || homeRegion(c.id),
-    cond, hot: !!e.night?.hot, with: e.night?.with || null, trip: !!e.trip,
+    cond, hot: !publicView && !!e.night?.hot, with: e.night?.with || null, trip: !!e.trip,
     tripInfo: e.trip ? { from: e.trip.from?.region, to: e.trip.to?.region, modes: [...(e.trip.modes || [])], minutes: e.trip.minutes || 0, reason: e.trip.reason || '' } : null,
     phys: [...(e.phys || [])].filter(p => !MORAL.includes(p)), mental: [...(e.mental || []), ...[...(e.phys || [])].filter(p => MORAL.includes(p))],
     notes: e.stateNotes || {}, nightStates: [...(e.nightStates || [])], nightNote: e.nightNote || '', nightNotes: e.nightNotes || {}, calmWith: e.calmWith || null, intime: e.intime || '', nefaste: e.nefaste || '', faits: e.faits || '', intimeWith: [...(e.intimeWith || [])], real: true };
@@ -944,6 +947,7 @@ const tally = arr => Object.entries(arr.reduce((o, x) => (o[x] = (o[x] || 0) + 1
 // Nuit chaude d'un personnage un jour donné : celle de sa fiche, ou celle cochée par son ou sa partenaire
 // (la fiche du partenaire suffit, même si la sienne n'a pas été remplie ce jour-là).
 const nightOn = (c, d) => {
+  if (publicView) return null;
   const r = dayRecord(c, d); if (r?.hot) return { with: r.with };
   if (d > rpDay || sameDay(d, rpDay) || typeof HISTORY === 'undefined') return null;
   const k = keyOf(d), n = id => HISTORY[id]?.[k]?.night;
@@ -1251,7 +1255,7 @@ function renderHistory(id) {
         ${st.hottest ? `<div><dt>Températures</dt><dd>de ${deg(st.coldest.min)} (${fmtDay(st.coldest.d)}) à ${deg(st.hottest.max)} (${fmtDay(st.hottest.d)})</dd></div>` : ''}
         ${st.phys.length ? `<div><dt>État physique</dt><dd>${listOf(st.phys)}</dd></div>` : ''}
         ${st.mental.length ? `<div><dt>État mental</dt><dd>${listOf(st.mental)}</dd></div>` : ''}
-        <div><dt>Nuits chaudes</dt><dd>${st.nights}</dd></div>
+        ${hasHot(id) && !publicView ? `<div><dt>Nuits chaudes</dt><dd>${st.nights}</dd></div>` : ''}
         ${st.trips ? `<div><dt>Voyages</dt><dd>${st.trips}</dd></div>` : ''}
       </dl>
     </section>
@@ -2344,9 +2348,11 @@ const sendDiscord = async id => {
   if (!hook || !owns(id) || !state[id].done) return;
   discordState[id] = 'sending'; if (current === id) rerender();
   try {
+    // Image pour le salon commun : vue publique, sans nuit chaude (même chez les joueurs du couple).
+    publicView = true; if (current === id) rerender();
     await new Promise(r => setTimeout(r, 300));          // laisse le récap s'afficher
     const c = C.find(x => x.id === id);
-    const blob = await recapBlob();
+    const blob = await recapBlob().finally(() => { publicView = false; });
     const form = new FormData();
     const payload = { username: `${c.name} · Iloh Khurdan`, avatar_url: APP_URL + 'icon-512.png', embeds: [embedFor(id)],
       attachments: [{ id: 0, filename: 'recap.png' }] };
@@ -2454,6 +2460,7 @@ const sendWraps = async ({ hook, sent = {}, test = false }) => {
   wrapOverlay(label + '…');
   try {
     if (window.RP_SYNC) await RP_SYNC.loadYear(y);
+    publicView = true;                                          // wraps du salon commun : sans nuit chaude
     Object.keys(hotDuoCache).forEach(k => delete hotDuoCache[k]);
     const days = Array.from({ length: 366 }, (_, i) => new Date(y, 0, 1 + i)).filter(d => d.getFullYear() === y);
     const list = C.filter(c => statsFor(c, days).filled > 0);   // seulement les personnages qui ont vécu cette année
@@ -2478,6 +2485,7 @@ const sendWraps = async ({ hook, sent = {}, test = false }) => {
     }
     return list.length;
   } finally {
+    publicView = false; Object.keys(hotDuoCache).forEach(k => delete hotDuoCache[k]);
     simulateWrapDay = back.sim;
     Object.entries(back.st).forEach(([id, v]) => Object.assign(state[id], v));
     go(back.current); wrapOverlay(null);

@@ -48,9 +48,11 @@ const sendDiscord = async id => {
   if (!hook || !owns(id) || !state[id].done) return;
   discordState[id] = 'sending'; if (current === id) rerender();
   try {
+    // Image pour le salon commun : vue publique, sans nuit chaude (même chez les joueurs du couple).
+    publicView = true; if (current === id) rerender();
     await new Promise(r => setTimeout(r, 300));          // laisse le récap s'afficher
     const c = C.find(x => x.id === id);
-    const blob = await recapBlob();
+    const blob = await recapBlob().finally(() => { publicView = false; });
     const form = new FormData();
     const payload = { username: `${c.name} · Iloh Khurdan`, avatar_url: APP_URL + 'icon-512.png', embeds: [embedFor(id)],
       attachments: [{ id: 0, filename: 'recap.png' }] };
@@ -158,6 +160,7 @@ const sendWraps = async ({ hook, sent = {}, test = false }) => {
   wrapOverlay(label + '…');
   try {
     if (window.RP_SYNC) await RP_SYNC.loadYear(y);
+    publicView = true;                                          // wraps du salon commun : sans nuit chaude
     Object.keys(hotDuoCache).forEach(k => delete hotDuoCache[k]);
     const days = Array.from({ length: 366 }, (_, i) => new Date(y, 0, 1 + i)).filter(d => d.getFullYear() === y);
     const list = C.filter(c => statsFor(c, days).filled > 0);   // seulement les personnages qui ont vécu cette année
@@ -182,6 +185,7 @@ const sendWraps = async ({ hook, sent = {}, test = false }) => {
     }
     return list.length;
   } finally {
+    publicView = false; Object.keys(hotDuoCache).forEach(k => delete hotDuoCache[k]);
     simulateWrapDay = back.sim;
     Object.entries(back.st).forEach(([id, v]) => Object.assign(state[id], v));
     go(back.current); wrapOverlay(null);

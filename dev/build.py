@@ -116,7 +116,7 @@ js = js[:a] + """  if (d > rpDay) return null;
   if (!rp && (!e0 || !(e0.done || e0.mood || e0.checked?.size || e0.checked?.length || e0.trip))) return null;
   const e = e0 || {};
   return { rp, mood: e.mood || '', acts: [...(e.checked || [])].filter(a => a !== 'Voyage'), slots: e.slots || {}, place: [...(e.places || [])][0] || '', region: e.region || homeRegion(c.id),
-    cond, hot: !!e.night?.hot, with: e.night?.with || null, trip: !!e.trip,
+    cond, hot: !publicView && !!e.night?.hot, with: e.night?.with || null, trip: !!e.trip,
     tripInfo: e.trip ? { from: e.trip.from?.region, to: e.trip.to?.region, modes: [...(e.trip.modes || [])], minutes: e.trip.minutes || 0, reason: e.trip.reason || '' } : null,
     phys: [...(e.phys || [])].filter(p => !MORAL.includes(p)), mental: [...(e.mental || []), ...[...(e.phys || [])].filter(p => MORAL.includes(p))],
     notes: e.stateNotes || {}, nightStates: [...(e.nightStates || [])], nightNote: e.nightNote || '', nightNotes: e.nightNotes || {}, calmWith: e.calmWith || null, intime: e.intime || '', nefaste: e.nefaste || '', faits: e.faits || '', intimeWith: [...(e.intimeWith || [])], real: true };
