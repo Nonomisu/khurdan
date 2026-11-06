@@ -31,12 +31,12 @@ const dispLabelOf = (id, l) => {
   return l;
 };
 
-const recapBlob = async () => {
+const recapBlob = async (pixelRatio = 2) => {
   const card = document.querySelector('#view .recap'); if (!card) throw new Error('récap introuvable');
   const h2i = await loadH2I(); await document.fonts.ready;
   const bg = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim() || '#111';
   card.classList.add('capturing');
-  try { return await h2i.toBlob(card, { pixelRatio: 2, backgroundColor: bg, cacheBust: true }); }
+  try { return await h2i.toBlob(card, { pixelRatio, backgroundColor: bg, cacheBust: true }); }
   finally { card.classList.remove('capturing'); }
 };
 
@@ -206,50 +206,79 @@ const autoWraps = async () => {
 window.RP_DISCORD.autoWraps = autoWraps;
 
 // ---------- Fiches recopiées de Journée RP ----------
-// Validées dans Journée RP, elles n'ont pas de bouton « J'ai terminé » ici : la première appli d'Iloh ouverte
-// les envoie sur le salon commun (vue publique, sans nuit chaude). Un verrou dans shared/recaps-AAAA-MM-JJ
-// évite les doublons ; si la journée change dans Journée RP, le message Discord est mis à jour.
-let mirrorBusy = false;
-const mirrorSent = {};   // id → signature déjà envoyée (évite de redemander au serveur)
-const sendMirrors = async () => {
+// Validées dans Journée RP, elles n'ont pas de bouton « J'ai terminé » ici. Au lancement d'Iloh (et quand la recopie
+// apporte une fiche nouvelle ou modifiée), l'appli affiche « Mise à jour des fiches » et envoie TOUTES les fiches
+// recopiées du jour en un seul message Discord (une seule notification), en vue publique (sans nuit chaude).
+// Un seul message par journée : une fiche nouvelle → nouveau message (et l'ancien est supprimé) ; une fiche seulement
+// modifiée → le message est mis à jour sans nouvelle notification. Verrou et suivi : shared/recaps-AAAA-MM-JJ.
+let mirrorBusy = false, mirrorDoneSig = null;
+const MAX_FILES = 10;   // limite de Discord par message
+const updateScreen = (names, i) => {
+  let o = document.getElementById('mirror-update');
+  if (names == null) { o?.remove(); return; }
+  if (!o) {
+    o = document.createElement('div'); o.id = 'mirror-update'; o.setAttribute('role', 'status');
+    o.style.cssText = 'position:fixed;inset:0;z-index:9999;display:grid;place-items:center;padding:2rem;text-align:center;background:radial-gradient(ellipse at 50% 20%,#1c2a42,#0b111c 70%);color:#ece3d6;font:400 1rem/1.5 "Spectral",Georgia,serif';
+    document.body.appendChild(o);
+  }
+  o.innerHTML = `<div style="display:grid;gap:.9rem;justify-items:center;max-width:22rem">
+    <img src="logo.png" alt="" width="96" height="96" style="width:6rem;height:6rem">
+    <p style="margin:0;font:700 1.5rem/1.2 'Alegreya SC',Georgia,serif;letter-spacing:.05em">Mise à jour des fiches</p>
+    <p style="margin:0;color:#a2988c;font-style:italic">${i < names.length ? `Fiche ${deName(esc(names[i]))} (${i + 1} / ${names.length})…` : 'Envoi sur Discord…'}</p></div>`;
+};
+const updateMirrors = async () => {
   if (mirrorBusy || !hookFor() || !window.RP_SYNC || isTyping(document.activeElement) || document.getElementById('wrap-sending')) return;
+  const list = C.filter(x => x.mirror && state[x.id].done).slice(0, MAX_FILES);
+  if (!list.length) return;
+  const sigs = Object.fromEntries(list.map(c => [c.id, RP_SYNC.entrySig(c.id)]));
+  if (mirrorDoneSig === JSON.stringify(sigs)) return;
   mirrorBusy = true;
+  const back = { current, views: Object.fromEntries(list.map(c => [c.id, state[c.id].view])) };
   try {
-    for (const c of C.filter(x => x.mirror && state[x.id].done)) {
-      const sig = RP_SYNC.entrySig(c.id);   // journée telle que dans la base : stable d'un lancement à l'autre
-      if (mirrorSent[c.id] === sig) continue;
-      const claim = await RP_SYNC.recapClaim(c.id, sig);
-      if (claim === 'done') { mirrorSent[c.id] = sig; continue; }
-      if (!claim) continue;                              // envoi en cours sur un autre appareil
-      const back = { current, view: state[c.id].view };
-      wrapOverlay(`Envoi de la fiche ${deName(c.name)} sur Discord…`);
-      try {
-        state[c.id].view = 'day'; publicView = true; go(c.id); await pause(400);
-        const blob = await recapBlob();
-        const msg = await postRecap(c, blob, claim.msg);
-        await RP_SYNC.recapSent(c.id, sig, msg); mirrorSent[c.id] = sig;
-      } catch (e) { console.error(e); await RP_SYNC.recapFailed(c.id).catch(() => {}); }
-      finally { publicView = false; state[c.id].view = back.view; go(back.current); wrapOverlay(null); }
-    }
-  } finally { mirrorBusy = false; }
+    const claim = await RP_SYNC.recapBatchClaim(sigs);
+    if (claim === 'done') { mirrorDoneSig = JSON.stringify(sigs); return; }
+    if (!claim) return;                                   // envoi en cours sur un autre appareil
+    const names = list.map(c => c.name), blobs = [];
+    try {
+      publicView = true;
+      for (let i = 0; i < list.length; i++) {
+        updateScreen(names, i);
+        state[list[i].id].view = 'day'; go(list[i].id); await pause(350);
+        blobs.push(await recapBlob(list.length > 4 ? 1.5 : 2));
+      }
+      updateScreen(names, list.length);
+      // Discord : 25 Mo par message au plus ; au-delà, images moins grandes.
+      if (blobs.reduce((a, b) => a + b.size, 0) > 20e6) {
+        for (let i = 0; i < list.length; i++) { state[list[i].id].view = 'day'; go(list[i].id); await pause(250); blobs[i] = await recapBlob(1); }
+      }
+      const msg = await postMirrors(list, blobs, claim.newOnes ? null : claim.msg);
+      // Ancien message du jour (et anciens messages fiche par fiche) : supprimés, il n'en reste qu'un.
+      const old = [...(claim.newOnes && claim.msg ? [claim.msg] : []), ...claim.single].filter(m => m && m !== msg);
+      for (const m of old) await fetch(`${hookFor()}/messages/${m}`, { method: 'DELETE' }).catch(() => {});
+      await RP_SYNC.recapBatchSent(sigs, msg, list.map(c => c.id));
+      mirrorDoneSig = JSON.stringify(sigs);
+    } catch (e) { console.error(e); await RP_SYNC.recapBatchFailed().catch(() => {}); }
+  } finally {
+    publicView = false;
+    Object.entries(back.views).forEach(([id, v]) => { state[id].view = v; });
+    if (document.getElementById('mirror-update')) { go(back.current); updateScreen(null); }
+    mirrorBusy = false;
+  }
+};
+// Un seul message : un encadré par fiche, chacun avec son image.
+const postMirrors = async (list, blobs, prev) => {
+  const hook = hookFor();
+  const payload = { username: `Iloh Khurdan`, avatar_url: APP_URL + 'icon-512.png',
+    embeds: list.map((c, i) => ({ ...embedFor(c.id), image: { url: `attachment://recap-${c.id}.png` } })),
+    attachments: list.map((c, i) => ({ id: i, filename: `recap-${c.id}.png` })) };
+  const form = () => { const f = new FormData(); f.append('payload_json', JSON.stringify(payload)); blobs.forEach((b, i) => f.append(`files[${i}]`, b, `recap-${list[i].id}.png`)); return f; };
+  let res = prev ? await fetch(`${hook}/messages/${prev}`, { method: 'PATCH', body: form() }) : null;
+  if (res && res.ok) return prev;
+  res = await fetch(`${hook}?wait=true`, { method: 'POST', body: form() });
+  if (!res.ok) throw new Error('Discord ' + res.status);
+  return (await res.json().catch(() => null))?.id || null;
 };
 let mirrorTimer = null;
-window.RP_DISCORD.sendMirrors = () => { clearTimeout(mirrorTimer); mirrorTimer = setTimeout(sendMirrors, 1500); };
+window.RP_DISCORD.updateMirrors = updateMirrors;
+window.RP_DISCORD.sendMirrors = () => { clearTimeout(mirrorTimer); mirrorTimer = setTimeout(updateMirrors, 1500); };
 setInterval(() => window.RP_DISCORD.sendMirrors(), 120e3);   // reprise si un envoi a été remis (saisie en cours, échec)
-
-// Aperçu secret seulement : bouton de test dans le réglage Discord (en bas de l'accueil).
-const baseSettings = window.RP_DISCORD.settingsHtml;
-window.RP_DISCORD.settingsHtml = () => !secretPreview() ? baseSettings() : baseSettings().replace(/<\/details>$/, `
-    <p class="reserved">Aperçu secret — tester l'envoi des wraps sur un <b>autre</b> salon, que les joueurs ne voient pas :</p>
-    <div class="special-row"><input type="url" id="wrap-test-hook" placeholder="Webhook du salon de test">
-    <button type="button" class="btn" id="wrap-test-go">Tester</button></div>
-    <p class="reserved" id="wrap-test-msg"></p></details>`);
-document.addEventListener('click', async e => {
-  if (!e.target.closest('#wrap-test-go')) return;
-  const v = document.getElementById('wrap-test-hook').value.trim();
-  const say = t => { document.querySelector('.discord-set')?.setAttribute('open', ''); const m = document.getElementById('wrap-test-msg'); if (m) m.textContent = t; };
-  if (!HOOK_RE.test(v)) return say('Cette adresse ne ressemble pas à un webhook Discord.');
-  if (v === window.RP_DISCORD.webhook) return say('C\'est le webhook du salon principal : utilise un salon de test, sinon la surprise est gâchée.');
-  try { const n = await sendWraps({ hook: v, test: true }); say(`Test terminé : ${n} wrap${n > 1 ? 's' : ''} envoyé${n > 1 ? 's' : ''} sur le salon de test.`); }
-  catch (err) { console.error(err); say('Échec du test : ' + err.message); }
-});

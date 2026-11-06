@@ -18,7 +18,13 @@ const ok = (cond, label) => { console.log((cond ? '  ok  ' : '  ÉCHEC ') + labe
   const posts = [];
   await ctx.route('https://discord.com/api/webhooks/**', async (r, req) => {
     if (req.method() === 'GET') return r.fulfill({ status: 200, body: '{}' });
-    const pg = req.frame().page(); posts.push(await pg.evaluate(() => document.querySelector('#view .recap')?.textContent || ''));
+    const pg = req.frame().page(), body = (req.postDataBuffer() || Buffer.from('')).toString('latin1');
+    const pj = body.match(/name="payload_json"\r\n\r\n([\s\S]*?)\r\n--/); const payload = pj ? JSON.parse(Buffer.from(pj[1], 'latin1').toString('utf8')) : {};
+    const dom = await pg.evaluate(() => document.querySelector('#view .recap')?.textContent || '');
+    // Texte de chaque fiche photographiée pour ce message (noté au moment de la capture)
+    const caps = await pg.evaluate(() => (window.__captures || []).splice(0));
+    posts.push(Object.assign(new String(dom + ' ' + caps.join(' ')), { method: req.method(), files: (body.match(/filename="recap/g) || []).length,
+      titles: (payload.embeds || []).map(e => e.title), caps }));
     r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ id: 'm' + posts.length }) });
   });
   const errs = [];
@@ -31,15 +37,24 @@ const ok = (cond, label) => { console.log((cond ? '  ok  ' : '  ÉCHEC ') + labe
     'shared/discord': { webhook: 'https://discord.com/api/webhooks/1/test' },
     // « Contrat de chasse » coché sans contrat en cours : l'affichage le retire (cas qui faisait renvoyer la fiche à chaque lancement)
     [`days/tamachag/months/${ym}`]: { [day]: { mood: 'Recopié de Journée RP.', done: true, checked: { $set: ['Travail du bois', 'Contrat de chasse'] } } },
+    [`days/tengis/months/${ym}`]: { [day]: { mood: 'Tengis aussi.', done: true } },
     [`couples/taiga-tamachag/months/${ym}`]: { [day]: { nights: { tamachag: { hot: true, with: 'taiga' }, taiga: { hot: true, with: 'tamachag' } } } } };
   const open = async (name, email, first = false) => {
     const p = await ctx.newPage();
     p.on('pageerror', e => errs.push(name + ': ' + e.message));
     p.on('console', m => { if (m.type() === 'error') errs.push(name + ' console: ' + m.text()); });
+    await p.addInitScript(() => {
+      // Note le texte de chaque récap au moment où il est photographié pour Discord.
+      window.__captures = [];
+      new MutationObserver(ms => ms.forEach(m => { if (m.target.classList?.contains('capturing')) window.__captures.push(m.target.textContent); }))
+        .observe(document, { attributes: true, attributeFilter: ['class'], subtree: true });
+    });
     await p.addInitScript(([n, e, s, IDS]) => { try { localStorage.setItem('rp-night-open', JSON.stringify(IDS.flatMap(i => [i + ':data-next-night', i + ':data-prev-night']))); } catch {} window.name = n; window.MOCK_EMAIL = e; window.MOCK_WRITES = []; if (s && !localStorage.getItem('mockdb')) localStorage.setItem('mockdb', JSON.stringify(s)); }, [name, email, first ? seed : null, IDS]);
     await p.goto('http://localhost:8765/'); await p.waitForTimeout(400);
     if (await p.isVisible('#login-btn')) await p.click('#login-btn');   // session déjà ouverte : pas de bouton
     await p.waitForTimeout(1200);
+    // « Mise à jour des fiches » : l'appli rend la main une fois les fiches recopiées envoyées
+    await p.waitForFunction(() => !document.getElementById('mirror-update'), null, { timeout: 60000 }); await p.waitForTimeout(300);
     return p;
   };
   const db = p => p.evaluate(() => JSON.parse(localStorage.getItem('mockdb')));
@@ -57,19 +72,20 @@ const ok = (cond, label) => { console.log((cond ? '  ok  ' : '  ÉCHEC ') + labe
   ok(Object.keys(d).filter(k => k.startsWith('characters/')).length === 23, 'fiches des 23 personnages créées par l\'admin');
   ok(d['characters/buyan']?.player === 'eden' && d['characters/tsewang']?.player === 'jynette', 'joueurs des fiches repris de la config');
   ok(await nono.locator('.discord-set').count() === 1, 'réglage Discord visible pour l\'admin');
-  await nono.waitForTimeout(3500);
-  const tam = posts.filter(t => t.includes('Recopié de Journée RP.'));
-  ok(tam.length === 1, 'fiche recopiée de Tamachag envoyée sur le salon commun à l\'ouverture');
-  ok(!tam[0]?.includes('Nuit chaude'), 'sans la nuit chaude, même ouverte par un joueur du couple');
-  ok(!/Nuit (à venir|précédente)/.test(tam[0] || ''), 'ni nuit à venir ni nuit précédente dans l\'image');
+  const mir = () => posts.filter(t => t.titles?.length && t.method === 'POST');
+  ok(mir().length === 1, 'fiches recopiées : un seul message Discord à l\'ouverture');
+  ok(mir()[0]?.files === 2 && mir()[0].titles.some(t => t.includes('Tamachag')) && mir()[0].titles.some(t => t.includes('Tengis')), 'le message contient les 2 fiches (Tamachag et Tengis), une image chacune');
+  ok(mir()[0]?.caps.length === 2 && mir()[0].caps.every(t => !t.includes('Nuit chaude')), 'aucune image avec la nuit chaude, même ouverte par un joueur du couple');
+  ok(mir()[0]?.caps.every(t => !/Nuit (à venir|précédente)/.test(t)), 'ni nuit à venir ni nuit précédente dans les images');
+  ok(await nono.locator('#mirror-update').count() === 0, 'écran « Mise à jour des fiches » refermé');
   d = await db(nono);
-  ok(!!d[`shared/recaps-${ym}-${String(rp.getDate()).padStart(2, '0')}`]?.tamachag?.msg, 'envoi noté (verrou partagé)');
+  ok(!!d[`shared/recaps-${ym}-${String(rp.getDate()).padStart(2, '0')}`]?._batch?.msg, 'envoi noté (verrou partagé)');
   ok((await nono.textContent('#view header .kicker')).includes('Iloh Khurdan'), 'retour à l\'écran d\'avant après l\'envoi');
   // Relance de l'appli (et reprise automatique) : pas de nouvel envoi sans changement
   await nono.evaluate(() => go('tamachag')); await nono.waitForTimeout(300); await nono.evaluate(() => go('home'));
   await nono.evaluate(() => window.RP_DISCORD.sendMirrors()); await nono.waitForTimeout(2500);
   const nono2 = await open('nono', 'nono@test.fr'); await nono2.waitForTimeout(3500); await nono2.close();
-  ok(posts.filter(t => t.includes('Recopié de Journée RP.')).length === 1, 'relance de l\'appli : la fiche n\'est pas renvoyée');
+  ok(mir().length === 1 && !posts.some(t => t.method === 'PATCH'), 'relance de l\'appli : rien n\'est renvoyé');
   // Filtre Eden
   await nono.click('#f-eden'); await nono.waitForTimeout(150);
   ok(await nono.locator('.grid .card').count() === 3, 'filtre Eden : 3 personnages');
@@ -133,7 +149,7 @@ const ok = (cond, label) => { console.log((cond ? '  ok  ' : '  ÉCHEC ') + labe
   ok(await jy.locator('#mood-shiruun').count() === 1, 'Shiruun (absent de Journée RP) se remplit dans Iloh');
 
   console.log('Joueuse (Eden)');
-  const before = posts.filter(t => t.includes('Recopié de Journée RP.')).length;
+  const before = posts.length;
   const ed = await open('eden', 'eden@test.fr');
   await ed.evaluate(() => go('buyan')); await ed.waitForTimeout(200);
   ok(await ed.locator('#mood-buyan').count() === 1, 'Eden remplit Buyan');
@@ -146,7 +162,7 @@ const ok = (cond, label) => { console.log((cond ? '  ok  ' : '  ÉCHEC ') + labe
   ok(!(await ed.textContent('#view')).includes('Nuit chaude'), 'Eden ne voit pas la nuit chaude de Taiga');
   ok(await ed.evaluate(() => Object.keys(nightsBy).length) === 0, 'aucune nuit chaude chargée chez Eden');
   await ed.waitForTimeout(2500);
-  ok(posts.filter(t => t.includes('Recopié de Journée RP.')).length === before, 'pas de second envoi de la fiche recopiée (verrou)');
+  ok(posts.length === before, 'pas de second envoi des fiches recopiées (verrou)');
 
   console.log('Administration');
   ok(await jy.locator('.admin-set').count() === 0, 'pas d\'administration pour une joueuse');

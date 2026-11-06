@@ -115,19 +115,22 @@ window.RP_SYNC = {
     tx.set(ref, { claimedBy: me, claimedAt: Date.now() }, { merge: true });
     return d.sent || {};
   }),
-  // Récaps des fiches recopiées de Journée RP : verrou partagé pour qu'une seule appli les envoie.
-  // Renvoie 'done' si cette version est déjà partie, null si un autre appareil l'envoie, sinon { msg } (message à mettre à jour).
-  recapClaim: (id, sig) => runTransaction(db, async tx => {
-    const ref = recapsRef(), s = await tx.get(ref), r = (s.data() || {})[id] || {};
-    if (r.sig === sig && r.msg) return 'done';
-    if (r.claimedAt && Date.now() - r.claimedAt < 120e3 && r.claimedBy !== me) return null;
-    tx.set(ref, { [id]: { ...r, claimedBy: me, claimedAt: Date.now() } }, { merge: true });
-    return { msg: r.msg || null };
-  }),
   // Signature de la journée telle que recopiée dans la base (et non telle qu'affichée, que l'affichage peut retoucher).
   entrySig: id => stableJ(seenToday[id]),
-  recapSent: (id, sig, msg) => setDoc(recapsRef(), { [id]: { sig, msg, claimedBy: null, claimedAt: 0, sentBy: me, sentAt: Date.now() } }, { merge: true }),
-  recapFailed: id => setDoc(recapsRef(), { [id]: { claimedAt: 0 } }, { merge: true }),
+  // Fiches recopiées de Journée RP : un message Discord par journée, verrou partagé (shared/recaps-AAAA-MM-JJ).
+  // Renvoie 'done' si rien n'a changé, null si un autre appareil envoie, sinon { msg, newOnes, single }.
+  recapBatchClaim: sigs => runTransaction(db, async tx => {
+    const ref = recapsRef(), d = (await tx.get(ref)).data() || {}, b = d._batch || {};
+    const ids = Object.keys(sigs), sent = b.sigs || {};
+    if (b.msg && ids.every(id => sent[id] === sigs[id])) return 'done';
+    if (b.claimedAt && Date.now() - b.claimedAt < 120e3 && b.claimedBy !== me) return null;
+    tx.set(ref, { _batch: { ...b, claimedBy: me, claimedAt: Date.now() } }, { merge: true });
+    return { msg: b.msg || null, newOnes: !b.msg || ids.some(id => !(b.ids || []).includes(id)),
+      single: ids.map(id => d[id]?.msg).filter(Boolean) };   // anciens messages fiche par fiche, à supprimer
+  }),
+  recapBatchSent: (sigs, msg, ids) => setDoc(recapsRef(), { _batch: { msg, ids, sigs, claimedBy: null, claimedAt: 0, sentBy: me, sentAt: Date.now() },
+    ...Object.fromEntries(ids.map(id => [id, { msg: null }])) }, { merge: true }),
+  recapBatchFailed: () => setDoc(recapsRef(), { _batch: { claimedAt: 0 } }, { merge: true }),
   wrapSent: (y, id, msg) => setDoc(wrapsRef(y), { sent: { [id]: msg } }, { merge: true }),
   // Notifications push sur cet appareil : 'unsupported' | 'denied' | 'off' | 'on'
   pushState: async () => {
@@ -214,8 +217,9 @@ async function boot() {
   A.start();
   window.RP_PUSH?.refresh();
   if (window.RP_ADMIN) window.RP_ADMIN_UI?.refresh();
-  setTimeout(() => window.RP_DISCORD?.autoWraps?.(), 2000);
-  window.RP_DISCORD?.sendMirrors?.();                          // fiches recopiées de Journée RP validées : sur le salon commun   // à partir du 26 décembre : envoi des wraps (une seule fois)
+  // « Mise à jour des fiches » : fiches recopiées de Journée RP validées, envoyées sur le salon commun avant de rendre la main.
+  await window.RP_DISCORD?.updateMirrors?.();
+  setTimeout(() => window.RP_DISCORD?.autoWraps?.(), 2000);   // à partir du 26 décembre : envoi des wraps (une seule fois)
   listen();
   ['click', 'change', 'input'].forEach(t => document.addEventListener(t, schedule, true));
   document.addEventListener('visibilitychange', () => {
