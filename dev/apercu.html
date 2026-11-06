@@ -200,10 +200,20 @@ html, body, #view { overflow-anchor: none; }
 .home-links { margin: .6rem 0 0; display: flex; justify-content: center; }
 .chip-link { display: inline-flex; align-items: center; gap: .4rem; padding: .35rem .9rem; border: 1px solid var(--gold); border-radius: 999px; background: none; color: var(--gold); font: inherit; font-size: .9rem; cursor: pointer; }
 .chip-link .ico { width: 1.05rem; height: 1.05rem; }
-.iloh-scroll { overflow-x: auto; overflow-y: hidden; border-radius: 8px; overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch; }
-.iloh-map { position: relative; width: 100%; aspect-ratio: 2048 / 1564; }
-@media (max-width: 700px) { .iloh-map { min-width: 760px; } }   /* téléphone : carte plus grande, qui défile en largeur */
+.iloh-wrap { position: relative; }
+.iloh-zoom { display: flex; align-items: center; justify-content: flex-end; gap: .5rem; margin-bottom: .5rem; font-size: .85rem; color: var(--dim); }
+.iloh-zoom .btn { min-width: 2.4rem; padding: .2rem .6rem; font-size: 1.1rem; line-height: 1.2; }
+.iloh-zoom .btn:disabled { opacity: .35; }
+.iloh-scroll { overflow: auto; border-radius: 8px; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+.iloh-scroll.zoomed { max-height: 72vh; }
+.iloh-map { position: relative; width: calc(100% * var(--z, 1)); aspect-ratio: 2048 / 1564; }
+@media (max-width: 700px) { .iloh-map { width: calc(760px * var(--z, 1)); } }   /* téléphone : carte plus grande, qui défile */
 .iloh-map img { display: block; width: 100%; height: 100%; border-radius: 8px; user-select: none; -webkit-user-select: none; }
+.iloh-spot { position: absolute; padding: 0; border: 2px solid transparent; background: none; cursor: pointer; border-radius: 12px; }
+.iloh-spot.k-zone { border-radius: 50%; }
+.iloh-spot:hover, .iloh-spot:focus-visible { border-color: color-mix(in srgb, var(--gold) 55%, transparent); background: color-mix(in srgb, var(--gold) 8%, transparent); outline: none; }
+.iloh-spot.sel { border-color: var(--gold); background: color-mix(in srgb, var(--gold) 14%, transparent); box-shadow: 0 0 18px color-mix(in srgb, var(--gold) 60%, transparent); }
+.yc-dot { display: inline-block; width: 9px; height: 9px; margin-right: .4rem; border-radius: 50%; vertical-align: 1px; }
 .yurt-hit { position: absolute; padding: 0; border: 2px solid transparent; border-radius: 10px; background: none; cursor: pointer; }
 .yurt-hit:hover, .yurt-hit:focus-visible { border-color: color-mix(in srgb, var(--gold) 70%, transparent); background: color-mix(in srgb, var(--gold) 12%, transparent); outline: none; }
 .yurt-hit.sel { border-color: var(--gold); background: color-mix(in srgb, var(--gold) 18%, transparent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--gold) 35%, transparent), 0 0 22px var(--gold); animation: yurt-pulse 1.6s ease-in-out infinite; }
@@ -214,7 +224,7 @@ html, body, #view { overflow-anchor: none; }
 .yurt-key { vertical-align: -1px; }
 .yurt-key.occ { background: linear-gradient(90deg, #4f8fd6 50%, #e38fa8 50%); }
 .yurt-key.k-lieu { background: var(--gold); } .yurt-key.k-invites { background: #8a6f5a; } .yurt-key.k-libre { background: transparent; }
-.yurt-card { position: absolute; z-index: 3; width: 270px; transform: translateX(-50%); padding: .9rem 1rem 1rem; text-align: left;
+.yurt-card { position: absolute; z-index: 3; width: min(270px, calc(100% - 12px)); left: 6px; top: 0; padding: .9rem 1rem 1rem; text-align: left;
   background: var(--surface); color: var(--text); border: 1px solid var(--gold); border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,.55); }
 .yurt-card h3 { margin: .15rem 1.6rem .5rem 0; font: 500 1.15rem/1.2 var(--display); letter-spacing: .06em; text-align: left; }
 .yc-kicker { margin: 0; font-size: .72rem; letter-spacing: .14em; text-transform: uppercase; color: var(--gold); }
@@ -222,8 +232,6 @@ html, body, #view { overflow-anchor: none; }
 .yc-kicker + .yc-char { border-top: 0; margin-top: .2rem; }
 .yc-char { display: grid; gap: .2rem; justify-items: start; padding: .45rem 0; border-top: 1px solid var(--rule); }
 .yc-char b small { font-weight: 400; color: var(--dim); }
-.yc-player { display: inline-flex; align-items: center; gap: .35rem; font-size: .85rem; color: var(--dim); }
-.yc-player i { width: 9px; height: 9px; border-radius: 50%; }
 .yc-today { font-size: .88rem; font-style: italic; } .yc-today.dim { color: var(--dim); }
 .yc-desc { margin: 0; color: var(--dim); }
 
@@ -926,54 +934,102 @@ const YURTS = {
   53: { x:95.41, y:45.59, kind:'invites', map:'Mammouth', size:'m' },
 };
 const YURT_SIZE = { s:[6.4, 9], m:[8.4, 12.5], l:[9.2, 13.5], xl:[10.5, 15.5], xxl:[14, 17.5] };   // largeur, hauteur de la zone cliquable (%)
+// Autres lieux de la carte (x, y = coin haut gauche ; w, h = taille, en % de l'image). Les yourtes passent par-dessus.
+const ILOH_SPOTS = {
+  tour1: { x:32.2, y:16.4, w:4.6, h:11.5, kind:'tour', title:'Tour de guet n° 1' },
+  tour2: { x:93.2, y:32.2, w:4.6, h:11.5, kind:'tour', title:'Tour de guet n° 2' },
+  tour3: { x:61.4, y:80.4, w:4.6, h:11.5, kind:'tour', title:'Tour de guet n° 3' },
+  tour4: { x:2.1, y:75.2, w:4.6, h:11.5, kind:'tour', title:'Tour de guet n° 4' },
+  arc: { x:26.1, y:1.3, w:38.5, h:15, kind:'zone', title:"Zone d'entraînement des guerriers et guerrières" },
+  chevaux: { x:74, y:7.3, w:24.5, h:23.6, kind:'zone', title:'Enclos des chevaux khurdans' },
+  ruches: { x:29.3, y:66.4, w:10.5, h:17, kind:'zone', title:"Moutons et ruches d'Ogloo", chars:['ogloo'] },
+};
 const yurtOf = id => Object.keys(YURTS).find(n => YURTS[n].chars?.includes(id)) || null;
 const yurtTitle = y => y.chars ? andList(y.chars.map(nameOf)) : y.kind === 'lieu' ? y.label : y.kind === 'invites' ? 'Les invités'
   : y.kind === 'speciale' ? 'Yourte spéciale' : y.elite ? 'Yourte à prendre (élite)' : 'Yourte à prendre';
-const ilohView = { sel: null, from: null };
+const ILOH_ZOOMS = [1, 1.5, 2, 3];
+const ilohView = { sel: null, from: null, zoom: 0 };   // sel : numéro de yourte ou clé d'ILOH_SPOTS ; zoom : indice dans ILOH_ZOOMS
 const openIloh = (from, sel) => { Object.assign(ilohView, { from: from || null, sel: sel || (from && yurtOf(from)) || null }); go('iloh'); };
 const yurtTodayHtml = cid => { const st = state[cid], place = st.checked?.has('Voyage') ? 'en voyage' : st.places?.size ? [...st.places][0] : '';
   return st.done ? `<span class="yc-today">${st.mood ? `« ${esc(st.mood)} »` : 'Journée racontée'}${place ? ' · ' + esc(place) : ''}</span>` : '<span class="yc-today dim">Pas encore de fiche aujourd\'hui</span>'; };
-const yurtCardHtml = n => {
-  const y = YURTS[n]; if (!y) return '';
-  const below = y.y < 45, left = Math.min(Math.max(y.x, 18), 82);
-  const body = y.chars ? y.chars.map(cid => { const c = C.find(x => x.id === cid), p = PLAYERS.find(x => x.id === c?.player);
-      return `<div class="yc-char"><b>${esc(c.name)}${c.surname ? ` <small>${esc(c.surname)}</small>` : ''}</b>
-        <span class="yc-player"><i style="background:${p?.color || 'var(--dim)'}"></i>Joué${c.gender === 'f' ? 'e' : ''} par ${esc(p?.name || '?')}</span>
-        ${yurtTodayHtml(cid)}<button type="button" class="link small" data-go="${cid}">Voir la fiche ${deName(c.name)} ›</button></div>`; }).join('')
-    : `<p class="yc-desc">${y.kind === 'lieu' ? 'Lieu commun de l\'Iloh.' : y.kind === 'invites' ? 'Yourte réservée aux invités de l\'Iloh.' : y.kind === 'speciale' ? 'Yourte spéciale.' : y.elite ? 'Yourte libre, réservée à l\'élite.' : 'Yourte libre : elle attend son occupant.'}</p>`;
-  return `<div class="yurt-card" style="left:${left}%;${below ? `top:${y.y + YURT_SIZE[y.size || 's'][1] - 1}%` : `bottom:${100 - y.y + 2.5}%`}" role="dialog" aria-label="Yourte ${n}">
-    <button type="button" class="link ico-btn yc-close" data-yurt-close aria-label="Fermer">×</button>
-    <p class="yc-kicker">Yourte n° ${n}${y.map ? ' · ' + esc(y.map) : ''}</p>
-    ${y.chars ? '' : `<h3>${esc(yurtTitle(y))}</h3>`}${body}</div>`;
+const occupantHtml = cid => { const c = C.find(x => x.id === cid); if (!c) return '';
+  return `<div class="yc-char"><b><i class="yc-dot" style="background:${PLAYERS.find(p => p.id === c.player)?.color || 'var(--dim)'}"></i>${esc(c.name)}${c.surname ? ` <small>${esc(c.surname)}</small>` : ''}</b>
+    ${yurtTodayHtml(cid)}<button type="button" class="link small" data-go="${cid}">Voir la fiche ${deName(c.name)} ›</button></div>`; };
+const ilohCardHtml = key => {
+  const spot = ILOH_SPOTS[key], y = YURTS[key]; if (!spot && !y) return '';
+  const head = spot ? `<p class="yc-kicker">${spot.kind === 'tour' ? 'Tour de guet' : 'Lieu de l\'Iloh'}</p><h3>${esc(spot.title)}</h3>`
+    : `<p class="yc-kicker">Yourte n° ${key}${y.map ? ' · ' + esc(y.map) : ''}</p>${y.chars ? '' : `<h3>${esc(yurtTitle(y))}</h3>`}`;
+  const body = (spot || y).chars ? (spot || y).chars.map(occupantHtml).join('')
+    : spot ? '' : `<p class="yc-desc">${y.kind === 'lieu' ? 'Lieu commun de l\'Iloh.' : y.kind === 'invites' ? 'Yourte réservée aux invités de l\'Iloh.' : y.kind === 'speciale' ? 'Yourte spéciale.' : y.elite ? 'Yourte libre, réservée à l\'élite.' : 'Yourte libre : elle attend son occupant.'}</p>`;
+  return `<div class="yurt-card" role="dialog" aria-label="${esc(spot ? spot.title : 'Yourte ' + key)}">
+    <button type="button" class="link ico-btn yc-close" data-yurt-close aria-label="Fermer">×</button>${head}${body}</div>`;
 };
 function renderIloh() {
   root.className = 't-khurdan';
-  const from = ilohView.from && C.find(c => c.id === ilohView.from), sel = ilohView.sel;
+  const from = ilohView.from && C.find(c => c.id === ilohView.from), sel = ilohView.sel == null ? null : String(ilohView.sel), z = ILOH_ZOOMS[ilohView.zoom];
   document.getElementById('view').innerHTML = `
     <p class="ev-back"><button type="button" class="link" data-go="${from ? from.id : 'home'}">‹ ${from ? 'Fiche ' + deName(from.name) : 'Accueil'}</button></p>
     <header><p class="kicker">${APP_NAME}</p><h1>L'Iloh</h1>
       <p class="date">${from ? yurtOf(from.id) ? `Yourte ${deName(esc(from.name))} : n° ${yurtOf(from.id)}` : `${esc(from.name)} n'a pas encore de yourte sur l'Iloh.` : 'Touche une yourte pour voir qui l\'habite.'}</p></header>
-    <div class="iloh-scroll"><div class="iloh-map">
-      <img src="iloh-carte.webp" alt="Carte de l'Iloh : 53 yourtes numérotées autour de la grande place" width="2048" height="1564" draggable="false">
-      ${Object.entries(YURTS).map(([n, y]) => { const [w, h] = YURT_SIZE[y.size || 's'];
-        return `<button type="button" class="yurt-hit ${y.chars ? 'occ' : 'k-' + (y.kind || 'libre')} ${String(sel) === n ? 'sel' : ''}" data-yurt="${n}"
-          style="left:${y.x - w / 2}%;top:${y.y - 1.8}%;width:${w}%;height:${h}%" aria-label="Yourte ${n} : ${esc(yurtTitle(y))}" aria-pressed="${String(sel) === n}">
-          ${y.chars ? `<span class="yurt-dots">${y.chars.map(cid => `<i style="background:${PLAYERS.find(p => p.id === playerOf(cid))?.color}"></i>`).join('')}</span>` : ''}</button>`; }).join('')}
-      ${sel ? yurtCardHtml(sel) : ''}
-    </div></div>
+    <div class="iloh-wrap">
+      <div class="iloh-zoom" role="group" aria-label="Zoom de la carte">
+        <button type="button" class="btn" data-iloh-zoom="-1" aria-label="Dézoomer" ${ilohView.zoom ? '' : 'disabled'}>−</button>
+        <span>${z === 1 ? '100' : Math.round(z * 100)} %</span>
+        <button type="button" class="btn" data-iloh-zoom="1" aria-label="Zoomer" ${ilohView.zoom < ILOH_ZOOMS.length - 1 ? '' : 'disabled'}>+</button></div>
+      <div class="iloh-scroll${z > 1 ? ' zoomed' : ''}"><div class="iloh-map" style="--z:${z}">
+        <img src="iloh-carte.webp" alt="Carte de l'Iloh : 53 yourtes numérotées autour de la grande place" width="2048" height="1564" draggable="false">
+        ${Object.entries(ILOH_SPOTS).map(([k, p]) => `<button type="button" class="iloh-spot k-${p.kind} ${sel === k ? 'sel' : ''}" data-yurt="${k}"
+          style="left:${p.x}%;top:${p.y}%;width:${p.w}%;height:${p.h}%" aria-label="${esc(p.title)}" aria-pressed="${sel === k}"></button>`).join('')}
+        ${Object.entries(YURTS).map(([n, y]) => { const [w, h] = YURT_SIZE[y.size || 's'];
+          return `<button type="button" class="yurt-hit ${y.chars ? 'occ' : 'k-' + (y.kind || 'libre')} ${sel === n ? 'sel' : ''}" data-yurt="${n}"
+            style="left:${y.x - w / 2}%;top:${y.y - 1.8}%;width:${w}%;height:${h}%" aria-label="Yourte ${n} : ${esc(yurtTitle(y))}" aria-pressed="${sel === n}">
+            ${y.chars ? `<span class="yurt-dots">${y.chars.map(cid => `<i style="background:${PLAYERS.find(p => p.id === playerOf(cid))?.color}"></i>`).join('')}</span>` : ''}</button>`; }).join('')}
+      </div></div>
+      ${sel ? ilohCardHtml(sel) : ''}
+    </div>
     <p class="reserved cal-legend"><span class="yurt-key occ"></span> habitée (couleur du joueur) · <span class="yurt-key k-lieu"></span> lieu commun · <span class="yurt-key k-invites"></span> invités · <span class="yurt-key k-libre"></span> à prendre</p>`;
+  document.querySelector('.iloh-scroll').addEventListener('scroll', placeIlohCard, { passive: true });
   centerYurt(sel, false);
 }
-// Sur téléphone, la carte défile en largeur : on amène la yourte choisie au milieu.
-const centerYurt = (n, smooth) => { const sc = document.querySelector('.iloh-scroll'), y = YURTS[n]; if (!sc || !y || sc.scrollWidth <= sc.clientWidth) return;
-  sc.scrollTo({ left: sc.scrollWidth * y.x / 100 - sc.clientWidth / 2, behavior: smooth ? 'smooth' : 'auto' }); };
-const ilohRefresh = () => { const sc = document.querySelector('.iloh-scroll'), left = sc?.scrollLeft || 0, y = window.scrollY, h = fullH();
-  renderIloh(); const sc2 = document.querySelector('.iloh-scroll'); if (sc2) sc2.scrollLeft = left; holdHeight(h); window.scrollTo({ top: y }); holdPlace(null, y); };
+// La fiche est posée hors de la carte qui défile : jamais coupée au bord. Elle suit la yourte quand on fait défiler la carte.
+function placeIlohCard() {
+  const card = document.querySelector('.yurt-card'), wrap = document.querySelector('.iloh-wrap'), hit = ilohView.sel != null && document.querySelector(`[data-yurt="${ilohView.sel}"]`);
+  if (!card || !wrap || !hit) return;
+  const W = wrap.getBoundingClientRect(), H = hit.getBoundingClientRect(), sc = document.querySelector('.iloh-scroll').getBoundingClientRect();
+  const cw = card.offsetWidth, ch = card.offsetHeight, m = 6;
+  const cx = Math.min(Math.max(H.left + H.width / 2, sc.left), sc.right) - W.left;
+  const left = Math.min(Math.max(cx - cw / 2, m), W.width - cw - m);
+  const top = Math.min(Math.max(H.top, sc.top), sc.bottom) - W.top, bottom = Math.min(Math.max(H.bottom, sc.top), sc.bottom) - W.top;
+  // Au-dessus de la yourte s'il y a la place dans le cadre de la carte, sinon en dessous.
+  const above = top - ch - 8 >= sc.top - W.top, t = above ? top - ch - 8 : bottom + 8;
+  card.style.left = left + 'px'; card.style.top = t + 'px';
+}
+// La carte (agrandie sur téléphone ou zoomée) défile : on amène le lieu choisi au milieu.
+const centerYurt = (key, smooth) => {
+  const sc = document.querySelector('.iloh-scroll'), y = YURTS[key] || ILOH_SPOTS[key];
+  if (sc && y) {
+    const cx = ILOH_SPOTS[key] ? y.x + y.w / 2 : y.x, cy = ILOH_SPOTS[key] ? y.y + y.h / 2 : y.y + 4;
+    sc.scrollTo({ left: sc.scrollWidth * cx / 100 - sc.clientWidth / 2, top: sc.scrollHeight * cy / 100 - sc.clientHeight / 2, behavior: smooth ? 'smooth' : 'auto' });
+  }
+  placeIlohCard(); if (smooth) setTimeout(placeIlohCard, 450);
+};
+const ilohRefresh = (keep = true) => { const sc = document.querySelector('.iloh-scroll'), pos = sc ? [sc.scrollLeft, sc.scrollTop] : [0, 0], y = window.scrollY, h = fullH();
+  renderIloh(); const sc2 = document.querySelector('.iloh-scroll'); if (sc2 && keep) { sc2.scrollLeft = pos[0]; sc2.scrollTop = pos[1]; }
+  placeIlohCard(); holdHeight(h); window.scrollTo({ top: y }); holdPlace(null, y); };
+// Zoom : la carte grandit autour du point qui était au centre de son cadre.
+const zoomIloh = d => {
+  const i = Math.min(Math.max(ilohView.zoom + d, 0), ILOH_ZOOMS.length - 1); if (i === ilohView.zoom) return;
+  const sc = document.querySelector('.iloh-scroll'), fx = sc ? (sc.scrollLeft + sc.clientWidth / 2) / sc.scrollWidth : .5, fy = sc ? (sc.scrollTop + sc.clientHeight / 2) / sc.scrollHeight : .5;
+  ilohView.zoom = i; ilohRefresh(false);
+  const s2 = document.querySelector('.iloh-scroll'); s2.scrollLeft = fx * s2.scrollWidth - s2.clientWidth / 2; s2.scrollTop = fy * s2.scrollHeight - s2.clientHeight / 2; placeIlohCard();
+};
+addEventListener('resize', () => { if (current === 'iloh') placeIlohCard(); });
 document.addEventListener('click', e => {
-  const b = e.target.closest('[data-yurt]'), yo = e.target.closest('[data-yurt-of]');
+  const b = e.target.closest('[data-yurt]'), yo = e.target.closest('[data-yurt-of]'), zb = e.target.closest('[data-iloh-zoom]');
   if (yo) return openIloh(yo.dataset.yurtOf);
+  if (zb) return zoomIloh(+zb.dataset.ilohZoom);
   if (e.target.closest('[data-yurt-close]')) { ilohView.sel = null; return ilohRefresh(); }
-  if (b) { ilohView.sel = ilohView.sel === b.dataset.yurt ? null : b.dataset.yurt; ilohRefresh(); if (ilohView.sel) centerYurt(ilohView.sel, true); }
+  if (b) { ilohView.sel = String(ilohView.sel) === b.dataset.yurt ? null : b.dataset.yurt; ilohRefresh(); if (ilohView.sel) centerYurt(ilohView.sel, true); }
 });
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && current === 'iloh' && ilohView.sel) { ilohView.sel = null; ilohRefresh(); } });
 

@@ -189,13 +189,31 @@ const ok = (cond, label) => { console.log((cond ? '  ok  ' : '  ÉCHEC ') + labe
   await nono.click('[data-yurt-of="khokkutsai"]'); await nono.waitForTimeout(400);
   ok((await nono.textContent('#view h1')) === 'L\'Iloh' && (await nono.textContent('#view header')).includes('n° 44'), 'onglet Yourte : carte, yourte n° 44 indiquée');
   ok(await nono.locator('.yurt-hit.sel[data-yurt="44"]').count() === 1 && await nono.isVisible('.yurt-card'), 'yourte mise en évidence et sa fiche ouverte');
-  ok((await nono.textContent('.yurt-card')).includes('Khokkutsai') && (await nono.textContent('.yurt-card')).includes('Inkaraa') && (await nono.textContent('.yurt-card')).includes('Jouée par Jynette'), 'fiche de la yourte : occupants et joueurs');
+  ok((await nono.textContent('.yurt-card')).includes('Khokkutsai') && (await nono.textContent('.yurt-card')).includes('Inkaraa') && !(await nono.textContent('.yurt-card')).includes('par Jynette') && await nono.locator('.yurt-card .yc-dot').count() === 2, 'fiche de la yourte : occupants avec pastilles, sans nom de joueur');
   ok(await nono.evaluate(() => { const i = document.querySelector('.iloh-map img'); return i.complete && i.naturalWidth === 2048; }), 'image de la carte chargée');
   await nono.click('[data-yurt-close]'); await nono.waitForTimeout(200);
   ok(!(await nono.isVisible('.yurt-card')), 'fiche fermée');
   await nono.click('[data-yurt="15"]'); await nono.waitForTimeout(300);
   ok((await nono.textContent('.yurt-card')).includes('L\'Infirmerie') && (await nono.textContent('.yurt-card')).includes('Yourte des Soins'), 'yourte n° 15 : L\'Infirmerie');
-  await nono.click('[data-yurt-close]'); await nono.click('[data-yurt="5"]'); await nono.waitForTimeout(300);
+  // Yourtes au bord de la carte : la fiche reste entière dans le cadre
+  for (const n of ['27', '53', '3', '47', '19']) {
+    await nono.click('[data-yurt-close]').catch(() => {}); await nono.click(`[data-yurt="${n}"]`); await nono.waitForTimeout(700);
+    ok(await nono.evaluate(() => { const c = document.querySelector('.yurt-card').getBoundingClientRect(), w = document.querySelector('.iloh-wrap').getBoundingClientRect();
+      return c.left >= w.left - 1 && c.right <= w.right + 1 && c.width > 150; }), `yourte ${n} (bord de carte) : fiche entière`);
+  }
+  await nono.click('[data-yurt-close]'); await nono.click('[data-yurt="tour3"]'); await nono.waitForTimeout(500);
+  ok((await nono.textContent('.yurt-card')).includes('Tour de guet n° 3'), 'tour de guet n° 3');
+  await nono.click('[data-yurt-close]'); await nono.click('[data-yurt="ruches"]'); await nono.waitForTimeout(500);
+  ok((await nono.textContent('.yurt-card')).includes('Moutons et ruches d\'Ogloo') && await nono.locator('.yurt-card [data-go="ogloo"]').count() === 1, 'zone des ruches d\'Ogloo, avec sa fiche');
+  await nono.click('[data-yurt-close]');
+  const w0 = await nono.evaluate(() => document.querySelector('.iloh-map').offsetWidth);
+  await nono.click('[data-iloh-zoom="1"]'); await nono.click('[data-iloh-zoom="1"]'); await nono.waitForTimeout(200);
+  ok(Math.abs(await nono.evaluate(() => document.querySelector('.iloh-map').offsetWidth) - w0 * 2) < 3, 'zoom : carte deux fois plus grande');
+  await nono.click('[data-yurt="43"]'); await nono.waitForTimeout(700);
+  ok((await nono.textContent('.yurt-card')).includes('La Commune') && await nono.evaluate(() => { const c = document.querySelector('.yurt-card').getBoundingClientRect(), w = document.querySelector('.iloh-wrap').getBoundingClientRect(); return c.left >= w.left - 1 && c.right <= w.right + 1; }), 'zoomée : la fiche s\'ouvre et reste entière');
+  await nono.click('[data-yurt-close]'); await nono.click('[data-iloh-zoom="-1"]'); await nono.click('[data-iloh-zoom="-1"]'); await nono.waitForTimeout(150);
+  ok(Math.abs(await nono.evaluate(() => document.querySelector('.iloh-map').offsetWidth) - w0) < 3 && await nono.locator('[data-iloh-zoom="-1"][disabled]').count() === 1, 'dézoom : retour à la taille normale');
+  await nono.click('[data-yurt="5"]'); await nono.waitForTimeout(300);
   await nono.click('.yurt-card [data-go="reaksa"]'); await nono.waitForTimeout(300);
   ok(await nono.evaluate(() => current) === 'reaksa', 'depuis la carte, « Voir la fiche » ouvre la fiche');
   await nono.evaluate(() => go('tengis')); await nono.click('[data-yurt-of="tengis"]'); await nono.waitForTimeout(300);
