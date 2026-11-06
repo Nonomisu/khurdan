@@ -43,6 +43,17 @@ const recapBlob = async () => {
 // Salon commun : shared/discord → webhook.
 const hookFor = () => window.RP_DISCORD.webhook || null;
 const anyHook = () => !!window.RP_DISCORD.webhook;
+// Envoi (ou mise à jour, si le message existe déjà) du récap d'un personnage sur le salon commun.
+const postRecap = async (c, blob, prev) => {
+  const hook = hookFor();
+  const payload = { username: `${c.name} · Iloh Khurdan`, avatar_url: APP_URL + 'icon-512.png', embeds: [embedFor(c.id)],
+    attachments: [{ id: 0, filename: 'recap.png' }] };
+  const form = () => { const f = new FormData(); f.append('payload_json', JSON.stringify(payload)); f.append('files[0]', blob, 'recap.png'); return f; };
+  let res = prev ? await fetch(`${hook}/messages/${prev}`, { method: 'PATCH', body: form() }) : null;
+  if (!res || !res.ok) res = await fetch(`${hook}?wait=true`, { method: 'POST', body: form() });
+  if (!res.ok) throw new Error('Discord ' + res.status);
+  return (await res.json().catch(() => null))?.id || null;
+};
 const sendDiscord = async id => {
   const hook = hookFor(C.find(x => x.id === id)?.player);
   if (!hook || !owns(id) || !state[id].done) return;
@@ -53,20 +64,8 @@ const sendDiscord = async id => {
     await new Promise(r => setTimeout(r, 300));          // laisse le récap s'afficher
     const c = C.find(x => x.id === id);
     const blob = await recapBlob().finally(() => { publicView = false; });
-    const form = new FormData();
-    const payload = { username: `${c.name} · Iloh Khurdan`, avatar_url: APP_URL + 'icon-512.png', embeds: [embedFor(id)],
-      attachments: [{ id: 0, filename: 'recap.png' }] };
-    form.append('payload_json', JSON.stringify(payload));
-    form.append('files[0]', blob, 'recap.png');
-    const prev = state[id].discordMsg;
-    let res = prev ? await fetch(`${hook}/messages/${prev}`, { method: 'PATCH', body: form }) : null;
-    if (!res || !res.ok) {
-      const f2 = new FormData(); f2.append('payload_json', JSON.stringify(payload)); f2.append('files[0]', blob, 'recap.png');
-      res = await fetch(`${hook}?wait=true`, { method: 'POST', body: f2 });
-    }
-    if (!res.ok) throw new Error('Discord ' + res.status);
-    const msg = await res.json().catch(() => null);
-    if (msg?.id) state[id].discordMsg = msg.id;
+    const msgId = await postRecap(c, blob, state[id].discordMsg);
+    if (msgId) state[id].discordMsg = msgId;
     discordState[id] = 'sent';
     window.RP_SYNC?.save();
   } catch (e) { console.error(e); discordState[id] = 'error'; }
@@ -205,6 +204,38 @@ const autoWraps = async () => {
   finally { wrapsRunning = false; }
 };
 window.RP_DISCORD.autoWraps = autoWraps;
+
+// ---------- Fiches recopiées de Journée RP ----------
+// Validées dans Journée RP, elles n'ont pas de bouton « J'ai terminé » ici : la première appli d'Iloh ouverte
+// les envoie sur le salon commun (vue publique, sans nuit chaude). Un verrou dans shared/recaps-AAAA-MM-JJ
+// évite les doublons ; si la journée change dans Journée RP, le message Discord est mis à jour.
+let mirrorBusy = false;
+const mirrorSent = {};   // id → signature déjà envoyée (évite de redemander au serveur)
+const sendMirrors = async () => {
+  if (mirrorBusy || !hookFor() || !window.RP_SYNC || isTyping(document.activeElement) || document.getElementById('wrap-sending')) return;
+  mirrorBusy = true;
+  try {
+    for (const c of C.filter(x => x.mirror && state[x.id].done)) {
+      const sig = JSON.stringify(entryOf(c.id));
+      if (mirrorSent[c.id] === sig) continue;
+      const claim = await RP_SYNC.recapClaim(c.id, sig);
+      if (claim === 'done') { mirrorSent[c.id] = sig; continue; }
+      if (!claim) continue;                              // envoi en cours sur un autre appareil
+      const back = { current, view: state[c.id].view };
+      wrapOverlay(`Envoi de la fiche ${deName(c.name)} sur Discord…`);
+      try {
+        state[c.id].view = 'day'; publicView = true; go(c.id); await pause(400);
+        const blob = await recapBlob();
+        const msg = await postRecap(c, blob, claim.msg);
+        await RP_SYNC.recapSent(c.id, sig, msg); mirrorSent[c.id] = sig;
+      } catch (e) { console.error(e); await RP_SYNC.recapFailed(c.id).catch(() => {}); }
+      finally { publicView = false; state[c.id].view = back.view; go(back.current); wrapOverlay(null); }
+    }
+  } finally { mirrorBusy = false; }
+};
+let mirrorTimer = null;
+window.RP_DISCORD.sendMirrors = () => { clearTimeout(mirrorTimer); mirrorTimer = setTimeout(sendMirrors, 1500); };
+setInterval(() => window.RP_DISCORD.sendMirrors(), 120e3);   // reprise si un envoi a été remis (saisie en cours, échec)
 
 // Aperçu secret seulement : bouton de test dans le réglage Discord (en bas de l'accueil).
 const baseSettings = window.RP_DISCORD.settingsHtml;

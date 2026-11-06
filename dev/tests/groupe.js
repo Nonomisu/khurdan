@@ -29,6 +29,7 @@ const ok = (cond, label) => { console.log((cond ? '  ok  ' : '  ÉCHEC ') + labe
     'access/eden@test.fr': { player: 'eden', role: 'joueur' }, 'access/sheyla@test.fr': { player: 'sheyla', role: 'joueur' },
     'access/idriss@test.fr': { player: 'idriss', role: 'joueur' },
     'shared/discord': { webhook: 'https://discord.com/api/webhooks/1/test' },
+    [`days/tamachag/months/${ym}`]: { [day]: { mood: 'Recopié de Journée RP.', done: true } },
     [`couples/taiga-tamachag/months/${ym}`]: { [day]: { nights: { tamachag: { hot: true, with: 'taiga' }, taiga: { hot: true, with: 'tamachag' } } } } };
   const open = async (name, email, first = false) => {
     const p = await ctx.newPage();
@@ -54,6 +55,13 @@ const ok = (cond, label) => { console.log((cond ? '  ok  ' : '  ÉCHEC ') + labe
   ok(Object.keys(d).filter(k => k.startsWith('characters/')).length === 23, 'fiches des 23 personnages créées par l\'admin');
   ok(d['characters/buyan']?.player === 'eden' && d['characters/tsewang']?.player === 'jynette', 'joueurs des fiches repris de la config');
   ok(await nono.locator('.discord-set').count() === 1, 'réglage Discord visible pour l\'admin');
+  await nono.waitForTimeout(3500);
+  const tam = posts.filter(t => t.includes('Recopié de Journée RP.'));
+  ok(tam.length === 1, 'fiche recopiée de Tamachag envoyée sur le salon commun à l\'ouverture');
+  ok(!tam[0]?.includes('Nuit chaude'), 'sans la nuit chaude, même ouverte par un joueur du couple');
+  d = await db(nono);
+  ok(!!d[`shared/recaps-${ym}-${String(rp.getDate()).padStart(2, '0')}`]?.tamachag?.msg, 'envoi noté (verrou partagé)');
+  ok((await nono.textContent('#view header .kicker')).includes('Iloh Khurdan'), 'retour à l\'écran d\'avant après l\'envoi');
   // Filtre Eden
   await nono.click('#f-eden'); await nono.waitForTimeout(150);
   ok(await nono.locator('.grid .card').count() === 3, 'filtre Eden : 3 personnages');
@@ -83,8 +91,9 @@ const ok = (cond, label) => { console.log((cond ? '  ok  ' : '  ÉCHEC ') + labe
   await sh.click('#done-oldaghar'); await sh.waitForTimeout(1500);
   d = await db(sh);
   ok(d[`days/oldaghar/months/${ym}`]?.[day]?.mood === 'Serein ce matin.', 'journée d\'Oldaghar enregistrée');
-  ok(posts.length === 1 && posts[0].includes('Serein ce matin.'), 'récap d\'Oldaghar envoyé sur le salon commun');
-  ok(!posts[0].includes('Nuit chaude') && !posts[0].includes('voyageuse'), 'image Discord sans nuit chaude, même envoyée par la joueuse du couple');
+  const old = posts.filter(t => t.includes('Serein ce matin.'));
+  ok(old.length === 1, 'récap d\'Oldaghar envoyé sur le salon commun');
+  ok(!old[0].includes('Nuit chaude') && !old[0].includes('voyageuse'), 'image Discord sans nuit chaude, même envoyée par la joueuse du couple');
   await sh.waitForTimeout(300);
   ok((await sh.textContent('#view')).includes('Nuit chaude'), 'après l\'envoi, Sheyla revoit la nuit chaude dans l\'appli');
   const news = Object.entries(d).filter(([k]) => k.startsWith('news/')).map(([, v]) => v);
@@ -115,6 +124,7 @@ const ok = (cond, label) => { console.log((cond ? '  ok  ' : '  ÉCHEC ') + labe
   ok(await jy.locator('#mood-shiruun').count() === 1, 'Shiruun (absent de Journée RP) se remplit dans Iloh');
 
   console.log('Joueuse (Eden)');
+  const before = posts.filter(t => t.includes('Recopié de Journée RP.')).length;
   const ed = await open('eden', 'eden@test.fr');
   await ed.evaluate(() => go('buyan')); await ed.waitForTimeout(200);
   ok(await ed.locator('#mood-buyan').count() === 1, 'Eden remplit Buyan');
@@ -126,6 +136,8 @@ const ok = (cond, label) => { console.log((cond ? '  ok  ' : '  ÉCHEC ') + labe
   await ed.evaluate(() => go('taiga')); await ed.waitForTimeout(200);
   ok(!(await ed.textContent('#view')).includes('Nuit chaude'), 'Eden ne voit pas la nuit chaude de Taiga');
   ok(await ed.evaluate(() => Object.keys(nightsBy).length) === 0, 'aucune nuit chaude chargée chez Eden');
+  await ed.waitForTimeout(2500);
+  ok(posts.filter(t => t.includes('Recopié de Journée RP.')).length === before, 'pas de second envoi de la fiche recopiée (verrou)');
 
   console.log('Administration');
   ok(await jy.locator('.admin-set').count() === 0, 'pas d\'administration pour une joueuse');

@@ -40,6 +40,7 @@ const swReg = pushSupported() ? navigator.serviceWorker.register('sw.js').catch(
 const b64u = s => { const b = atob((s + '='.repeat((4 - s.length % 4) % 4)).replace(/-/g, '+').replace(/_/g, '/')); return Uint8Array.from(b, c => c.charCodeAt(0)); };
 const subRef = async endpoint => doc(db, 'pushSubs', me, 'subs', (await sha256(endpoint)).slice(0, 40));
 const wrapsRef = y => doc(db, 'shared', 'wraps-' + y);
+const recapsRef = () => doc(db, 'shared', 'recaps-' + A.iso);
 const newsRef = key => doc(db, 'news', String(key).replace(/\//g, '_'));
 
 let me = null, started = false, timer = null, base = null;
@@ -112,6 +113,17 @@ window.RP_SYNC = {
     tx.set(ref, { claimedBy: me, claimedAt: Date.now() }, { merge: true });
     return d.sent || {};
   }),
+  // Récaps des fiches recopiées de Journée RP : verrou partagé pour qu'une seule appli les envoie.
+  // Renvoie 'done' si cette version est déjà partie, null si un autre appareil l'envoie, sinon { msg } (message à mettre à jour).
+  recapClaim: (id, sig) => runTransaction(db, async tx => {
+    const ref = recapsRef(), s = await tx.get(ref), r = (s.data() || {})[id] || {};
+    if (r.sig === sig && r.msg) return 'done';
+    if (r.claimedAt && Date.now() - r.claimedAt < 120e3 && r.claimedBy !== me) return null;
+    tx.set(ref, { [id]: { ...r, claimedBy: me, claimedAt: Date.now() } }, { merge: true });
+    return { msg: r.msg || null };
+  }),
+  recapSent: (id, sig, msg) => setDoc(recapsRef(), { [id]: { sig, msg, claimedBy: null, claimedAt: 0, sentBy: me, sentAt: Date.now() } }, { merge: true }),
+  recapFailed: id => setDoc(recapsRef(), { [id]: { claimedAt: 0 } }, { merge: true }),
   wrapSent: (y, id, msg) => setDoc(wrapsRef(y), { sent: { [id]: msg } }, { merge: true }),
   // Notifications push sur cet appareil : 'unsupported' | 'denied' | 'off' | 'on'
   pushState: async () => {
@@ -198,7 +210,8 @@ async function boot() {
   A.start();
   window.RP_PUSH?.refresh();
   if (window.RP_ADMIN) window.RP_ADMIN_UI?.refresh();
-  setTimeout(() => window.RP_DISCORD?.autoWraps?.(), 2000);   // à partir du 26 décembre : envoi des wraps (une seule fois)
+  setTimeout(() => window.RP_DISCORD?.autoWraps?.(), 2000);
+  window.RP_DISCORD?.sendMirrors?.();                          // fiches recopiées de Journée RP validées : sur le salon commun   // à partir du 26 décembre : envoi des wraps (une seule fois)
   listen();
   ['click', 'change', 'input'].forEach(t => document.addEventListener(t, schedule, true));
   document.addEventListener('visibilitychange', () => {
@@ -278,6 +291,7 @@ function listen() {
     A.applyMonth(id, A.ym, { [A.day]: e }, true);
     if (id in base.entries) base.entries[id] = clone(e);
     A.rerender();
+    window.RP_DISCORD?.sendMirrors?.();
   }));
 }
 
