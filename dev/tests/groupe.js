@@ -184,6 +184,25 @@ const ok = (cond, label) => { console.log((cond ? '  ok  ' : '  ÉCHEC ') + labe
   await nono.click('[data-go="home"]'); await nono.waitForTimeout(150);
   ok((await nono.textContent('.group-events')).includes('Naadam'), 'événement à venir aussi sur l\'accueil');
 
+  console.log('Carte de l\'Iloh (Nono)');
+  await nono.evaluate(() => go('khokkutsai')); await nono.waitForTimeout(200);
+  await nono.click('[data-yurt-of="khokkutsai"]'); await nono.waitForTimeout(400);
+  ok((await nono.textContent('#view h1')) === 'L\'Iloh' && (await nono.textContent('#view header')).includes('n° 44'), 'onglet Yourte : carte, yourte n° 44 indiquée');
+  ok(await nono.locator('.yurt-hit.sel[data-yurt="44"]').count() === 1 && await nono.isVisible('.yurt-card'), 'yourte mise en évidence et sa fiche ouverte');
+  ok((await nono.textContent('.yurt-card')).includes('Khokkutsai') && (await nono.textContent('.yurt-card')).includes('Inkaraa') && (await nono.textContent('.yurt-card')).includes('Jouée par Jynette'), 'fiche de la yourte : occupants et joueurs');
+  ok(await nono.evaluate(() => { const i = document.querySelector('.iloh-map img'); return i.complete && i.naturalWidth === 2048; }), 'image de la carte chargée');
+  await nono.click('[data-yurt-close]'); await nono.waitForTimeout(200);
+  ok(!(await nono.isVisible('.yurt-card')), 'fiche fermée');
+  await nono.click('[data-yurt="15"]'); await nono.waitForTimeout(300);
+  ok((await nono.textContent('.yurt-card')).includes('L\'Infirmerie') && (await nono.textContent('.yurt-card')).includes('Yourte des Soins'), 'yourte n° 15 : L\'Infirmerie');
+  await nono.click('[data-yurt-close]'); await nono.click('[data-yurt="5"]'); await nono.waitForTimeout(300);
+  await nono.click('.yurt-card [data-go="reaksa"]'); await nono.waitForTimeout(300);
+  ok(await nono.evaluate(() => current) === 'reaksa', 'depuis la carte, « Voir la fiche » ouvre la fiche');
+  await nono.evaluate(() => go('tengis')); await nono.click('[data-yurt-of="tengis"]'); await nono.waitForTimeout(300);
+  ok((await nono.textContent('#view header')).includes('pas encore de yourte') && !(await nono.isVisible('.yurt-card')), 'personnage sans yourte : indiqué');
+  await nono.evaluate(() => go('home'));
+  ok(await nono.locator('.home-links [data-go="iloh"]').count() === 1, 'accès à la carte depuis l\'accueil');
+
   console.log('Joueur (Idriss)');
   const idr = await open('idriss', 'idriss@test.fr');
   ok((await idr.textContent('.news')).match(/Reaksa|Oldaghar/) !== null, 'Idriss voit la nouvelle de la nuit');

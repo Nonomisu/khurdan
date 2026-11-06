@@ -14,7 +14,7 @@ OUT = ROOT / 'test' if TEST else pathlib.Path(sys.argv[1]) if len(sys.argv) > 1 
 OUT.mkdir(exist_ok=True)
 if TEST:   # fichiers partagés, recopiés tels quels dans la copie de test
     import shutil
-    for f in ['sync.js', 'firebase-config.js', 'logo.png', 'favicon.png', 'icon-180.png', 'icon-192.png', 'icon-512.png']:
+    for f in ['sync.js', 'firebase-config.js', 'logo.png', 'favicon.png', 'icon-180.png', 'icon-192.png', 'icon-512.png', 'iloh-carte.webp']:
         shutil.copy(ROOT / f, OUT / f)
 html = SRC.read_text()
 

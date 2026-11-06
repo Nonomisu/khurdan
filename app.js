@@ -131,6 +131,7 @@ ICONS.route = '<circle cx="6" cy="18" r="2.2"/><circle cx="18" cy="6" r="2.2"/><
 ICONS.warn = '<path d="M12 3.5 21.5 20h-19z"/><path d="M12 10v4.5"/><circle cx="12" cy="17.2" r=".6" style="fill:currentColor"/>';
 ICONS.users = '<circle cx="9" cy="8" r="3.2"/><path d="M3 19.5c.6-3.4 3-5.3 6-5.3s5.4 1.9 6 5.3"/><circle cx="16.8" cy="8.8" r="2.6"/><path d="M16.5 14.3c2.4.2 4 1.8 4.5 4.6"/>';
 ICONS.calendar = '<rect x="3.5" y="5" width="17" height="15.5" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/><path d="M8 14h2M14 14h2M8 17h2"/>';
+ICONS.map = '<path d="M3.5 6.5l5-2 7 2.5 5-2v13l-5 2-7-2.5-5 2z"/><path d="M8.5 4.5v13M15.5 7v13"/>';
 ICONS.flag = '<path d="M5 21V4"/><path d="M5 4h11l-2 4 2 4H5"/>';
 ICONS.zone = '<path d="M3 19 9.5 8l4 6.5 2.5-4L21 19z"/>';
 ICONS.star = '<path d="M12 3l2.6 5.6 6 .7-4.5 4.1 1.2 6L12 16.4 6.7 19.4l1.2-6L3.4 9.3l6-.7z"/>';
@@ -307,6 +308,115 @@ const checkRisk = id => {
   const text = `${whoLabel(man)} ne s'est pas protégé. ${nameOf(woman)} est-elle enceinte ?`;
   NEWS.unshift({ to: playerOf(woman), text, charId: woman, key, read: false, src: id, at: Date.now() });
 };
+// ---------- Carte de l'Iloh : les 53 yourtes (x, y = pastille du numéro sur la carte, en % de l'image) ----------
+// chars : occupants ; kind : lieu (fonction), libre (à prendre), invites, speciale ; map : nom écrit sur la carte ; size : taille du dessin.
+const YURTS = {
+  1: { x:89.31, y:52.88, chars:['tamachag','taiga'], map:'Yourte du khan et de la khatun', size:'xl' },
+  2: { x:91.36, y:69.25, kind:'speciale' },
+  3: { x:95.07, y:74.55, kind:'speciale' },
+  4: { x:83.5, y:70.08, kind:'lieu', label:'La Fauconnerie', map:'Yourte des Faucons', size:'l' },
+  5: { x:73.93, y:62.66, chars:['oldaghar','reaksa'], map:'Fauconnière et maître équin', size:'m' },
+  6: { x:65.04, y:71.29, kind:'lieu', label:'Le Tatouage' },
+  7: { x:72.27, y:76.6, kind:'lieu', label:'Les Captifs', map:'Yourte des captifs', size:'m' },
+  8: { x:84.42, y:84.53, chars:['altan'] },
+  9: { x:78.86, y:89.96, chars:['buyan'] },
+  10: { x:71.88, y:89.19, kind:'libre' },
+  11: { x:57.67, y:81.2, kind:'libre' },
+  12: { x:53.81, y:85.55, kind:'libre' },
+  13: { x:48.0, y:80.18, kind:'libre' },
+  14: { x:56.3, y:67.71, chars:['cheyenne'], map:'Guérisseuse', size:'m' },
+  15: { x:47.56, y:64.07, kind:'lieu', label:"L'Infirmerie", map:'Yourte des Soins', size:'l' },
+  16: { x:45.07, y:90.86, kind:'libre' },
+  17: { x:39.6, y:83.25, kind:'libre' },
+  18: { x:35.69, y:87.72, kind:'libre' },
+  19: { x:25.54, y:90.22, chars:['shiruun'] },
+  20: { x:26.12, y:78.84, chars:['ogloo'] },
+  21: { x:18.07, y:84.21, chars:['taivan'] },
+  22: { x:13.18, y:82.1, kind:'libre' },
+  23: { x:24.27, y:67.71, kind:'libre' },
+  24: { x:16.5, y:68.29, kind:'lieu', label:"L'Atelier", map:'Yourte des Ateliers', size:'l' },
+  25: { x:11.28, y:63.55, chars:['boroo'] },
+  26: { x:8.01, y:70.2, chars:['nehsundheigei'] },
+  27: { x:3.81, y:65.73, kind:'libre' },
+  28: { x:8.69, y:50.32, chars:['henbilee'], map:"Yourte de l'Udgan", size:'l' },
+  29: { x:15.77, y:44.88, chars:['djokhodthai'] },
+  30: { x:11.04, y:41.62, kind:'libre' },
+  31: { x:5.91, y:36.51, kind:'libre' },
+  32: { x:16.94, y:36.7, kind:'libre' },
+  33: { x:12.94, y:29.35, kind:'libre' },
+  34: { x:8.94, y:24.36, chars:['ankhbayar'] },
+  35: { x:18.07, y:22.06, kind:'libre' },
+  36: { x:23.49, y:25.58, kind:'libre' },
+  37: { x:23.78, y:34.14, kind:'lieu', label:'Les Savoirs', map:'Yourte des Savoirs', size:'l' },
+  38: { x:32.67, y:36.0, kind:'libre' },
+  39: { x:29.54, y:28.64, kind:'libre' },
+  40: { x:27.39, y:17.97, kind:'libre' },
+  41: { x:37.99, y:30.37, chars:['shuna'] },
+  42: { x:41.75, y:19.12, chars:['javkhaanhun'] },
+  43: { x:49.22, y:21.04, kind:'lieu', label:'La Commune', map:'Yourte commune', size:'xxl' },
+  44: { x:58.5, y:18.93, chars:['khokkutsai','inkaraa'] },
+  45: { x:60.94, y:29.41, kind:'invites', map:'Baras', size:'m' },
+  46: { x:66.6, y:23.59, kind:'libre', elite:true },
+  47: { x:69.14, y:15.03, kind:'libre', elite:true },
+  48: { x:74.27, y:20.65, kind:'libre', elite:true },
+  49: { x:70.31, y:33.31, kind:'invites', map:'Hainag', size:'m' },
+  50: { x:75.49, y:28.64, kind:'libre', elite:true },
+  51: { x:80.86, y:25.96, kind:'libre', elite:true },
+  52: { x:87.4, y:30.24, kind:'libre', elite:true },
+  53: { x:95.41, y:45.59, kind:'invites', map:'Mammouth', size:'m' },
+};
+const YURT_SIZE = { s:[6.4, 9], m:[8.4, 12.5], l:[9.2, 13.5], xl:[10.5, 15.5], xxl:[14, 17.5] };   // largeur, hauteur de la zone cliquable (%)
+const yurtOf = id => Object.keys(YURTS).find(n => YURTS[n].chars?.includes(id)) || null;
+const yurtTitle = y => y.chars ? andList(y.chars.map(nameOf)) : y.kind === 'lieu' ? y.label : y.kind === 'invites' ? 'Les invités'
+  : y.kind === 'speciale' ? 'Yourte spéciale' : y.elite ? 'Yourte à prendre (élite)' : 'Yourte à prendre';
+const ilohView = { sel: null, from: null };
+const openIloh = (from, sel) => { Object.assign(ilohView, { from: from || null, sel: sel || (from && yurtOf(from)) || null }); go('iloh'); };
+const yurtTodayHtml = cid => { const st = state[cid], place = st.checked?.has('Voyage') ? 'en voyage' : st.places?.size ? [...st.places][0] : '';
+  return st.done ? `<span class="yc-today">${st.mood ? `« ${esc(st.mood)} »` : 'Journée racontée'}${place ? ' · ' + esc(place) : ''}</span>` : '<span class="yc-today dim">Pas encore de fiche aujourd\'hui</span>'; };
+const yurtCardHtml = n => {
+  const y = YURTS[n]; if (!y) return '';
+  const below = y.y < 45, left = Math.min(Math.max(y.x, 18), 82);
+  const body = y.chars ? y.chars.map(cid => { const c = C.find(x => x.id === cid), p = PLAYERS.find(x => x.id === c?.player);
+      return `<div class="yc-char"><b>${esc(c.name)}${c.surname ? ` <small>${esc(c.surname)}</small>` : ''}</b>
+        <span class="yc-player"><i style="background:${p?.color || 'var(--dim)'}"></i>Joué${c.gender === 'f' ? 'e' : ''} par ${esc(p?.name || '?')}</span>
+        ${yurtTodayHtml(cid)}<button type="button" class="link small" data-go="${cid}">Voir la fiche ${deName(c.name)} ›</button></div>`; }).join('')
+    : `<p class="yc-desc">${y.kind === 'lieu' ? 'Lieu commun de l\'Iloh.' : y.kind === 'invites' ? 'Yourte réservée aux invités de l\'Iloh.' : y.kind === 'speciale' ? 'Yourte spéciale.' : y.elite ? 'Yourte libre, réservée à l\'élite.' : 'Yourte libre : elle attend son occupant.'}</p>`;
+  return `<div class="yurt-card" style="left:${left}%;${below ? `top:${y.y + YURT_SIZE[y.size || 's'][1] - 1}%` : `bottom:${100 - y.y + 2.5}%`}" role="dialog" aria-label="Yourte ${n}">
+    <button type="button" class="link ico-btn yc-close" data-yurt-close aria-label="Fermer">×</button>
+    <p class="yc-kicker">Yourte n° ${n}${y.map ? ' · ' + esc(y.map) : ''}</p>
+    ${y.chars ? '' : `<h3>${esc(yurtTitle(y))}</h3>`}${body}</div>`;
+};
+function renderIloh() {
+  root.className = 't-khurdan';
+  const from = ilohView.from && C.find(c => c.id === ilohView.from), sel = ilohView.sel;
+  document.getElementById('view').innerHTML = `
+    <p class="ev-back"><button type="button" class="link" data-go="${from ? from.id : 'home'}">‹ ${from ? 'Fiche ' + deName(from.name) : 'Accueil'}</button></p>
+    <header><p class="kicker">${APP_NAME}</p><h1>L'Iloh</h1>
+      <p class="date">${from ? yurtOf(from.id) ? `Yourte ${deName(esc(from.name))} : n° ${yurtOf(from.id)}` : `${esc(from.name)} n'a pas encore de yourte sur l'Iloh.` : 'Touche une yourte pour voir qui l\'habite.'}</p></header>
+    <div class="iloh-scroll"><div class="iloh-map">
+      <img src="iloh-carte.webp" alt="Carte de l'Iloh : 53 yourtes numérotées autour de la grande place" width="2048" height="1564" draggable="false">
+      ${Object.entries(YURTS).map(([n, y]) => { const [w, h] = YURT_SIZE[y.size || 's'];
+        return `<button type="button" class="yurt-hit ${y.chars ? 'occ' : 'k-' + (y.kind || 'libre')} ${String(sel) === n ? 'sel' : ''}" data-yurt="${n}"
+          style="left:${y.x - w / 2}%;top:${y.y - 1.8}%;width:${w}%;height:${h}%" aria-label="Yourte ${n} : ${esc(yurtTitle(y))}" aria-pressed="${String(sel) === n}">
+          ${y.chars ? `<span class="yurt-dots">${y.chars.map(cid => `<i style="background:${PLAYERS.find(p => p.id === playerOf(cid))?.color}"></i>`).join('')}</span>` : ''}</button>`; }).join('')}
+      ${sel ? yurtCardHtml(sel) : ''}
+    </div></div>
+    <p class="reserved cal-legend"><span class="yurt-key occ"></span> habitée (couleur du joueur) · <span class="yurt-key k-lieu"></span> lieu commun · <span class="yurt-key k-invites"></span> invités · <span class="yurt-key k-libre"></span> à prendre</p>`;
+  centerYurt(sel, false);
+}
+// Sur téléphone, la carte défile en largeur : on amène la yourte choisie au milieu.
+const centerYurt = (n, smooth) => { const sc = document.querySelector('.iloh-scroll'), y = YURTS[n]; if (!sc || !y || sc.scrollWidth <= sc.clientWidth) return;
+  sc.scrollTo({ left: sc.scrollWidth * y.x / 100 - sc.clientWidth / 2, behavior: smooth ? 'smooth' : 'auto' }); };
+const ilohRefresh = () => { const sc = document.querySelector('.iloh-scroll'), left = sc?.scrollLeft || 0, y = window.scrollY, h = fullH();
+  renderIloh(); const sc2 = document.querySelector('.iloh-scroll'); if (sc2) sc2.scrollLeft = left; holdHeight(h); window.scrollTo({ top: y }); holdPlace(null, y); };
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-yurt]'), yo = e.target.closest('[data-yurt-of]');
+  if (yo) return openIloh(yo.dataset.yurtOf);
+  if (e.target.closest('[data-yurt-close]')) { ilohView.sel = null; return ilohRefresh(); }
+  if (b) { ilohView.sel = ilohView.sel === b.dataset.yurt ? null : b.dataset.yurt; ilohRefresh(); if (ilohView.sel) centerYurt(ilohView.sel, true); }
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && current === 'iloh' && ilohView.sel) { ilohView.sel = null; ilohRefresh(); } });
+
 // ---------- Événements du groupe : annoncés par un joueur, une nouvelle (et une notification) pour tous les autres ----------
 const EVENT_TYPES = [
   { id:'info', label:"Information importante pour l'Iloh", icon:'warn' },
@@ -1314,7 +1424,8 @@ const wrapExtrasHtml = (c, y) => {
 // ---------- Onglets de la fiche : Journée / Historique ----------
 const tabsHtml = id => `<div class="tabs" role="tablist">
   <button type="button" role="tab" data-view="day" aria-selected="${state[id].view !== 'history'}">Journée</button>
-  <button type="button" role="tab" data-view="history" aria-selected="${state[id].view === 'history'}">Historique</button></div>`;
+  <button type="button" role="tab" data-view="history" aria-selected="${state[id].view === 'history'}">Historique</button>
+  <button type="button" role="tab" data-yurt-of="${id}" aria-selected="false">Yourte</button></div>`;
 const bindTabs = id => document.querySelectorAll('[data-view]').forEach(b => b.addEventListener('click', () => {
   state[id].view = b.dataset.view; renderChar(id); window.scrollTo({ top:0 });
 }));
@@ -1775,7 +1886,8 @@ function renderHome() {
   const visible = C.filter(shown);
   document.getElementById('view').innerHTML = `
     <p class="session">Connecté : ${PLAYER_NAME[me]} · <button type="button" class="link" id="signout">Se déconnecter</button></p>
-    <header><p class="kicker">${APP_NAME}</p><h1>Aujourd'hui</h1><p class="date">${today}<br>${eorzeaDate}</p>${(f => f ? `<p class="fest home-fest">${icon('star')}En Eorzea : ${f.name}</p>` : '')(festivalOn(rpDay))}</header>
+    <header><p class="kicker">${APP_NAME}</p><h1>Aujourd'hui</h1><p class="date">${today}<br>${eorzeaDate}</p>
+      <p class="home-links"><button type="button" class="chip-link" data-go="iloh">${icon('map')}Carte de l'Iloh</button></p>${(f => f ? `<p class="fest home-fest">${icon('star')}En Eorzea : ${f.name}</p>` : '')(festivalOn(rpDay))}</header>
     ${((unread, day) => `<section class="news"><h2>${icon('bell')}Nouvelles${unread.length ? ` <span class="badge">${unread.length}</span>` : ''}</h2>
       ${unread.length ? `<ul>${unread.slice(0, 8).map(n => `<li class="unread">${newsLink(n, esc(n.text))}</li>`).join('')}</ul>
       <button type="button" class="link ico-btn" id="news-read" title="Tout marquer comme lu" aria-label="Tout marquer comme lu">${icon('checks')}</button>` : '<p class="reserved">Rien de nouveau pour l\'instant.</p>'}
@@ -2343,7 +2455,7 @@ function renderCharNow(id) {
   document.getElementById('done-'+id).addEventListener('click', () => { s.done = true; s.doneAt ??= Date.now(); renderNav(); renderChar(id); window.RP_SYNC?.saveNow(); window.RP_DISCORD?.send(id); });
 }
 
-function go(id) { resetSpacer(); lastPage = null; current = id; renderNav(); if (id !== 'home') fxOff(); id === 'home' ? renderHome() : id === 'events' ? renderEvents() : renderChar(id); window.scrollTo({ top:0 }); }
+function go(id) { resetSpacer(); lastPage = null; current = id; renderNav(); if (id !== 'home') fxOff(); id === 'home' ? renderHome() : id === 'events' ? renderEvents() : id === 'iloh' ? renderIloh() : renderChar(id); window.scrollTo({ top:0 }); }
 document.addEventListener('click', e => { const b = e.target.closest('[data-go]'); if (b) go(b.dataset.go); });
 document.addEventListener('click', async e => {
   const b = e.target.closest('[data-wrap-open]'); if (!b) return;
@@ -2366,7 +2478,7 @@ document.querySelectorAll('.nav-filter button').forEach(b => b.addEventListener(
   const row = b.dataset.f ? '[data-f]' : '[data-g]';
   if (b.dataset.f) filter = b.dataset.f; else groupFilter = b.dataset.g;
   document.querySelectorAll('.nav-filter button' + row).forEach(x => x.setAttribute('aria-pressed', x === b));
-  if (current !== 'home' && current !== 'events' && !C.some(c => c.id === current && shown(c))) current = 'home';
+  if (!['home', 'events', 'iloh'].includes(current) && !C.some(c => c.id === current && shown(c))) current = 'home';
   go(current);
 }));
 initPlaces();
@@ -2491,7 +2603,7 @@ const rerender = () => {
   if (isTyping(document.activeElement)) { typingDirty = true; return; }
   // Jamais entre l'appui et le relâchement : la fiche serait remplacée sous le pointeur et le clic tomberait à côté.
   if (pointerDown) { typingDirty = true; return; }
-  typingDirty = false; renderNav(); current === 'home' ? renderHome() : current === 'events' ? renderEvents() : renderChar(current);
+  typingDirty = false; renderNav(); current === 'home' ? renderHome() : current === 'events' ? renderEvents() : current === 'iloh' ? renderIloh() : renderChar(current);
 };
 document.addEventListener('focusout', () => setTimeout(() => { if (typingDirty && !pointerDown) rerender(); }, 0));
 

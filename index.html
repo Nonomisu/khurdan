@@ -210,6 +210,36 @@ html, body, #view { overflow-anchor: none; }
 .group-events h2 .ev-cal-btn { margin-left: auto; order: 3; }
 .ev-cal-btn .ico { width: 1.25rem; height: 1.25rem; color: var(--gold); }
 .ev-dates { display: flex; flex-wrap: wrap; gap: .6rem; }
+.home-links { margin: .6rem 0 0; display: flex; justify-content: center; }
+.chip-link { display: inline-flex; align-items: center; gap: .4rem; padding: .35rem .9rem; border: 1px solid var(--gold); border-radius: 999px; background: none; color: var(--gold); font: inherit; font-size: .9rem; cursor: pointer; }
+.chip-link .ico { width: 1.05rem; height: 1.05rem; }
+.iloh-scroll { overflow-x: auto; overflow-y: hidden; border-radius: 8px; overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch; }
+.iloh-map { position: relative; width: 100%; aspect-ratio: 2048 / 1564; }
+@media (max-width: 700px) { .iloh-map { min-width: 760px; } }   /* téléphone : carte plus grande, qui défile en largeur */
+.iloh-map img { display: block; width: 100%; height: 100%; border-radius: 8px; user-select: none; -webkit-user-select: none; }
+.yurt-hit { position: absolute; padding: 0; border: 2px solid transparent; border-radius: 10px; background: none; cursor: pointer; }
+.yurt-hit:hover, .yurt-hit:focus-visible { border-color: color-mix(in srgb, var(--gold) 70%, transparent); background: color-mix(in srgb, var(--gold) 12%, transparent); outline: none; }
+.yurt-hit.sel { border-color: var(--gold); background: color-mix(in srgb, var(--gold) 18%, transparent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--gold) 35%, transparent), 0 0 22px var(--gold); animation: yurt-pulse 1.6s ease-in-out infinite; }
+@keyframes yurt-pulse { 50% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--gold) 20%, transparent), 0 0 30px var(--gold); } }
+@media (prefers-reduced-motion: reduce) { .yurt-hit.sel { animation: none; } }
+.yurt-dots { position: absolute; top: -6px; right: -4px; display: flex; gap: 2px; }
+.yurt-dots i, .yurt-key { display: inline-block; width: 10px; height: 10px; border-radius: 50%; border: 1.5px solid #f3e8d6; }
+.yurt-key { vertical-align: -1px; }
+.yurt-key.occ { background: linear-gradient(90deg, #4f8fd6 50%, #e38fa8 50%); }
+.yurt-key.k-lieu { background: var(--gold); } .yurt-key.k-invites { background: #8a6f5a; } .yurt-key.k-libre { background: transparent; }
+.yurt-card { position: absolute; z-index: 3; width: 270px; transform: translateX(-50%); padding: .9rem 1rem 1rem; text-align: left;
+  background: var(--surface); color: var(--text); border: 1px solid var(--gold); border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,.55); }
+.yurt-card h3 { margin: .15rem 1.6rem .5rem 0; font: 500 1.15rem/1.2 var(--display); letter-spacing: .06em; text-align: left; }
+.yc-kicker { margin: 0; font-size: .72rem; letter-spacing: .14em; text-transform: uppercase; color: var(--gold); }
+.yc-close { position: absolute; top: .3rem; right: .45rem; font-size: 1.4rem; line-height: 1; text-decoration: none; }
+.yc-kicker + .yc-char { border-top: 0; margin-top: .2rem; }
+.yc-char { display: grid; gap: .2rem; justify-items: start; padding: .45rem 0; border-top: 1px solid var(--rule); }
+.yc-char b small { font-weight: 400; color: var(--dim); }
+.yc-player { display: inline-flex; align-items: center; gap: .35rem; font-size: .85rem; color: var(--dim); }
+.yc-player i { width: 9px; height: 9px; border-radius: 50%; }
+.yc-today { font-size: .88rem; font-style: italic; } .yc-today.dim { color: var(--dim); }
+.yc-desc { margin: 0; color: var(--dim); }
+
 .ev-back { margin: 0; }
 .cal-day.ev-day { border-color: var(--gold); }
 .cal-day .ev-count { position: absolute; top: 3px; right: 5px; font-style: normal; font-size: .65rem; color: var(--gold); line-height: 1; }
@@ -571,6 +601,6 @@ button.link.danger { color: #e0a24d; }
 <div class="sync-state" id="sync-state" aria-live="polite"></div>
 </div>
 
-<script src="app.js?v=cd9983d573" charset="utf-8"></script>
+<script src="app.js?v=e57ae16691" charset="utf-8"></script>
 <script type="module" src="sync.js?v=6b528f2857"></script>
 
