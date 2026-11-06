@@ -2547,6 +2547,7 @@ const bindDaySections = id => {
   }));
 };
 
+let navCentered = null;   // page pour laquelle la liste a déjà été centrée
 function renderNav() {
   const list = document.getElementById('navList');
   const visible = C.filter(shown);
@@ -2563,6 +2564,10 @@ function renderNav() {
   });
   list.innerHTML = html;
   // Centre le personnage actif dans la barre de puces, en ne faisant défiler QUE la barre (jamais la page).
+  // Seulement quand on change de page : un simple réaffichage (données reçues, envoi Discord…) ne touche pas
+  // à la position de la liste, que l'on peut faire défiler librement.
+  if (navCentered === current) return;
+  navCentered = current;
   const cur = list.querySelector('[aria-current="true"]');
   for (let el = cur?.parentElement; el && el !== document.body && el !== document.documentElement; el = el.parentElement) {
     const st = getComputedStyle(el), r = el.getBoundingClientRect(), cr = cur.getBoundingClientRect();
