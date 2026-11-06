@@ -218,7 +218,9 @@ html, body, #view { overflow-anchor: none; }
 .iloh-zoom .btn { min-width: 2.4rem; padding: .2rem .6rem; font-size: 1.1rem; line-height: 1.2; }
 .iloh-zoom .btn:disabled { opacity: .35; }
 .iloh-scroll { overflow: auto; border-radius: 8px; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
-.iloh-scroll.zoomed { max-height: 72vh; }
+.iloh-scroll.zoomed { max-height: 72vh; cursor: grab; }
+.iloh-scroll.zoomed .yurt-hit, .iloh-scroll.zoomed .iloh-spot { cursor: pointer; }
+.iloh-scroll.dragging, .iloh-scroll.dragging * { cursor: grabbing !important; user-select: none; }
 .iloh-map { position: relative; width: calc(100% * var(--z, 1)); aspect-ratio: 2048 / 1564; }
 @media (max-width: 700px) { .iloh-map { width: calc(760px * var(--z, 1)); } }   /* téléphone : carte plus grande, qui défile */
 .iloh-map img { display: block; width: 100%; height: 100%; border-radius: 8px; user-select: none; -webkit-user-select: none; }
@@ -630,6 +632,6 @@ button.link.danger { color: #e0a24d; }
 <div class="sync-state" id="sync-state" aria-live="polite"></div>
 </div>
 
-<script src="app.js?v=d7165c6059" charset="utf-8"></script>
+<script src="app.js?v=831cb94873" charset="utf-8"></script>
 <script type="module" src="sync.js?v=dff1d41568"></script>
 

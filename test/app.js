@@ -315,10 +315,10 @@ const YURTS = {
   1: { x:89.31, y:52.88, chars:['tamachag','taiga'], map:'Yourte du khan et de la khatun', size:'xl' },
   2: { x:91.36, y:69.25, kind:'speciale' },
   3: { x:95.07, y:74.55, kind:'speciale' },
-  4: { x:83.5, y:70.08, kind:'lieu', label:'La Fauconnerie', map:'Yourte des Faucons', size:'l' },
+  4: { x:83.5, y:70.08, kind:'lieu', label:'Yourte des Faucons', size:'l' },
   5: { x:73.93, y:62.66, chars:['oldaghar','reaksa'], map:'Fauconnière et maître équin', size:'m' },
-  6: { x:65.04, y:71.29, kind:'lieu', label:'Le Tatouage' },
-  7: { x:72.27, y:76.6, kind:'lieu', label:'Les Captifs', map:'Yourte des captifs', size:'m' },
+  6: { x:65.04, y:71.29, kind:'lieu', label:'Yourte des Tatouages', staff:['inkaraa'] },
+  7: { x:72.27, y:76.6, kind:'lieu', label:'Yourte des Captifs', size:'m' },
   8: { x:84.42, y:84.53, chars:['altan'] },
   9: { x:78.86, y:89.96, chars:['buyan'] },
   10: { x:71.88, y:89.19, kind:'libre' },
@@ -326,7 +326,7 @@ const YURTS = {
   12: { x:53.81, y:85.55, kind:'libre' },
   13: { x:48.0, y:80.18, kind:'libre' },
   14: { x:56.3, y:67.71, chars:['cheyenne'], map:'Guérisseuse', size:'m' },
-  15: { x:47.56, y:64.07, kind:'lieu', label:"L'Infirmerie", map:'Yourte des Soins', size:'l' },
+  15: { x:47.56, y:64.07, kind:'lieu', label:'Yourte des Soins', size:'l' },
   16: { x:45.07, y:90.86, kind:'libre' },
   17: { x:39.6, y:83.25, kind:'libre' },
   18: { x:35.69, y:87.72, kind:'libre' },
@@ -335,7 +335,7 @@ const YURTS = {
   21: { x:18.07, y:84.21, chars:['taivan'] },
   22: { x:13.18, y:82.1, kind:'libre' },
   23: { x:24.27, y:67.71, kind:'libre' },
-  24: { x:16.5, y:68.29, kind:'lieu', label:"L'Atelier", map:'Yourte des Ateliers', size:'l' },
+  24: { x:16.5, y:68.29, kind:'lieu', label:'Yourte des Ateliers', size:'l' },
   25: { x:11.28, y:63.55, chars:['boroo'] },
   26: { x:8.01, y:70.2, chars:['nehsundheigei'] },
   27: { x:3.81, y:65.73, kind:'libre' },
@@ -348,13 +348,13 @@ const YURTS = {
   34: { x:8.94, y:24.36, chars:['ankhbayar','khubunjin'] },
   35: { x:18.07, y:22.06, kind:'libre' },
   36: { x:23.49, y:25.58, kind:'libre' },
-  37: { x:23.78, y:34.14, kind:'lieu', label:'Les Savoirs', map:'Yourte des Savoirs', size:'l' },
+  37: { x:23.78, y:34.14, kind:'lieu', label:'Yourte des Savoirs', size:'l' },
   38: { x:32.67, y:36.0, kind:'libre' },
   39: { x:29.54, y:28.64, kind:'libre' },
   40: { x:27.39, y:17.97, kind:'libre' },
   41: { x:37.99, y:30.37, chars:['shuna'] },
   42: { x:41.75, y:19.12, chars:['javkhaanhun'] },
-  43: { x:49.22, y:21.04, kind:'lieu', label:'La Commune', map:'Yourte commune', size:'xxl' },
+  43: { x:49.22, y:21.04, kind:'lieu', label:'Yourte Commune', size:'xxl' },
   44: { x:58.5, y:18.93, chars:['khokkutsai','inkaraa'] },
   45: { x:60.94, y:29.41, kind:'invites', map:'Baras', size:'m' },
   46: { x:66.6, y:23.59, kind:'libre', elite:true },
@@ -381,7 +381,9 @@ const ILOH_SPOTS = {
 // Invités : ils changent selon qui séjourne sur l'Iloh (shared/iloh.guests dans la base, modifiable depuis la carte).
 const ILOH_GUESTS = { 53: ['davaajav'] };   // valeur de départ, remplacée par celle de la base dès qu'elle existe
 const occupantsOf = n => YURTS[n]?.chars || (YURTS[n]?.kind === 'invites' ? (ILOH_GUESTS[n] || []).filter(isChar) : null);
+// staff : personnages qui tiennent un lieu commun (ils habitent ailleurs, leur yourte reste celle où ils vivent).
 const yurtOf = id => Object.keys(YURTS).find(n => occupantsOf(n)?.includes(id)) || null;
+const peopleOf = n => [...(occupantsOf(n) || []), ...(YURTS[n]?.staff || [])].filter(isChar);
 // Personnages qu'on peut accueillir : ceux qui n'ont pas de yourte à eux et ne sont pas déjà invités.
 const guestCandidates = () => C.filter(c => !yurtOf(c.id)).sort((a, b) => a.name.localeCompare(b.name, 'fr'));
 const setGuests = (n, list) => { ILOH_GUESTS[n] = list; window.RP_SYNC?.saveIloh({ guests: { ...ILOH_GUESTS } }); ilohRefresh(); };
@@ -404,6 +406,7 @@ const ilohCardHtml = key => {
       ${guestCandidates().length ? `<label class="yc-add"><span class="sr-only">Accueillir un invité</span><select data-guest-add="${key}"><option value="">Accueillir un invité…</option>
         ${guestCandidates().map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('')}</select></label>` : ''}`
     : (spot || y).chars ? (spot || y).chars.map(occupantHtml).join('')
+    : y?.staff ? y.staff.map(occupantHtml).join('')
     : spot ? '' : `<p class="yc-desc">${y.kind === 'lieu' ? 'Lieu commun de l\'Iloh.' : y.kind === 'invites' ? 'Yourte réservée aux invités de l\'Iloh.' : y.kind === 'speciale' ? 'Yourte spéciale.' : y.elite ? 'Yourte libre, réservée à l\'élite.' : 'Yourte libre : elle attend son occupant.'}</p>`;
   return `<div class="yurt-card" role="dialog" aria-label="${esc(spot ? spot.title : 'Yourte ' + key)}">
     <button type="button" class="link ico-btn yc-close" data-yurt-close aria-label="Fermer">×</button>${head}${body}</div>`;
@@ -425,7 +428,7 @@ function renderIloh() {
         ${Object.entries(ILOH_SPOTS).map(([k, p]) => `<button type="button" class="iloh-spot k-${p.kind} ${sel === k ? 'sel' : ''}" data-yurt="${k}"
           style="left:${p.x}%;top:${p.y}%;width:${p.w}%;height:${p.h}%" aria-label="${esc(p.title)}" aria-pressed="${sel === k}"></button>`).join('')}
         ${Object.entries(YURTS).map(([n, y]) => { const [w, h] = YURT_SIZE[y.size || 's'];
-          const occ = occupantsOf(n);
+          const occ = peopleOf(n);
           return `<button type="button" class="yurt-hit ${y.chars ? 'occ' : 'k-' + (y.kind || 'libre')} ${sel === n ? 'sel' : ''}" data-yurt="${n}"
             style="left:${y.x - w / 2}%;top:${y.y - 1.8}%;width:${w}%;height:${h}%" aria-label="Yourte ${n} : ${esc(yurtTitle(y))}" aria-pressed="${sel === n}">
             ${occ?.length ? `<span class="yurt-dots">${occ.map(cid => `<i style="background:${PLAYERS.find(p => p.id === playerOf(cid))?.color}"></i>`).join('')}</span>` : ''}</button>`; }).join('')}
@@ -436,6 +439,22 @@ function renderIloh() {
   const sc = document.querySelector('.iloh-scroll');
   sc.addEventListener('scroll', placeIlohCard, { passive: true });
   // Molette de la souris sur la carte (PC) : zoom autour du pointeur. Aux limites, la page défile normalement.
+  // Carte zoomée : on la fait glisser à la souris (clic maintenu) pour s'y déplacer ; un vrai glissé n'ouvre pas de fiche.
+  let drag = null;
+  sc.addEventListener('pointerdown', e => {
+    if (e.pointerType !== 'mouse' || e.button !== 0 || ilohView.z <= 1) return;
+    drag = { x: e.clientX, y: e.clientY, l: sc.scrollLeft, t: sc.scrollTop, moved: false, id: e.pointerId };
+  });
+  sc.addEventListener('pointermove', e => {
+    if (!drag || e.pointerId !== drag.id) return;
+    const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+    if (!drag.moved && Math.hypot(dx, dy) < 5) return;
+    if (!drag.moved) { drag.moved = true; sc.classList.add('dragging'); try { sc.setPointerCapture(drag.id); } catch {} }
+    sc.scrollLeft = drag.l - dx; sc.scrollTop = drag.t - dy; e.preventDefault();
+  });
+  const endDrag = () => { if (!drag) return; if (drag.moved) { ilohDragged = Date.now(); sc.classList.remove('dragging'); } drag = null; };
+  sc.addEventListener('pointerup', endDrag); sc.addEventListener('pointercancel', endDrag);
+  sc.addEventListener('dragstart', e => e.preventDefault());
   sc.addEventListener('wheel', e => {
     if (!e.ctrlKey && Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;   // défilement horizontal (pavé tactile) : on laisse faire
     const zin = e.deltaY < 0;
@@ -473,6 +492,7 @@ const ilohRefresh = (keep = true) => { const sc = document.querySelector('.iloh-
   placeIlohCard(); holdHeight(h); window.scrollTo({ top: y }); holdPlace(null, y); };
 // Zoom : la carte grandit autour d'un point du cadre (le pointeur de la souris, ou le centre pour les boutons),
 // sans réafficher la page. Les boutons passent d'un palier à l'autre ; la molette zoome en continu.
+let ilohDragged = 0;
 const ILOH_ZMAX = ILOH_ZOOMS[ILOH_ZOOMS.length - 1];
 const setIlohZoom = (z, ax, ay) => {
   z = Math.round(Math.min(Math.max(z, 1), ILOH_ZMAX) * 100) / 100; if (z === ilohView.z) return;
@@ -498,6 +518,7 @@ document.addEventListener('click', e => {
   if (e.target.closest('[data-yurt-close]')) { ilohView.sel = null; return ilohRefresh(); }
   const gd = e.target.closest('[data-guest-del]');
   if (gd) { const [n, cid] = gd.dataset.guestDel.split(':'); return setGuests(n, (ILOH_GUESTS[n] || []).filter(x => x !== cid)); }
+  if (b && Date.now() - ilohDragged < 300) return;   // fin d'un glissé de la carte : pas un clic
   if (b) { ilohView.sel = String(ilohView.sel) === b.dataset.yurt ? null : b.dataset.yurt; ilohRefresh(); if (ilohView.sel) centerYurt(ilohView.sel, true); }
 });
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && current === 'iloh' && ilohView.sel) { ilohView.sel = null; ilohRefresh(); } });
