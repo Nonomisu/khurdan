@@ -59,6 +59,7 @@ const ok = (cond, label) => { console.log((cond ? '  ok  ' : '  ÉCHEC ') + labe
   const tam = posts.filter(t => t.includes('Recopié de Journée RP.'));
   ok(tam.length === 1, 'fiche recopiée de Tamachag envoyée sur le salon commun à l\'ouverture');
   ok(!tam[0]?.includes('Nuit chaude'), 'sans la nuit chaude, même ouverte par un joueur du couple');
+  ok(!/Nuit (à venir|précédente)/.test(tam[0] || ''), 'ni nuit à venir ni nuit précédente dans l\'image');
   d = await db(nono);
   ok(!!d[`shared/recaps-${ym}-${String(rp.getDate()).padStart(2, '0')}`]?.tamachag?.msg, 'envoi noté (verrou partagé)');
   ok((await nono.textContent('#view header .kicker')).includes('Iloh Khurdan'), 'retour à l\'écran d\'avant après l\'envoi');
@@ -92,6 +93,7 @@ const ok = (cond, label) => { console.log((cond ? '  ok  ' : '  ÉCHEC ') + labe
   d = await db(sh);
   ok(d[`days/oldaghar/months/${ym}`]?.[day]?.mood === 'Serein ce matin.', 'journée d\'Oldaghar enregistrée');
   const old = posts.filter(t => t.includes('Serein ce matin.'));
+  ok(!/Nuit (à venir|précédente)/.test(old[0] || ''), 'image d\'Oldaghar : ni nuit à venir ni nuit précédente');
   ok(old.length === 1, 'récap d\'Oldaghar envoyé sur le salon commun');
   ok(!old[0].includes('Nuit chaude') && !old[0].includes('voyageuse'), 'image Discord sans nuit chaude, même envoyée par la joueuse du couple');
   await sh.waitForTimeout(300);

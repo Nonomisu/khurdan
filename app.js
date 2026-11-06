@@ -656,7 +656,8 @@ const loversOf = id => (LOVERS[id] ||= []);
 const isChar = x => C.some(c => c.id === x);
 // Nuit chaude, protection, risque de grossesse : seulement pour les personnages qui ont l'option (couples).
 const hasHot = id => !!C.find(c => c.id === id)?.hotNights;
-// Vue publique (images envoyées sur le salon Discord commun) : aucune nuit chaude, même pour les joueurs du couple.
+// Vue publique (images envoyées sur le salon Discord commun) : aucune nuit chaude, même pour les joueurs du couple,
+// et ni « Nuit précédente » ni « Nuit à venir » dans le récap.
 let publicView = false;
 const partnerOf = id => pairOf(id)?.find(x => x !== id) || null;
 const charByName = v => C.find(c => c.name.toLowerCase() === v.toLowerCase())?.id || null;
@@ -1734,8 +1735,8 @@ function renderCharNow(id) {
       ${statesLine(id, [...(s.phys || [])], s.stateNotes, 'heartbeat').replace('</span></p>', s.physNote ? ' — ' + esc(s.physNote) + '</span></p>' : '</span></p>')}
       ${statesLine(id, [...(s.mental || [])], s.stateNotes, 'brain')}
       ${isKhurdan(id) && s.violet ? `<p class="where">${icon('cloth')}<span>A porté du violet</span></p>` : ''}
-      ${prevNightLine(id)}
-      ${nightLine(id)}
+      ${publicView ? '' : prevNightLine(id)}
+      ${publicView ? '' : nightLine(id)}
       ${groups.length ? `<ul class="recap-list">${groups.map(({ sl, items }) => `<li>
         <span class="recap-when">${sl.icon ? icon(sl.icon) : ''}${sl.label}</span>
         <span class="recap-what">${items.map(l => esc(dispLabel(l))).join(' · ')}</span></li>`).join('')}</ul>` : ''}
