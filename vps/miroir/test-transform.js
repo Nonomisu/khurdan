@@ -22,6 +22,12 @@ ok(p.rp === 'Eoor', 'partenaire de jeu absent d\'Iloh : devient un nom (PNJ)');
 ok(p.calmWith === 'taiga', 'personnage présent dans Iloh : identifiant gardé');
 ok(e.intime === 'secret', 'la journée d\'origine n\'est pas modifiée');
 ok(T.publicEntry(null) === null, 'journée vide : rien');
+const h = T.publicEntry({ checked: { $set: ['Travail du bois', 'Chasse solo', 'Pêche'] }, slots: { 'Chasse solo': ['matin'], 'Pêche': ['soir'] },
+  details: { 'Pêche': 'truite' }, hideIloh: { $set: ['Chasse solo'] } }, { $set: ['Pêche'] });
+ok(JSON.stringify(h.checked.$set) === '["Travail du bois"]', 'activités masquées (ce jour-là et toujours) retirées');
+ok(!('Chasse solo' in h.slots) && !('Pêche' in h.slots) && !('Pêche' in h.details), 'masquées aussi dans les périodes et précisions');
+ok(!('hideIloh' in h), 'le réglage « masquer » lui-même n\'est pas recopié');
+ok(T.todayDoc({ activities: ['Pêche', 'Chasse solo', 'Travail du bois'] }, { hideIloh: { $set: ['Chasse solo'] } }, { $set: ['Pêche'] }).activities.join() === 'Travail du bois', 'encart public : activités masquées retirées');
 
 ok(JSON.stringify(T.hotNight({ hot: true, with: 'taiga' })) === '{"hot":true,"with":"taiga"}', 'nuit chaude avec la partenaire');
 ok(T.hotNight({ hot: false }) === null && T.hotNight(undefined) === null, 'pas de nuit chaude : null');

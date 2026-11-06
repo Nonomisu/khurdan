@@ -115,6 +115,16 @@ async function live(D) {
   await new Promise(r => setTimeout(r, 50));
   ok(!D[`couples/taiga-tamachag/months/${ym}`]?.[day]?.nights?.tamachag, 'nuit chaude décochée → retirée dans Iloh');
   ok(D[`shared/day-${iso}`]?.rp?.buyan === 'cheyenne', 'données des joueurs d\'Iloh intactes');
+  // Activité masquée ce jour-là, puis toujours masquée (réglage dans shared/global)
+  await src._doc(`days/tamachag/months/${ym}`).set({ [day]: { mood: 'Changé', done: true, checked: { $set: ['Pêche', 'Travail du bois'] }, hideIloh: { $set: ['Pêche'] } } });
+  await new Promise(r => setTimeout(r, 50));
+  ok(JSON.stringify(D[`days/tamachag/months/${ym}`]?.[day]?.checked) === '{"$set":["Travail du bois"]}', 'activité masquée ce jour-là absente d\'Iloh');
+  const g2 = JSON.parse(JSON.stringify(S['shared/global'])); g2.hideIloh = { tamachag: { $set: ['Travail du bois'] } };
+  await src._doc('shared/global').set(g2);
+  await new Promise(r => setTimeout(r, 200));
+  ok(JSON.stringify(D[`days/tamachag/months/${ym}`]?.[day]?.checked) === '{"$set":[]}', 'activité toujours masquée : retirée aussitôt');
+  ok(!JSON.stringify(D['days/tamachag/months/2026-03'] || {}).includes('Travail du bois'), 'et retirée de l\'historique déjà recopié');
+  ok(!JSON.stringify(D['shared/global']).includes('hideIloh'), 'le réglage lui-même n\'est pas recopié');
   console.log(fails ? `${fails} échec(s)` : 'Tout est bon.');
   process.exit(fails ? 1 : 0);
 }

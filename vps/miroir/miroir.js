@@ -45,17 +45,25 @@ async function setFields(ref, fields) {
   return todo.length;
 }
 
+// Activités toujours masquées dans Iloh (réglées dans Journée RP, shared/global → hideIloh), et dernières données lues
+// (pour refaire la recopie quand ce réglage change).
+let always = {};
+const lastMonth = {}, lastToday = {};
+const todayEntry = id => { const t = rpDate(); return lastMonth[`${id}:${ymOf(t)}`]?.[String(t.getDate())] || null; };
+
 // ---------- Journées (days/{id}/months/{AAAA-MM}) ----------
 async function copyMonth(id, ym, data) {
   let n = 0;
+  lastMonth[`${id}:${ym}`] = data || {};
   const days = Object.keys(data || {});
-  n += await setFields(dst.doc(`days/${id}/months/${ym}`), days.map(d => [[d], T.publicEntry(data[d])]));
+  n += await setFields(dst.doc(`days/${id}/months/${ym}`), days.map(d => [[d], T.publicEntry(data[d], always[id])]));
   const k = T.coupleOf(id);
   // Nuits chaudes passées : dans l'espace du couple (personnages hors couple : pas de nuit chaude dans Iloh).
   // La journée en cours vient de shared/day (copyDay) : la fiche du partenaire n'est pas forcément déjà enregistrée.
   const today = rpDate(), todayKey = ym === ymOf(today) ? String(today.getDate()) : null;
   if (k) n += await setFields(dst.doc(`couples/${k.id}/months/${ym}`), days.filter(d => d !== todayKey).map(d => [[d, 'nights', id], T.hotNight(data[d]?.night)]));
   if (n) log(`journées ${id} ${ym} : ${n} champ(s) recopié(s)`);
+  if (id in lastToday) await copyToday(id, lastToday[id]);   // activités masquées aujourd'hui : l'encart suit
 }
 
 // ---------- Journée en cours : shared/day-AAAA-MM-JJ ----------
@@ -80,6 +88,13 @@ async function copyDay(iso, d) {
 // ---------- Réglages durables : shared/global ----------
 async function copyGlobal(g) {
   let n = 0;
+  const nextAlways = g?.hideIloh || {};
+  if (J(nextAlways) !== J(always)) {
+    always = nextAlways;
+    // Réglage « toujours masquée » changé : on refait les journées déjà lues, puis tout l'historique.
+    for (const key of Object.keys(lastMonth)) { const [id, ym] = key.split(':'); await copyMonth(id, ym, lastMonth[key]); }
+    if (startedLive) copyHistory().catch(e => console.error('historique', e.message || e));
+  }
   for (const k of T.COUPLES) {
     n += await setFields(dst.doc(`couples/${k.id}/state/main`), [
       ...k.chars.map(x => [['lovers', x], T.lovers(g?.lovers?.[x], x)]),
@@ -101,8 +116,9 @@ async function copyChar(id, d) {
   if (n) log(`fiche ${id} : ${n} champ(s) recopié(s)`);
 }
 async function copyToday(id, t) {
-  if (!changed('today/' + id, t)) return;
-  const v = T.todayDoc(t);
+  lastToday[id] = t;
+  const v = T.todayDoc(t, todayEntry(id), always[id]);
+  if (!changed('today/' + id, v)) return;
   if (v) await dst.doc(`today/${id}`).set(v); else await dst.doc(`today/${id}`).delete();
   log(`encart « Aujourd'hui » ${id} recopié`);
 }
@@ -126,7 +142,15 @@ function watch() {
 }
 
 // ---------- Recopie complète de l'historique ----------
+let startedLive = false;
+async function copyHistory() {
+  for (const id of T.MIRROR) {
+    const refs = await src.collection(`days/${id}/months`).listDocuments();
+    for (const ref of refs) await copyMonth(id, ref.id, (await ref.get()).data());
+  }
+}
 async function copyAll() {
+  await copyGlobal((await src.doc('shared/global').get()).data());   // d'abord : activités toujours masquées
   for (const id of T.MIRROR) {
     const refs = await src.collection(`days/${id}/months`).listDocuments();
     for (const ref of refs) await copyMonth(id, ref.id, (await ref.get()).data());
@@ -141,6 +165,7 @@ async function copyAll() {
 if (process.argv.includes('--tout')) {
   copyAll().then(() => { log('historique recopié'); process.exit(0); }, e => { console.error(e); process.exit(1); });
 } else {
+  startedLive = true;
   watch();
   // Nouvelle journée RP (5 h) : on suit les nouveaux documents du jour (et du mois).
   setInterval(() => { if (isoOf(rpDate()) !== watchingIso) watch(); }, 5 * 60e3);

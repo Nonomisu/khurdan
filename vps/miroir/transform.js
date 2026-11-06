@@ -16,22 +16,27 @@ const who = x => typeof x !== 'string' || ILOH.includes(x) ? x : (JRP_NAMES[x] |
 
 // Champs de la journée qui ne sont pas repris.
 const DROP_KEYS = ['intime', 'intimeWith', 'jais', 'set', 'setLate', 'lateAt', 'wait', 'door', 'callPartner', 'returnHour',
-  'discordMsg', 'film', 'nefaste', 'night'];
+  'discordMsg', 'film', 'nefaste', 'night', 'hideIloh'];
 const isPrivateAct = a => typeof a === 'string' && /^Sexe avec /i.test(a);
 const clone = v => v === undefined ? undefined : JSON.parse(JSON.stringify(v));
 const setList = v => Array.isArray(v?.$set) ? v.$set : Array.isArray(v) ? v : null;
-const filterSet = v => { const l = setList(v); if (!l) return v; const f = l.filter(a => !isPrivateAct(a)); return Array.isArray(v?.$set) ? { $set: f } : f; };
-const filterKeys = o => o && typeof o === 'object' && !Array.isArray(o) ? Object.fromEntries(Object.entries(o).filter(([k]) => !isPrivateAct(k))) : o;
+// Activités masquées dans Iloh Khurdan depuis Journée RP : ce jour-là (entrée hideIloh) ou toujours (shared/global hideIloh).
+const hiddenOf = (e, always) => new Set([...(setList(e?.hideIloh) || []), ...(setList(always) || [])]);
+const filterSet = (v, hid = new Set()) => { const l = setList(v); if (!l) return v; const f = l.filter(a => !isPrivateAct(a) && !hid.has(a)); return Array.isArray(v?.$set) ? { $set: f } : f; };
+const filterKeys = (o, hid = new Set()) => o && typeof o === 'object' && !Array.isArray(o) ? Object.fromEntries(Object.entries(o).filter(([k]) => !isPrivateAct(k) && !hid.has(k))) : o;
 
-// Journée d'un personnage (champ « jour » d'un document days/{id}/months/{AAAA-MM}), sans rien d'intime.
-function publicEntry(e) {
+// Journée d'un personnage (champ « jour » d'un document days/{id}/months/{AAAA-MM}), sans rien d'intime
+// ni les activités masquées pour Iloh Khurdan. always : activités toujours masquées pour ce personnage.
+function publicEntry(e, always) {
   if (!e || typeof e !== 'object') return null;
+  const hid = hiddenOf(e, always);
   const o = clone(e);
   DROP_KEYS.forEach(k => delete o[k]);
-  if (o.checked) o.checked = filterSet(o.checked);
-  if (o.specials) o.specials = filterSet(o.specials);
-  if (o.slots) o.slots = filterKeys(o.slots);
-  if (o.details) o.details = filterKeys(o.details);
+  if (o.checked) o.checked = filterSet(o.checked, hid);
+  if (o.specials) o.specials = filterSet(o.specials, hid);
+  if (o.slots) o.slots = filterKeys(o.slots, hid);
+  if (o.details) o.details = filterKeys(o.details, hid);
+  if (o.huntSet) o.huntSet = filterKeys(o.huntSet, hid);
   if (o.nightNotes && typeof o.nightNotes === 'object') { delete o.nightNotes['Nuit chaude']; }
   if (o.rp) o.rp = who(o.rp);
   if (o.calmWith) o.calmWith = who(o.calmWith);
@@ -68,12 +73,12 @@ function charDoc(d) {
   };
 }
 
-// Encart public « Aujourd'hui ».
-function todayDoc(t) {
+// Encart public « Aujourd'hui » (entry : journée du jour, pour les activités masquées ce jour-là).
+function todayDoc(t, entry, always) {
   if (!t) return null;
-  const o = clone(t);
-  if (Array.isArray(o.activities)) o.activities = o.activities.filter(a => !isPrivateAct(a));
+  const hid = hiddenOf(entry, always), o = clone(t);
+  if (Array.isArray(o.activities)) o.activities = o.activities.filter(a => !isPrivateAct(a) && !hid.has(a));
   return o;
 }
 
-module.exports = { MIRROR, COUPLES, ILOH, coupleOf, who, publicEntry, hotNight, lovers, protectFor, charDoc, todayDoc, isPrivateAct };
+module.exports = { MIRROR, COUPLES, ILOH, coupleOf, who, publicEntry, hotNight, lovers, protectFor, charDoc, todayDoc, isPrivateAct, hiddenOf };
