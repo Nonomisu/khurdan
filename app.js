@@ -131,6 +131,7 @@ ICONS.route = '<circle cx="6" cy="18" r="2.2"/><circle cx="18" cy="6" r="2.2"/><
 ICONS.warn = '<path d="M12 3.5 21.5 20h-19z"/><path d="M12 10v4.5"/><circle cx="12" cy="17.2" r=".6" style="fill:currentColor"/>';
 ICONS.users = '<circle cx="9" cy="8" r="3.2"/><path d="M3 19.5c.6-3.4 3-5.3 6-5.3s5.4 1.9 6 5.3"/><circle cx="16.8" cy="8.8" r="2.6"/><path d="M16.5 14.3c2.4.2 4 1.8 4.5 4.6"/>';
 ICONS.calendar = '<rect x="3.5" y="5" width="17" height="15.5" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/><path d="M8 14h2M14 14h2M8 17h2"/>';
+ICONS.box = '<path d="M3.5 7.5 12 3l8.5 4.5v9L12 21l-8.5-4.5z"/><path d="M3.5 7.5 12 12l8.5-4.5M12 12v9"/>';
 ICONS.map = '<path d="M3.5 6.5l5-2 7 2.5 5-2v13l-5 2-7-2.5-5 2z"/><path d="M8.5 4.5v13M15.5 7v13"/>';
 ICONS.flag = '<path d="M5 21V4"/><path d="M5 4h11l-2 4 2 4H5"/>';
 ICONS.zone = '<path d="M3 19 9.5 8l4 6.5 2.5-4L21 19z"/>';
@@ -500,6 +501,67 @@ document.addEventListener('click', e => {
   if (b) { ilohView.sel = String(ilohView.sel) === b.dataset.yurt ? null : b.dataset.yurt; ilohRefresh(); if (ilohView.sel) centerYurt(ilohView.sel, true); }
 });
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && current === 'iloh' && ilohView.sel) { ilohView.sel = null; ilohRefresh(); } });
+
+// ---------- Logistique : demandes de matériel à Khokkutsai, responsable de la logistique ----------
+// requests/{id} = { from (joueur), charId, item, note, at, status: 'pending' | 'done', doneAt }.
+// Les règles Firestore réservent la liste complète au joueur de Khokkutsai ; chacun ne lit que ses propres demandes.
+const LOGI_CHAR = 'khokkutsai';
+const REQUESTS = {};   // rempli par sync.js
+const isLogi = () => playerOf(LOGI_CHAR) === me;
+const reqView = { char: null, msg: '' };
+const fmtAt = ms => fmtDay(new Date(ms));
+const addRequest = (charId, item, note) => {
+  const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6), at = Date.now();
+  const r = { from: me, charId, item, note: note || '', at, status: 'pending' };
+  REQUESTS[id] = r; window.RP_SYNC?.saveRequest(id, r);
+  if (!isLogi()) NEWS.unshift({ to: playerOf(LOGI_CHAR), text: `Demande de matériel de ${nameOf(charId)} : ${item}`, charId: LOGI_CHAR, key: 'req:' + id, read: false, at });
+};
+const validateRequest = id => {
+  const r = REQUESTS[id]; if (!r || r.status === 'done') return;
+  Object.assign(r, { status: 'done', doneAt: Date.now() }); window.RP_SYNC?.updateRequest(id, { status: 'done', doneAt: r.doneAt });
+  if (r.from !== me) NEWS.unshift({ to: r.from, text: `Commande « ${r.item} » : livraison aujourd'hui. Merci au responsable de la logistique !`, charId: r.charId, key: 'reqok:' + id, read: false, at: Date.now() });
+};
+const cancelRequest = id => { const r = REQUESTS[id]; if (!r || r.status !== 'pending' || r.from !== me) return;
+  delete REQUESTS[id]; window.RP_SYNC?.deleteRequest(id); dropNews(['req:' + id]); };
+const reqLine = ([id, r], logi) => `<li class="req ${r.status}"><div><b>${esc(r.item)}</b>
+    <small>${logi ? `Pour ${esc(nameOf(r.charId))} · ` : `${esc(nameOf(r.charId))} · `}demandé le ${fmtAt(r.at)}${r.status === 'done' ? ` · livré le ${fmtAt(r.doneAt)}` : ''}</small>
+    ${r.note ? `<span class="req-note">${esc(r.note)}</span>` : ''}</div>
+  ${r.status === 'done' ? `<span class="req-ok">${icon('checks')}Livrée</span>`
+    : logi ? `<button type="button" class="join-btn" data-req-ok="${id}">${icon('checks')}Validée</button>`
+    : `<span class="req-wait">En attente</span><button type="button" class="link small" data-req-cancel="${id}">Annuler</button>`}</li>`;
+const logisticsHtml = id => {
+  if (id !== LOGI_CHAR) return '';
+  const all = Object.entries(REQUESTS).sort((a, b) => b[1].at - a[1].at), logi = isLogi();
+  const mineChars = C.filter(c => c.player === me), pending = all.filter(([, r]) => r.status === 'pending'), done = all.filter(([, r]) => r.status === 'done');
+  const pick = reqView.char && mineChars.some(c => c.id === reqView.char) ? reqView.char : mineChars[0]?.id;
+  return `<section class="logi"><h2>${icon('box')}Logistique</h2>
+    <p class="reserved">${esc(nameOf(LOGI_CHAR))} est ${C.find(c => c.id === LOGI_CHAR)?.gender === 'f' ? 'la responsable' : 'le responsable'} de la logistique de l'Iloh. Une demande de matériel lui est transmise aussitôt.</p>
+    ${mineChars.length ? `<div class="req-form">
+      <label><span>Pour</span><select id="req-char">${mineChars.map(c => `<option value="${c.id}" ${c.id === pick ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select></label>
+      <input type="text" id="req-item" maxlength="120" placeholder="Ex. : Nouvelle yourte, nouveau bureau…" enterkeyhint="send">
+      <input type="text" id="req-note" maxlength="300" placeholder="Précisions (facultatif)">
+      <button type="button" class="btn" id="req-send">Envoyer la demande</button>
+      ${reqView.msg ? `<p class="reserved" aria-live="polite">${esc(reqView.msg)}</p>` : ''}</div>` : ''}
+    ${logi ? `<h3>Demandes en cours${pending.length ? ` <span class="badge">${pending.length}</span>` : ''}</h3>
+      ${pending.length ? `<ul class="req-list">${pending.map(x => reqLine(x, true)).join('')}</ul>` : '<p class="reserved">Aucune demande en attente.</p>'}
+      ${done.length ? `<details class="req-done"><summary>Demandes livrées (${done.length})</summary><ul class="req-list">${done.slice(0, 30).map(x => reqLine(x, true)).join('')}</ul></details>` : ''}
+      <p class="reserved">Cette liste n'est visible que de toi.</p>`
+    : (m => m.length ? `<h3>Mes demandes</h3><ul class="req-list">${m.slice(0, 20).map(x => reqLine(x, false)).join('')}</ul>` : '')(all.filter(([, r]) => r.from === me))}
+  </section>`;
+};
+document.addEventListener('change', e => { if (e.target.id === 'req-char') reqView.char = e.target.value; });
+document.addEventListener('click', e => {
+  const ok = e.target.closest('[data-req-ok]'), cancel = e.target.closest('[data-req-cancel]');
+  if (ok) { validateRequest(ok.dataset.reqOk); reqView.msg = ''; return renderChar(current); }
+  if (cancel) { cancelRequest(cancel.dataset.reqCancel); return renderChar(current); }
+  if (e.target.closest('#req-send')) {
+    const f = document.getElementById('req-item'), item = f.value.trim(); if (!item) return f.focus();
+    const charId = document.getElementById('req-char').value;
+    addRequest(charId, item, document.getElementById('req-note').value.trim());
+    reqView.msg = isLogi() ? 'Demande ajoutée à ta liste.' : `Demande envoyée à ${nameOf(LOGI_CHAR)}.`; renderChar(current);
+  }
+});
+document.addEventListener('keydown', e => { if ((e.target.id === 'req-item' || e.target.id === 'req-note') && e.key === 'Enter') { e.preventDefault(); document.getElementById('req-send')?.click(); } });
 
 // ---------- Événements du groupe : annoncés par un joueur, une nouvelle (et une notification) pour tous les autres ----------
 const EVENT_TYPES = [
@@ -2158,6 +2220,7 @@ function renderCharNow(id) {
     document.getElementById('view').innerHTML = `
     ${tabsHtml(id)}
     ${sharedActsHtml(id, false)}
+    ${logisticsHtml(id)}
     ${readOnly ? `<p class="readonly-note">${icon('eye')}${isMirror(id) ? `Fiche tenue par ${PLAYER_NAME[c.player]} dans Journée RP, recopiée ici : lecture seule.` : `Fiche de ${PLAYER_NAME[c.player]} : lecture seule.`}</p>` : ''}
     <article class="recap">
       ${alertBlock(id, false)}
@@ -2725,6 +2788,7 @@ window.RP_APP = {
     if (withToday && ym === curYm) applyCoupleDay(k, data?.[dayNum]);
   },
   applyCoupleState: (cid, d) => { const k = COUPLES.find(x => x.id === cid); if (k) applyCoupleState(k, d); },
+  applyRequests: list => { Object.keys(REQUESTS).forEach(k => delete REQUESTS[k]); list.forEach(({ id, ...r }) => { REQUESTS[id] = r; }); },
   applyIloh: d => { if (d?.guests) { Object.keys(ILOH_GUESTS).forEach(k => delete ILOH_GUESTS[k]); Object.assign(ILOH_GUESTS, d.guests); } },
   applyEvents: d => { Object.keys(GROUP_EVENTS).forEach(k => delete GROUP_EVENTS[k]); Object.assign(GROUP_EVENTS, d || {}); },
   applyNews: list => {

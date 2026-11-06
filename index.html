@@ -226,6 +226,22 @@ html, body, #view { overflow-anchor: none; }
 .iloh-spot.k-zone { border-radius: 50%; }
 .iloh-spot:hover, .iloh-spot:focus-visible { border-color: color-mix(in srgb, var(--gold) 55%, transparent); background: color-mix(in srgb, var(--gold) 8%, transparent); outline: none; }
 .iloh-spot.sel { border-color: var(--gold); background: color-mix(in srgb, var(--gold) 14%, transparent); box-shadow: 0 0 18px color-mix(in srgb, var(--gold) 60%, transparent); }
+.logi { display: grid; gap: .6rem; text-align: left; margin-top: 1rem; }
+.logi h2 { display: flex; align-items: center; gap: .5rem; }
+.logi h3 { margin: .4rem 0 0; font: 500 .85rem/1.2 var(--display); letter-spacing: .12em; text-transform: uppercase; color: var(--gold); }
+.req-form { display: grid; gap: .5rem; }
+.req-form label { display: flex; align-items: center; gap: .5rem; color: var(--dim); font-size: .9rem; }
+.req-form .btn { justify-self: start; }
+.req-list { list-style: none; margin: 0; padding: 0; display: grid; gap: .5rem; }
+.req { display: flex; align-items: flex-start; justify-content: space-between; gap: .7rem; padding: .6rem .75rem; border: 1px solid var(--rule); border-radius: 8px; }
+.req.pending { border-color: var(--gold); }
+.req > div { display: grid; gap: .1rem; min-width: 0; }
+.req small { color: var(--dim); font-size: .8rem; }
+.req-note { font-style: italic; overflow-wrap: anywhere; }
+.req-ok, .req-wait { display: inline-flex; align-items: center; gap: .3rem; font-size: .85rem; color: var(--dim); white-space: nowrap; }
+.req-ok .ico { width: 1rem; height: 1rem; color: #7fbf7a; }
+.req .join-btn { flex: none; }
+.req-done summary { cursor: pointer; color: var(--dim); }
 .yc-guest { display: grid; gap: .1rem; justify-items: start; }
 .yc-guest + .yc-guest { margin-top: .2rem; }
 .yc-add { display: block; margin-top: .6rem; }
@@ -614,6 +630,6 @@ button.link.danger { color: #e0a24d; }
 <div class="sync-state" id="sync-state" aria-live="polite"></div>
 </div>
 
-<script src="app.js?v=29890e4187" charset="utf-8"></script>
-<script type="module" src="sync.js?v=b9bd441e77"></script>
+<script src="app.js?v=d7165c6059" charset="utf-8"></script>
+<script type="module" src="sync.js?v=dff1d41568"></script>
 

@@ -213,6 +213,7 @@ const ok = (cond, label) => { console.log((cond ? '  ok  ' : '  ÉCHEC ') + labe
   ok((await nono.textContent('.yurt-card')).includes('La Commune') && await nono.evaluate(() => { const c = document.querySelector('.yurt-card').getBoundingClientRect(), w = document.querySelector('.iloh-wrap').getBoundingClientRect(); return c.left >= w.left - 1 && c.right <= w.right + 1; }), 'zoomée : la fiche s\'ouvre et reste entière');
   await nono.click('[data-yurt-close]'); await nono.click('[data-iloh-zoom="-1"]'); await nono.click('[data-iloh-zoom="-1"]'); await nono.waitForTimeout(150);
   // Molette de la souris : zoom autour du pointeur
+  await nono.waitForTimeout(800);   // (après le garde-fou de position)
   const box = await nono.locator('.iloh-scroll').boundingBox();
   await nono.mouse.move(box.x + box.width * .3, box.y + box.height * .5);
   const yPage = await nono.evaluate(() => scrollY);
@@ -300,6 +301,26 @@ const ok = (cond, label) => { console.log((cond ? '  ok  ' : '  ÉCHEC ') + labe
   ok(await ed.evaluate(() => Object.keys(nightsBy).length) === 0, 'aucune nuit chaude chargée chez Eden');
   await ed.waitForTimeout(2500);
   ok(posts.length === before, 'pas de second envoi des fiches recopiées (verrou)');
+
+  console.log('Logistique : demande de matériel (Eden → Nono)');
+  await ed.evaluate(() => go('khokkutsai')); await ed.waitForTimeout(300);
+  ok(await ed.isVisible('.logi #req-item') && !(await ed.textContent('.logi')).includes('Demandes en cours'), 'fiche de Khokkutsai : formulaire de demande, sans la liste des demandes');
+  await ed.selectOption('#req-char', 'buyan'); await ed.fill('#req-item', 'Nouvelle yourte'); await ed.fill('#req-note', 'Pour la saison des pluies');
+  await ed.click('#req-send'); await ed.waitForTimeout(1500);
+  ok((await ed.textContent('.logi')).includes('Mes demandes') && (await ed.textContent('.logi')).includes('En attente'), 'Eden voit sa demande en attente');
+  d = await db(ed);
+  const reqs = Object.entries(d).filter(([k]) => k.startsWith('requests/'));
+  ok(reqs.length === 1 && reqs[0][1].from === 'eden' && reqs[0][1].charId === 'buyan' && reqs[0][1].status === 'pending', 'demande enregistrée');
+  ok(Object.values(d).some(v => v?.key?.startsWith?.('req:') && v.to === 'nono' && v.text === 'Demande de matériel de Buyan : Nouvelle yourte' && v.charId === 'khokkutsai'), 'nouvelle (et notification) pour Nono, avec l\'origine');
+  ok(await sh.evaluate(() => Object.keys(REQUESTS).length) === 0, 'Sheyla ne voit pas les demandes des autres');
+  const lg = await open('nono', 'nono@test.fr');
+  await lg.evaluate(() => go('khokkutsai')); await lg.waitForTimeout(300);
+  ok((await lg.textContent('.logi')).includes('Demandes en cours') && (await lg.textContent('.logi .req.pending')).includes('Pour Buyan'), 'Nono voit la demande en cours, avec son origine');
+  await lg.click('[data-req-ok]'); await lg.waitForTimeout(1500);
+  ok((await lg.textContent('.logi')).includes('Aucune demande en attente') && (await lg.textContent('.req-done summary')).includes('(1)'), 'demande validée : passe dans les livrées');
+  d = await db(lg);
+  ok(Object.values(d).some(v => v?.key?.startsWith?.('reqok:') && v.to === 'eden' && v.charId === 'buyan' && v.text === 'Commande « Nouvelle yourte » : livraison aujourd\'hui. Merci au responsable de la logistique !'), 'nouvelle de livraison pour Eden');
+  await lg.close();
 
   console.log('Administration');
   ok(await jy.locator('.admin-set').count() === 0, 'pas d\'administration pour une joueuse');

@@ -109,6 +109,9 @@ window.RP_SYNC = {
   },
   revoke: email => deleteDoc(doc(db, 'access', email)),
   // Webhook Discord (salon commun) : rangé dans Firestore, lisible par les joueurs, modifiable par l'admin ; jamais dans le code.
+  saveRequest: (id, r) => noWrites ? Promise.resolve() : setDoc(doc(db, 'requests', id), r).catch(report),
+  updateRequest: (id, patch) => noWrites ? Promise.resolve() : updateDoc(doc(db, 'requests', id), patch).catch(report),
+  deleteRequest: id => noWrites ? Promise.resolve() : deleteDoc(doc(db, 'requests', id)).catch(report),
   saveIloh: d => noWrites ? Promise.resolve() : setDoc(ilohRef, d, { merge: true }).catch(report),
   saveEvent: (id, e) => noWrites ? Promise.resolve() : setDoc(evRef, { [id]: e === null ? deleteField() : e }, { merge: true }).catch(report),
   setWebhook: url => setDoc(doc(db, 'shared', 'discord'), { webhook: url }, { merge: true }),
@@ -281,6 +284,9 @@ function listen() {
     // Une nuit (ou une journée RP) cochée par un autre joueur sur l'un de nos personnages : on met à jour sa fiche enregistrée.
     if ('rp' in ch || 'calm' in ch) schedule();
   });
+  // Demandes de matériel : toutes pour le joueur de Khokkutsai (logistique), les siennes pour les autres.
+  if (!viewAs) onSnapshot(A.playerOf('khokkutsai') === me ? collection(db, 'requests') : query(collection(db, 'requests'), where('from', '==', me)),
+    s => { A.applyRequests(s.docs.map(x => ({ id: x.id, ...x.data() }))); A.rerender(); }, e => console.warn('Demandes de matériel illisibles :', e.message));
   onSnapshot(ilohRef, s => { if (s.metadata.hasPendingWrites) return; A.applyIloh(s.data() || {}); A.rerender(); });
   onSnapshot(evRef, s => { if (s.metadata.hasPendingWrites) return; A.applyEvents(s.data() || {}); A.rerender(); });
   if (!viewAs) onSnapshot(query(collection(db, 'news'), where('to', '==', me)), s => {
