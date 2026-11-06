@@ -387,7 +387,7 @@ const setGuests = (n, list) => { ILOH_GUESTS[n] = list; window.RP_SYNC?.saveIloh
 const yurtTitle = y => y.chars ? andList(y.chars.map(nameOf)) : y.kind === 'lieu' ? y.label : y.kind === 'invites' ? 'Les invités'
   : y.kind === 'speciale' ? 'Yourte spéciale' : y.elite ? 'Yourte à prendre (élite)' : 'Yourte à prendre';
 const ILOH_ZOOMS = [1, 1.5, 2, 3];
-const ilohView = { sel: null, from: null, zoom: 0 };   // sel : numéro de yourte ou clé d'ILOH_SPOTS ; zoom : indice dans ILOH_ZOOMS
+const ilohView = { sel: null, from: null, z: 1 };   // sel : numéro de yourte ou clé d'ILOH_SPOTS ; z : zoom (1 à 3)
 const openIloh = (from, sel) => { Object.assign(ilohView, { from: from || null, sel: sel || (from && yurtOf(from)) || null }); go('iloh'); centerYurt(ilohView.sel, false); };
 const yurtTodayHtml = cid => { const st = state[cid], place = st.checked?.has('Voyage') ? 'en voyage' : st.places?.size ? [...st.places][0] : '';
   return st.done ? `<span class="yc-today">${st.mood ? `« ${esc(st.mood)} »` : 'Journée racontée'}${place ? ' · ' + esc(place) : ''}</span>` : '<span class="yc-today dim">Pas encore de fiche aujourd\'hui</span>'; };
@@ -409,16 +409,16 @@ const ilohCardHtml = key => {
 };
 function renderIloh() {
   root.className = 't-khurdan';
-  const from = ilohView.from && C.find(c => c.id === ilohView.from), sel = ilohView.sel == null ? null : String(ilohView.sel), z = ILOH_ZOOMS[ilohView.zoom];
+  const from = ilohView.from && C.find(c => c.id === ilohView.from), sel = ilohView.sel == null ? null : String(ilohView.sel), z = ilohView.z;
   document.getElementById('view').innerHTML = `
     <p class="ev-back"><button type="button" class="link" data-go="${from ? from.id : 'home'}">‹ ${from ? 'Fiche ' + deName(from.name) : 'Accueil'}</button></p>
     <header><p class="kicker">${APP_NAME}</p><h1>L'Iloh</h1>
       <p class="date">${from ? yurtOf(from.id) ? `Yourte ${deName(esc(from.name))} : n° ${yurtOf(from.id)}` : `${esc(from.name)} n'a pas encore de yourte sur l'Iloh.` : 'Touche une yourte pour voir qui l\'habite.'}</p></header>
     <div class="iloh-wrap">
       <div class="iloh-zoom" role="group" aria-label="Zoom de la carte">
-        <button type="button" class="btn" data-iloh-zoom="-1" aria-label="Dézoomer" ${ilohView.zoom ? '' : 'disabled'}>−</button>
-        <span>${z === 1 ? '100' : Math.round(z * 100)} %</span>
-        <button type="button" class="btn" data-iloh-zoom="1" aria-label="Zoomer" ${ilohView.zoom < ILOH_ZOOMS.length - 1 ? '' : 'disabled'}>+</button></div>
+        <button type="button" class="btn" data-iloh-zoom="-1" aria-label="Dézoomer" ${z > 1 ? '' : 'disabled'}>−</button>
+        <span class="iloh-zlabel" aria-live="polite">${Math.round(z * 100)} %</span>
+        <button type="button" class="btn" data-iloh-zoom="1" aria-label="Zoomer" ${z < ILOH_ZMAX ? '' : 'disabled'}>+</button></div>
       <div class="iloh-scroll${z > 1 ? ' zoomed' : ''}"><div class="iloh-map" style="--z:${z}">
         <img src="iloh-carte.webp" alt="Carte de l'Iloh : 53 yourtes numérotées autour de la grande place" width="2048" height="1564" draggable="false">
         ${Object.entries(ILOH_SPOTS).map(([k, p]) => `<button type="button" class="iloh-spot k-${p.kind} ${sel === k ? 'sel' : ''}" data-yurt="${k}"
@@ -432,7 +432,17 @@ function renderIloh() {
       ${sel ? ilohCardHtml(sel) : ''}
     </div>
     <p class="reserved cal-legend"><span class="yurt-key occ"></span> habitée (couleur du joueur) · <span class="yurt-key k-lieu"></span> lieu commun · <span class="yurt-key k-invites"></span> invités · <span class="yurt-key k-libre"></span> à prendre</p>`;
-  document.querySelector('.iloh-scroll').addEventListener('scroll', placeIlohCard, { passive: true });
+  const sc = document.querySelector('.iloh-scroll');
+  sc.addEventListener('scroll', placeIlohCard, { passive: true });
+  // Molette de la souris sur la carte (PC) : zoom autour du pointeur. Aux limites, la page défile normalement.
+  sc.addEventListener('wheel', e => {
+    if (!e.ctrlKey && Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;   // défilement horizontal (pavé tactile) : on laisse faire
+    const zin = e.deltaY < 0;
+    if ((!zin && ilohView.z <= 1) || (zin && ilohView.z >= ILOH_ZMAX)) return;
+    e.preventDefault();
+    const r = sc.getBoundingClientRect(), k = e.deltaMode === 1 ? .05 : e.deltaMode === 2 ? 1 : .0015;
+    setIlohZoom(ilohView.z * Math.exp(-e.deltaY * k), e.clientX - r.left, e.clientY - r.top);
+  }, { passive: false });
   placeIlohCard();
 }
 // La fiche est posée hors de la carte qui défile : jamais coupée au bord. Elle suit la yourte quand on fait défiler la carte.
@@ -460,13 +470,23 @@ const centerYurt = (key, smooth) => {
 const ilohRefresh = (keep = true) => { const sc = document.querySelector('.iloh-scroll'), pos = sc ? [sc.scrollLeft, sc.scrollTop] : [0, 0], y = window.scrollY, h = fullH();
   renderIloh(); const sc2 = document.querySelector('.iloh-scroll'); if (sc2 && keep) { sc2.scrollLeft = pos[0]; sc2.scrollTop = pos[1]; }
   placeIlohCard(); holdHeight(h); window.scrollTo({ top: y }); holdPlace(null, y); };
-// Zoom : la carte grandit autour du point qui était au centre de son cadre.
-const zoomIloh = d => {
-  const i = Math.min(Math.max(ilohView.zoom + d, 0), ILOH_ZOOMS.length - 1); if (i === ilohView.zoom) return;
-  const sc = document.querySelector('.iloh-scroll'), fx = sc ? (sc.scrollLeft + sc.clientWidth / 2) / sc.scrollWidth : .5, fy = sc ? (sc.scrollTop + sc.clientHeight / 2) / sc.scrollHeight : .5;
-  ilohView.zoom = i; ilohRefresh(false);
-  const s2 = document.querySelector('.iloh-scroll'); s2.scrollLeft = fx * s2.scrollWidth - s2.clientWidth / 2; s2.scrollTop = fy * s2.scrollHeight - s2.clientHeight / 2; placeIlohCard();
+// Zoom : la carte grandit autour d'un point du cadre (le pointeur de la souris, ou le centre pour les boutons),
+// sans réafficher la page. Les boutons passent d'un palier à l'autre ; la molette zoome en continu.
+const ILOH_ZMAX = ILOH_ZOOMS[ILOH_ZOOMS.length - 1];
+const setIlohZoom = (z, ax, ay) => {
+  z = Math.round(Math.min(Math.max(z, 1), ILOH_ZMAX) * 100) / 100; if (z === ilohView.z) return;
+  const sc = document.querySelector('.iloh-scroll'), map = document.querySelector('.iloh-map');
+  ilohView.z = z; if (!sc || !map) return;
+  ax ??= sc.clientWidth / 2; ay ??= sc.clientHeight / 2;
+  const fx = (sc.scrollLeft + ax) / sc.scrollWidth, fy = (sc.scrollTop + ay) / sc.scrollHeight;
+  map.style.setProperty('--z', z); sc.classList.toggle('zoomed', z > 1);
+  sc.scrollLeft = fx * sc.scrollWidth - ax; sc.scrollTop = fy * sc.scrollHeight - ay;
+  document.querySelector('.iloh-zlabel').textContent = Math.round(z * 100) + ' %';
+  document.querySelector('[data-iloh-zoom="-1"]').disabled = z <= 1;
+  document.querySelector('[data-iloh-zoom="1"]').disabled = z >= ILOH_ZMAX;
+  placeIlohCard();
 };
+const zoomIloh = d => setIlohZoom(d > 0 ? ILOH_ZOOMS.find(x => x > ilohView.z + .01) ?? ILOH_ZMAX : [...ILOH_ZOOMS].reverse().find(x => x < ilohView.z - .01) ?? 1);
 addEventListener('resize', () => { if (current === 'iloh') placeIlohCard(); });
 document.addEventListener('change', e => { const s = e.target.closest?.('[data-guest-add]'); if (!s || !s.value) return;
   const n = s.dataset.guestAdd; setGuests(n, [...(ILOH_GUESTS[n] || []), s.value]); });

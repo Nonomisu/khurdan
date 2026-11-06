@@ -212,6 +212,14 @@ const ok = (cond, label) => { console.log((cond ? '  ok  ' : '  ÉCHEC ') + labe
   await nono.click('[data-yurt="43"]'); await nono.waitForTimeout(700);
   ok((await nono.textContent('.yurt-card')).includes('La Commune') && await nono.evaluate(() => { const c = document.querySelector('.yurt-card').getBoundingClientRect(), w = document.querySelector('.iloh-wrap').getBoundingClientRect(); return c.left >= w.left - 1 && c.right <= w.right + 1; }), 'zoomée : la fiche s\'ouvre et reste entière');
   await nono.click('[data-yurt-close]'); await nono.click('[data-iloh-zoom="-1"]'); await nono.click('[data-iloh-zoom="-1"]'); await nono.waitForTimeout(150);
+  // Molette de la souris : zoom autour du pointeur
+  const box = await nono.locator('.iloh-scroll').boundingBox();
+  await nono.mouse.move(box.x + box.width * .3, box.y + box.height * .5);
+  const yPage = await nono.evaluate(() => scrollY);
+  await nono.mouse.wheel(0, -300); await nono.waitForTimeout(300);
+  ok(await nono.evaluate(() => ilohView.z) > 1.3 && await nono.evaluate(() => scrollY) === yPage, 'molette vers le haut : zoom, la page ne défile pas');
+  await nono.mouse.wheel(0, 2000); await nono.waitForTimeout(300);
+  ok(await nono.evaluate(() => ilohView.z) === 1, 'molette vers le bas : retour à 100 %');
   ok(Math.abs(await nono.evaluate(() => document.querySelector('.iloh-map').offsetWidth) - w0) < 3 && await nono.locator('[data-iloh-zoom="-1"][disabled]').count() === 1, 'dézoom : retour à la taille normale');
   await nono.click('[data-yurt="ours"]'); await nono.waitForTimeout(500);
   ok((await nono.textContent('.yurt-card')).includes('Enclos de Duulakh'), 'enclos de Duulakh');
