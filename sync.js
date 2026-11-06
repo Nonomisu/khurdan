@@ -230,7 +230,7 @@ async function boot() {
 }
 
 onAuthStateChanged(auth, async user => {
-  if (!user) { if (started) location.reload(); else login('Connecte-toi avec ton compte Google pour ouvrir le journal.'); return; }
+  if (!user) { if (started) location.reload(); else login('Connecte-toi avec ton compte Google pour rejoindre la tribu.'); return; }
   if (started) return;
   login('Chargement du journal…', { button: false });
   const noAccess = () => login(`Le compte ${user.email} n'a pas accès à Iloh Khurdan. Demande à l'admin de t'inviter.`, { button: false, logout: true, err: true });
