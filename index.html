@@ -226,6 +226,11 @@ html, body, #view { overflow-anchor: none; }
 .iloh-spot.k-zone { border-radius: 50%; }
 .iloh-spot:hover, .iloh-spot:focus-visible { border-color: color-mix(in srgb, var(--gold) 55%, transparent); background: color-mix(in srgb, var(--gold) 8%, transparent); outline: none; }
 .iloh-spot.sel { border-color: var(--gold); background: color-mix(in srgb, var(--gold) 14%, transparent); box-shadow: 0 0 18px color-mix(in srgb, var(--gold) 60%, transparent); }
+.yc-guest { display: grid; gap: .1rem; justify-items: start; }
+.yc-guest + .yc-guest { margin-top: .2rem; }
+.yc-add { display: block; margin-top: .6rem; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.yc-add select { width: 100%; }
 .yc-dot { display: inline-block; width: 9px; height: 9px; margin-right: .4rem; border-radius: 50%; vertical-align: 1px; }
 .yurt-hit { position: absolute; padding: 0; border: 2px solid transparent; border-radius: 10px; background: none; cursor: pointer; }
 .yurt-hit:hover, .yurt-hit:focus-visible { border-color: color-mix(in srgb, var(--gold) 70%, transparent); background: color-mix(in srgb, var(--gold) 12%, transparent); outline: none; }
@@ -609,6 +614,6 @@ button.link.danger { color: #e0a24d; }
 <div class="sync-state" id="sync-state" aria-live="polite"></div>
 </div>
 
-<script src="app.js?v=cdd6e0abe3" charset="utf-8"></script>
-<script type="module" src="sync.js?v=6b528f2857"></script>
+<script src="app.js?v=2bfd14775d" charset="utf-8"></script>
+<script type="module" src="sync.js?v=b9bd441e77"></script>
 

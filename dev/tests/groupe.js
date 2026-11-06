@@ -213,6 +213,22 @@ const ok = (cond, label) => { console.log((cond ? '  ok  ' : '  ÉCHEC ') + labe
   ok((await nono.textContent('.yurt-card')).includes('La Commune') && await nono.evaluate(() => { const c = document.querySelector('.yurt-card').getBoundingClientRect(), w = document.querySelector('.iloh-wrap').getBoundingClientRect(); return c.left >= w.left - 1 && c.right <= w.right + 1; }), 'zoomée : la fiche s\'ouvre et reste entière');
   await nono.click('[data-yurt-close]'); await nono.click('[data-iloh-zoom="-1"]'); await nono.click('[data-iloh-zoom="-1"]'); await nono.waitForTimeout(150);
   ok(Math.abs(await nono.evaluate(() => document.querySelector('.iloh-map').offsetWidth) - w0) < 3 && await nono.locator('[data-iloh-zoom="-1"][disabled]').count() === 1, 'dézoom : retour à la taille normale');
+  await nono.click('[data-yurt="ours"]'); await nono.waitForTimeout(500);
+  ok((await nono.textContent('.yurt-card')).includes('Enclos de Duulakh'), 'enclos de Duulakh');
+  await nono.click('[data-yurt-close]'); await nono.click('[data-yurt="34"]'); await nono.waitForTimeout(500);
+  ok((await nono.textContent('.yurt-card')).includes('Khubunjin'), 'Khubunjin dans la yourte d\'Ankhbayar');
+  // Invités : Davaajav à Mammouth, puis remplacé par Tsewang
+  await nono.click('[data-yurt-close]'); await nono.click('[data-yurt="53"]'); await nono.waitForTimeout(500);
+  ok((await nono.textContent('.yurt-card')).includes('Davaajav') && (await nono.textContent('.yurt-card')).includes('Mammouth'), 'Davaajav invité à Mammouth (n° 53)');
+  await nono.click('[data-guest-del="53:davaajav"]'); await nono.waitForTimeout(400);
+  ok((await nono.textContent('.yurt-card')).includes('Aucun invité'), 'Davaajav retiré');
+  await nono.selectOption('[data-guest-add="53"]', 'tsewang'); await nono.waitForTimeout(1200);
+  ok((await nono.textContent('.yurt-card')).includes('Tsewang') && await nono.locator('[data-guest-add="53"] option[value="tsewang"]').count() === 0, 'Tsewang accueilli à Mammouth');
+  d = await db(nono);
+  ok(JSON.stringify(d['shared/iloh']?.guests?.['53']) === '["tsewang"]', 'invités enregistrés pour tout le groupe');
+  await nono.evaluate(() => go('tsewang')); await nono.click('[data-yurt-of="tsewang"]'); await nono.waitForTimeout(400);
+  ok((await nono.textContent('#view header')).includes('n° 53'), 'onglet Yourte de Tsewang : n° 53');
+  await nono.click('[data-yurt-close]');
   await nono.click('[data-yurt="5"]'); await nono.waitForTimeout(300);
   await nono.click('.yurt-card [data-go="reaksa"]'); await nono.waitForTimeout(300);
   ok(await nono.evaluate(() => current) === 'reaksa', 'depuis la carte, « Voir la fiche » ouvre la fiche');
@@ -246,6 +262,7 @@ const ok = (cond, label) => { console.log((cond ? '  ok  ' : '  ÉCHEC ') + labe
   ok((await ed.textContent('.news')).includes('Grand événement de chasse : Inscrivez-vous'), 'Eden reçoit la nouvelle de l\'événement');
   ok((await ed.textContent('.group-events')).toLowerCase().includes('annoncé par nono'), 'Eden voit l\'annonce sur l\'accueil');
   ok(await ed.locator('[data-ev-del]').count() === 0, 'Eden ne peut pas retirer l\'annonce de Nono');
+  ok(await ed.evaluate(() => yurtOf('tsewang') === '53' && !yurtOf('davaajav')), 'Eden voit Tsewang invité à Mammouth');
   await ed.locator('.news [data-ev-open]', { hasText: 'Naadam' }).first().click(); await ed.waitForTimeout(200);
   ok((await ed.textContent('#view h1')).includes('Événements sur l\'Iloh') && await ed.locator(`.cal-day.sel[data-ev-day="${later}"]`).count() === 1, 'nouvelle d\'événement : ouvre le calendrier sur son jour');
   await ed.goto('http://localhost:8765/?evenements=' + later); await ed.waitForTimeout(400); if (await ed.isVisible('#login-btn')) await ed.click('#login-btn');

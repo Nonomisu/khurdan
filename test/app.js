@@ -344,7 +344,7 @@ const YURTS = {
   31: { x:5.91, y:36.51, kind:'libre' },
   32: { x:16.94, y:36.7, kind:'libre' },
   33: { x:12.94, y:29.35, kind:'libre' },
-  34: { x:8.94, y:24.36, chars:['ankhbayar'] },
+  34: { x:8.94, y:24.36, chars:['ankhbayar','khubunjin'] },
   35: { x:18.07, y:22.06, kind:'libre' },
   36: { x:23.49, y:25.58, kind:'libre' },
   37: { x:23.78, y:34.14, kind:'lieu', label:'Les Savoirs', map:'Yourte des Savoirs', size:'l' },
@@ -374,14 +374,21 @@ const ILOH_SPOTS = {
   tour4: { x:2.1, y:75.2, w:4.6, h:11.5, kind:'tour', title:'Tour de guet n° 4' },
   arc: { x:26.1, y:1.3, w:38.5, h:15, kind:'zone', title:"Zone d'entraînement des guerriers et guerrières" },
   chevaux: { x:74, y:7.3, w:24.5, h:23.6, kind:'zone', title:'Enclos des chevaux khurdans' },
+  ours: { x:76.4, y:36.2, w:12.6, h:15.8, kind:'zone', title:'Enclos de Duulakh' },
   ruches: { x:29.3, y:66.4, w:10.5, h:17, kind:'zone', title:"Moutons et ruches d'Ogloo", chars:['ogloo'] },
 };
-const yurtOf = id => Object.keys(YURTS).find(n => YURTS[n].chars?.includes(id)) || null;
+// Invités : ils changent selon qui séjourne sur l'Iloh (shared/iloh.guests dans la base, modifiable depuis la carte).
+const ILOH_GUESTS = { 53: ['davaajav'] };   // valeur de départ, remplacée par celle de la base dès qu'elle existe
+const occupantsOf = n => YURTS[n]?.chars || (YURTS[n]?.kind === 'invites' ? (ILOH_GUESTS[n] || []).filter(isChar) : null);
+const yurtOf = id => Object.keys(YURTS).find(n => occupantsOf(n)?.includes(id)) || null;
+// Personnages qu'on peut accueillir : ceux qui n'ont pas de yourte à eux et ne sont pas déjà invités.
+const guestCandidates = () => C.filter(c => !yurtOf(c.id)).sort((a, b) => a.name.localeCompare(b.name, 'fr'));
+const setGuests = (n, list) => { ILOH_GUESTS[n] = list; window.RP_SYNC?.saveIloh({ guests: { ...ILOH_GUESTS } }); ilohRefresh(); };
 const yurtTitle = y => y.chars ? andList(y.chars.map(nameOf)) : y.kind === 'lieu' ? y.label : y.kind === 'invites' ? 'Les invités'
   : y.kind === 'speciale' ? 'Yourte spéciale' : y.elite ? 'Yourte à prendre (élite)' : 'Yourte à prendre';
 const ILOH_ZOOMS = [1, 1.5, 2, 3];
 const ilohView = { sel: null, from: null, zoom: 0 };   // sel : numéro de yourte ou clé d'ILOH_SPOTS ; zoom : indice dans ILOH_ZOOMS
-const openIloh = (from, sel) => { Object.assign(ilohView, { from: from || null, sel: sel || (from && yurtOf(from)) || null }); go('iloh'); };
+const openIloh = (from, sel) => { Object.assign(ilohView, { from: from || null, sel: sel || (from && yurtOf(from)) || null }); go('iloh'); centerYurt(ilohView.sel, false); };
 const yurtTodayHtml = cid => { const st = state[cid], place = st.checked?.has('Voyage') ? 'en voyage' : st.places?.size ? [...st.places][0] : '';
   return st.done ? `<span class="yc-today">${st.mood ? `« ${esc(st.mood)} »` : 'Journée racontée'}${place ? ' · ' + esc(place) : ''}</span>` : '<span class="yc-today dim">Pas encore de fiche aujourd\'hui</span>'; };
 const occupantHtml = cid => { const c = C.find(x => x.id === cid); if (!c) return '';
@@ -391,7 +398,11 @@ const ilohCardHtml = key => {
   const spot = ILOH_SPOTS[key], y = YURTS[key]; if (!spot && !y) return '';
   const head = spot ? `<p class="yc-kicker">${spot.kind === 'tour' ? 'Tour de guet' : 'Lieu de l\'Iloh'}</p><h3>${esc(spot.title)}</h3>`
     : `<p class="yc-kicker">Yourte n° ${key}${y.map ? ' · ' + esc(y.map) : ''}</p>${y.chars ? '' : `<h3>${esc(yurtTitle(y))}</h3>`}`;
-  const body = (spot || y).chars ? (spot || y).chars.map(occupantHtml).join('')
+  const body = y?.kind === 'invites' ? `${occupantsOf(key).map(cid => `<div class="yc-guest">${occupantHtml(cid)}<button type="button" class="link small danger" data-guest-del="${key}:${cid}">Retirer ${deName(nameOf(cid))} de la yourte</button></div>`).join('')
+      || '<p class="yc-desc">Aucun invité en ce moment.</p>'}
+      ${guestCandidates().length ? `<label class="yc-add"><span class="sr-only">Accueillir un invité</span><select data-guest-add="${key}"><option value="">Accueillir un invité…</option>
+        ${guestCandidates().map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('')}</select></label>` : ''}`
+    : (spot || y).chars ? (spot || y).chars.map(occupantHtml).join('')
     : spot ? '' : `<p class="yc-desc">${y.kind === 'lieu' ? 'Lieu commun de l\'Iloh.' : y.kind === 'invites' ? 'Yourte réservée aux invités de l\'Iloh.' : y.kind === 'speciale' ? 'Yourte spéciale.' : y.elite ? 'Yourte libre, réservée à l\'élite.' : 'Yourte libre : elle attend son occupant.'}</p>`;
   return `<div class="yurt-card" role="dialog" aria-label="${esc(spot ? spot.title : 'Yourte ' + key)}">
     <button type="button" class="link ico-btn yc-close" data-yurt-close aria-label="Fermer">×</button>${head}${body}</div>`;
@@ -413,15 +424,16 @@ function renderIloh() {
         ${Object.entries(ILOH_SPOTS).map(([k, p]) => `<button type="button" class="iloh-spot k-${p.kind} ${sel === k ? 'sel' : ''}" data-yurt="${k}"
           style="left:${p.x}%;top:${p.y}%;width:${p.w}%;height:${p.h}%" aria-label="${esc(p.title)}" aria-pressed="${sel === k}"></button>`).join('')}
         ${Object.entries(YURTS).map(([n, y]) => { const [w, h] = YURT_SIZE[y.size || 's'];
+          const occ = occupantsOf(n);
           return `<button type="button" class="yurt-hit ${y.chars ? 'occ' : 'k-' + (y.kind || 'libre')} ${sel === n ? 'sel' : ''}" data-yurt="${n}"
             style="left:${y.x - w / 2}%;top:${y.y - 1.8}%;width:${w}%;height:${h}%" aria-label="Yourte ${n} : ${esc(yurtTitle(y))}" aria-pressed="${sel === n}">
-            ${y.chars ? `<span class="yurt-dots">${y.chars.map(cid => `<i style="background:${PLAYERS.find(p => p.id === playerOf(cid))?.color}"></i>`).join('')}</span>` : ''}</button>`; }).join('')}
+            ${occ?.length ? `<span class="yurt-dots">${occ.map(cid => `<i style="background:${PLAYERS.find(p => p.id === playerOf(cid))?.color}"></i>`).join('')}</span>` : ''}</button>`; }).join('')}
       </div></div>
       ${sel ? ilohCardHtml(sel) : ''}
     </div>
     <p class="reserved cal-legend"><span class="yurt-key occ"></span> habitée (couleur du joueur) · <span class="yurt-key k-lieu"></span> lieu commun · <span class="yurt-key k-invites"></span> invités · <span class="yurt-key k-libre"></span> à prendre</p>`;
   document.querySelector('.iloh-scroll').addEventListener('scroll', placeIlohCard, { passive: true });
-  centerYurt(sel, false);
+  placeIlohCard();
 }
 // La fiche est posée hors de la carte qui défile : jamais coupée au bord. Elle suit la yourte quand on fait défiler la carte.
 function placeIlohCard() {
@@ -456,11 +468,15 @@ const zoomIloh = d => {
   const s2 = document.querySelector('.iloh-scroll'); s2.scrollLeft = fx * s2.scrollWidth - s2.clientWidth / 2; s2.scrollTop = fy * s2.scrollHeight - s2.clientHeight / 2; placeIlohCard();
 };
 addEventListener('resize', () => { if (current === 'iloh') placeIlohCard(); });
+document.addEventListener('change', e => { const s = e.target.closest?.('[data-guest-add]'); if (!s || !s.value) return;
+  const n = s.dataset.guestAdd; setGuests(n, [...(ILOH_GUESTS[n] || []), s.value]); });
 document.addEventListener('click', e => {
   const b = e.target.closest('[data-yurt]'), yo = e.target.closest('[data-yurt-of]'), zb = e.target.closest('[data-iloh-zoom]');
   if (yo) return openIloh(yo.dataset.yurtOf);
   if (zb) return zoomIloh(+zb.dataset.ilohZoom);
   if (e.target.closest('[data-yurt-close]')) { ilohView.sel = null; return ilohRefresh(); }
+  const gd = e.target.closest('[data-guest-del]');
+  if (gd) { const [n, cid] = gd.dataset.guestDel.split(':'); return setGuests(n, (ILOH_GUESTS[n] || []).filter(x => x !== cid)); }
   if (b) { ilohView.sel = String(ilohView.sel) === b.dataset.yurt ? null : b.dataset.yurt; ilohRefresh(); if (ilohView.sel) centerYurt(ilohView.sel, true); }
 });
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && current === 'iloh' && ilohView.sel) { ilohView.sel = null; ilohRefresh(); } });
@@ -2689,6 +2705,7 @@ window.RP_APP = {
     if (withToday && ym === curYm) applyCoupleDay(k, data?.[dayNum]);
   },
   applyCoupleState: (cid, d) => { const k = COUPLES.find(x => x.id === cid); if (k) applyCoupleState(k, d); },
+  applyIloh: d => { if (d?.guests) { Object.keys(ILOH_GUESTS).forEach(k => delete ILOH_GUESTS[k]); Object.assign(ILOH_GUESTS, d.guests); } },
   applyEvents: d => { Object.keys(GROUP_EVENTS).forEach(k => delete GROUP_EVENTS[k]); Object.assign(GROUP_EVENTS, d || {}); },
   applyNews: list => {
     list.forEach(n => {

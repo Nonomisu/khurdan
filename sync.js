@@ -43,7 +43,8 @@ const b64u = s => { const b = atob((s + '='.repeat((4 - s.length % 4) % 4)).repl
 const subRef = async endpoint => doc(db, 'pushSubs', me, 'subs', (await sha256(endpoint)).slice(0, 40));
 const wrapsRef = y => doc(db, 'shared', 'wraps-' + y);
 const recapsRef = () => doc(db, 'shared', 'recaps-' + A.iso);
-const evRef = doc(db, 'shared', 'events');   // événements du groupe : un champ par événement
+const evRef = doc(db, 'shared', 'events');
+const ilohRef = doc(db, 'shared', 'iloh');   // carte de l'Iloh : invités des yourtes (guests)   // événements du groupe : un champ par événement
 const newsRef = key => doc(db, 'news', String(key).replace(/\//g, '_'));
 
 let me = null, started = false, timer = null, base = null, viewAs = null;
@@ -108,6 +109,7 @@ window.RP_SYNC = {
   },
   revoke: email => deleteDoc(doc(db, 'access', email)),
   // Webhook Discord (salon commun) : rangé dans Firestore, lisible par les joueurs, modifiable par l'admin ; jamais dans le code.
+  saveIloh: d => noWrites ? Promise.resolve() : setDoc(ilohRef, d, { merge: true }).catch(report),
   saveEvent: (id, e) => noWrites ? Promise.resolve() : setDoc(evRef, { [id]: e === null ? deleteField() : e }, { merge: true }).catch(report),
   setWebhook: url => setDoc(doc(db, 'shared', 'discord'), { webhook: url }, { merge: true }),
   // Toute l'année (pour le wrap) : douze mois, tous personnages.
@@ -182,10 +184,10 @@ async function loadMonth(ym) {
 
 async function boot() {
   A.setMe(me);
-  const [g, d, cs, ns, dc, ev] = await Promise.all([
+  const [g, d, cs, ns, dc, ev, il] = await Promise.all([
     getDoc(gRef), getDoc(dRef), getDocs(collection(db, 'characters')),
     viewAs ? { docs: [] } : getDocs(query(collection(db, 'news'), where('to', '==', me))),   // aperçu : nouvelles d'un autre joueur illisibles pour l'admin
-    getDoc(doc(db, 'shared', 'discord')), getDoc(evRef),
+    getDoc(doc(db, 'shared', 'discord')), getDoc(evRef), getDoc(ilohRef),
   ]);
   if (window.RP_DISCORD) window.RP_DISCORD.webhook = dc.data()?.webhook || null;
   if (!g.exists() && !noWrites) await setDoc(gRef, {});
@@ -207,6 +209,7 @@ async function boot() {
   Object.entries(coupleStates).forEach(([cid, d]) => A.applyCoupleState(cid, d));
   A.hydrate({ global: g.data() || {}, day: d.data() || {}, chars, news: ns.docs.map(x => x.data()) });
   A.applyEvents(ev.data() || {});
+  A.applyIloh(il.data() || {});
   await loadMonth(prevYm(A.ym));
   await loadMonth(A.ym);
   if (!noWrites) await Promise.all(mine.map(id => setDoc(monthRef(id, A.ym), {}, { merge: true })));
@@ -278,6 +281,7 @@ function listen() {
     // Une nuit (ou une journée RP) cochée par un autre joueur sur l'un de nos personnages : on met à jour sa fiche enregistrée.
     if ('rp' in ch || 'calm' in ch) schedule();
   });
+  onSnapshot(ilohRef, s => { if (s.metadata.hasPendingWrites) return; A.applyIloh(s.data() || {}); A.rerender(); });
   onSnapshot(evRef, s => { if (s.metadata.hasPendingWrites) return; A.applyEvents(s.data() || {}); A.rerender(); });
   if (!viewAs) onSnapshot(query(collection(db, 'news'), where('to', '==', me)), s => {
     if (s.metadata.hasPendingWrites) return;
