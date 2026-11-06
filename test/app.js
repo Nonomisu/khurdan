@@ -66,34 +66,34 @@ const C = [
   { id:'taiga', name:'Taiga', surname:K, groups:['Khurdans'], theme:'khurdan', player:'jynette', gender:'f', hotNights:true, mirror:true, acts:{ metier:[...HUNT] } },
   { id:'inkaraa', name:'Inkaraa', surname:K, groups:['Khurdans'], theme:'khurdan', player:'jynette', gender:'f', hotNights:true, mirror:true, acts:{ metier:['Tatoue au Ralliement'] } },
   { id:'khubunjin', name:'Khubunjin', surname:K, groups:['Khurdans'], theme:'khurdan', player:'jynette', gender:'f', hotNights:true, mirror:true, acts:{ metier:[...HUNT] } },
-  { id:'ogloo', name:'Ogloo', surname:K, groups:['Khurdans'], theme:'khurdan', player:'jynette', gender:'f', mirror:true, acts:{} },
+  { id:'ogloo', name:'Ogloo', surname:K, groups:['Khurdans'], theme:'khurdan', player:'jynette', gender:'f', mirror:true, acts:{ metier:[...HUNT] } },
   { id:'javkhaanhun', name:'Javkhaanhun', surname:K, groups:['Khurdans'], theme:'khurdan', player:'jynette', gender:'f', mirror:true, acts:{ metier:[...HUNT] } },
-  { id:'shiruun', name:'Shiruun', surname:K, groups:['Khurdans'], theme:'khurdan', player:'jynette', gender:'m', acts:{} },
-  { id:'djokhodthai', name:'Djokhodthai', surname:K, groups:['Khurdans'], theme:'khurdan', player:'jynette', gender:'m', acts:{} },
+  { id:'shiruun', name:'Shiruun', surname:K, groups:['Khurdans'], theme:'khurdan', player:'jynette', gender:'m', acts:{ metier:[...HUNT] } },
+  { id:'djokhodthai', name:'Djokhodthai', surname:K, groups:['Khurdans'], theme:'khurdan', player:'jynette', gender:'m', acts:{ metier:[...HUNT] } },
 
   // Eden
-  { id:'buyan', name:'Buyan', surname:K, groups:['Khurdans'], theme:'khurdan', player:'eden', gender:'f', acts:{} },
-  { id:'cheyenne', name:'Cheyenne', surname:K, groups:['Khurdans'], theme:'khurdan', player:'eden', gender:'f', acts:{} },
-  { id:'taivan', name:'Taivan', surname:K, groups:['Khurdans'], theme:'khurdan', player:'eden', gender:'m', acts:{} },
+  { id:'buyan', name:'Buyan', surname:K, groups:['Khurdans'], theme:'khurdan', player:'eden', gender:'f', acts:{ metier:[...HUNT] } },
+  { id:'cheyenne', name:'Cheyenne', surname:K, groups:['Khurdans'], theme:'khurdan', player:'eden', gender:'f', acts:{ metier:[...HUNT] } },
+  { id:'taivan', name:'Taivan', surname:K, groups:['Khurdans'], theme:'khurdan', player:'eden', gender:'m', acts:{ metier:[...HUNT] } },
 
   // Lou
-  { id:'altan', name:'Altan', surname:K, groups:['Khurdans'], theme:'khurdan', player:'lou', gender:'m', acts:{} },
-  { id:'henbilee', name:'Henbilee', surname:K, groups:['Khurdans'], theme:'khurdan', player:'lou', gender:'m', acts:{} },
+  { id:'altan', name:'Altan', surname:K, groups:['Khurdans'], theme:'khurdan', player:'lou', gender:'m', acts:{ metier:[...HUNT] } },
+  { id:'henbilee', name:'Henbilee', surname:K, groups:['Khurdans'], theme:'khurdan', player:'lou', gender:'m', acts:{ metier:[...HUNT] } },
 
   // Sheyla
-  { id:'shuna', name:'Shuna', surname:K, groups:['Khurdans'], theme:'khurdan', player:'sheyla', gender:'f', acts:{} },
-  { id:'oldaghar', name:'Oldaghar', surname:K, groups:['Khurdans'], theme:'khurdan', player:'sheyla', gender:'m', hotNights:true, acts:{} },
-  { id:'nehsundheigei', name:'Nehsundheigei', surname:K, groups:['Khurdans'], theme:'khurdan', player:'sheyla', gender:'f', acts:{} },
+  { id:'shuna', name:'Shuna', surname:K, groups:['Khurdans'], theme:'khurdan', player:'sheyla', gender:'f', acts:{ metier:[...HUNT] } },
+  { id:'oldaghar', name:'Oldaghar', surname:K, groups:['Khurdans'], theme:'khurdan', player:'sheyla', gender:'m', hotNights:true, acts:{ metier:[...HUNT] } },
+  { id:'nehsundheigei', name:'Nehsundheigei', surname:K, groups:['Khurdans'], theme:'khurdan', player:'sheyla', gender:'f', acts:{ metier:[...HUNT] } },
 
   // Idriss
-  { id:'boroo', name:'Boroo', surname:K, groups:['Khurdans'], theme:'khurdan', player:'idriss', gender:'f', acts:{} },
-  { id:'reaksa', name:'Reaksa', surname:K, groups:['Khurdans'], theme:'khurdan', player:'idriss', gender:'f', hotNights:true, acts:{} },
+  { id:'boroo', name:'Boroo', surname:K, groups:['Khurdans'], theme:'khurdan', player:'idriss', gender:'f', acts:{ metier:[...HUNT] } },
+  { id:'reaksa', name:'Reaksa', surname:K, groups:['Khurdans'], theme:'khurdan', player:'idriss', gender:'f', hotNights:true, acts:{ metier:[...HUNT] } },
 
   // Invités
   { id:'davaajav', name:'Davaajav', surname:'Kha', groups:['Invités'], theme:'khurdan', player:'nono', gender:'m', mirror:true, acts:{
     metier:['Fouilles sur un site','Exploration et repérage','Étude et catalogage des trouvailles','Recherches en archives, déchiffrage','Rencontre avec un client ou un marchand'],
     liens:['Temps avec Ushuaia','Retrouvailles avec Walha','Nouvelles de Tamachag et Taiga'] } },
-  { id:'tsewang', name:'Tsewang', surname:'Khangkar', groups:['Invités'], theme:'khurdan', player:'jynette', gender:'m', acts:{} },
+  { id:'tsewang', name:'Tsewang', surname:'Khangkar', groups:['Invités'], theme:'khurdan', player:'jynette', gender:'m', acts:{ metier:[...HUNT] } },
 ];
 
 // Tranches horaires approximatives ; la journée RP commence à l'aube (5 h).
@@ -1777,8 +1777,8 @@ const KHURDAN_HUNT = {
       { name:'Mammouth', weight:.3, soloWeight:.047 },
     ],
 };
-// Chasseurs khurdans : même table de prises pour tous.
-const HUNTS = Object.fromEntries(['ankhbayar', 'taiga', 'tamachag', 'khokkutsai', 'javkhaanhun', 'khubunjin', 'tengis'].map(id => [id, KHURDAN_HUNT]));
+// Tous les personnages de l'Iloh chassent avec la même table de prises (Chasse solo / Chasse en groupe, dans « Métier »).
+const HUNTS = Object.fromEntries(C.map(c => [c.id, KHURDAN_HUNT]));
 // Ankhbayar, chasseur de métier : plus doué que les autres.
 HUNTS.ankhbayar = { ...KHURDAN_HUNT, odds: { solo: .9, group: .95 } };
 // Tableau de chasse de l'année (wrap).

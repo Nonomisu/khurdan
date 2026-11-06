@@ -311,6 +311,13 @@ const ok = (cond, label) => { console.log((cond ? '  ok  ' : '  ÉCHEC ') + labe
   await ed.waitForTimeout(2500);
   ok(posts.length === before, 'pas de second envoi des fiches recopiées (verrou)');
 
+  console.log('Chasse (Eden, Buyan)');
+  await ed.evaluate(() => go('buyan')); await ed.waitForTimeout(200);
+  ok(await ed.locator('[data-act="Chasse solo"]').count() === 1 && await ed.locator('[data-act="Chasse en groupe"]').count() === 1, 'Buyan : Chasse solo et Chasse en groupe proposées');
+  await ed.click('[data-act="Chasse en groupe"]'); await ed.waitForTimeout(200);
+  ok(await ed.isVisible('.hunt') && await ed.locator('[data-hunt-mode="Chasse en groupe"]').count() === 2, 'chasse cochée : prise tirée au sort, ou choisie à la main');
+  await ed.click('[data-act="Chasse en groupe"]'); await ed.waitForTimeout(200);
+
   console.log('Logistique : demande de matériel (Eden → Nono)');
   await ed.evaluate(() => go('khokkutsai')); await ed.waitForTimeout(300);
   ok(await ed.isVisible('.logi #req-item') && !(await ed.textContent('.logi')).includes('Demandes en cours'), 'fiche de Khokkutsai : formulaire de demande, sans la liste des demandes');
