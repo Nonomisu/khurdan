@@ -208,7 +208,15 @@ html, body, #view { overflow-anchor: none; }
 .shared-acts .joined { color: var(--dim); }
 .group-events { display: grid; gap: .6rem; }
 .group-events h2 { display: flex; align-items: center; gap: .5rem; }
-.g-event { display: flex; align-items: flex-start; gap: .7rem; padding: .7rem .8rem; border: 1px solid var(--gold); border-radius: 8px; background: color-mix(in srgb, var(--gold) 9%, var(--surface)); }
+.group-events h2 .ev-cal-btn { margin-left: auto; order: 3; }
+.ev-cal-btn .ico { width: 1.25rem; height: 1.25rem; color: var(--gold); }
+.ev-dates { display: flex; flex-wrap: wrap; gap: .6rem; }
+.ev-back { margin: 0; }
+.cal-day.ev-day { border-color: var(--gold); }
+.cal-day .ev-count { position: absolute; top: 3px; right: 5px; font-style: normal; font-size: .65rem; color: var(--gold); line-height: 1; }
+.cal-day.sel .ev-count { color: var(--bg); }
+
+.g-event { display: flex; align-items: flex-start; text-align: left; gap: .7rem; padding: .7rem .8rem; border: 1px solid var(--gold); border-radius: 8px; background: color-mix(in srgb, var(--gold) 9%, var(--surface)); }
 .g-event > .ico { width: 1.3rem; height: 1.3rem; color: var(--gold); flex: none; margin-top: .15rem; }
 .g-event > div { display: grid; gap: .15rem; flex: 1; min-width: 0; }
 .g-event b { font: 500 .8rem/1.2 var(--display); letter-spacing: .1em; text-transform: uppercase; color: var(--gold); }
@@ -564,6 +572,6 @@ button.link.danger { color: #e0a24d; }
 <div class="sync-state" id="sync-state" aria-live="polite"></div>
 </div>
 
-<script src="app.js?v=e93a2ec710" charset="utf-8"></script>
+<script src="app.js?v=a9e8b8d148" charset="utf-8"></script>
 <script type="module" src="sync.js?v=6b528f2857"></script>
 

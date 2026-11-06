@@ -152,6 +152,7 @@ const ok = (cond, label) => { console.log((cond ? '  ok  ' : '  ÉCHEC ') + labe
 
   console.log('Événement du groupe (Nono)');
   await nono.evaluate(() => go('home')); await nono.waitForTimeout(200);
+  ok((await nono.textContent('.group-events h2')).includes('Événements sur l\'Iloh'), 'titre « Événements sur l\'Iloh »');
   ok((await nono.textContent('.group-events')).includes('Aucun événement'), 'aucun événement au départ');
   await nono.click('.ev-new summary'); await nono.click('[data-ev-type="chasse"]');
   await nono.fill('#ev-text', 'Inscrivez-vous'); await nono.click('#ev-add'); await nono.waitForTimeout(1500);
@@ -162,6 +163,26 @@ const ok = (cond, label) => { console.log((cond ? '  ok  ' : '  ÉCHEC ') + labe
   const evNews = Object.values(d).filter(v => v?.key?.startsWith?.('event:'));
   ok(evNews.length === 5 && evNews.every(n => n.from === 'nono' && n.to !== 'nono' && n.text === 'Grand événement de chasse : Inscrivez-vous'), 'une nouvelle pour chacun des 5 autres joueurs');
   ok(await nono.locator('[data-ev-del]').count() === 1, 'l\'auteur peut retirer son annonce');
+  // Calendrier : annonce datée dans 3 jours depuis la page du calendrier
+  await nono.click('.ev-cal-btn'); await nono.waitForTimeout(200);
+  ok((await nono.textContent('#view h1')).includes('Événements sur l\'Iloh') && await nono.locator('.cal .cal-day').count() >= 28, 'icône calendrier : page du calendrier');
+  ok(await nono.locator('.cal-day.today.ev-day').count() === 1, 'le jour de l\'annonce est marqué');
+  const later = await nono.evaluate(() => { const d = new Date(rpDay); d.setDate(d.getDate() + 3); return isoDay(d); });
+  await nono.evaluate(() => { const d = new Date(rpDay); d.setDate(d.getDate() + 3); if (d.getMonth() !== rpDay.getMonth()) document.querySelector('[data-ev-month="1"]').click(); });
+  await nono.click(`[data-ev-day="${later}"]`); await nono.waitForTimeout(100);
+  ok((await nono.textContent('.day-detail')).includes('Aucun événement'), 'jour sans événement');
+  ok(await nono.inputValue('#ev-date') === later, 'formulaire prérempli avec le jour choisi');
+  await nono.click('.ev-new summary'); await nono.click('[data-ev-type="fete"]'); await nono.fill('#ev-text', 'Naadam');
+  await nono.waitForTimeout(800); await nono.hover('#ev-add'); await nono.waitForTimeout(100);   // (après le garde-fou de position)
+  const y1 = await nono.evaluate(() => scrollY);
+  await nono.click('#ev-add'); await nono.waitForTimeout(1200);
+  ok((await nono.textContent('.day-detail')).includes('Naadam'), 'annonce affichée sous le jour choisi');
+  ok(Math.abs(await nono.evaluate(() => scrollY) - y1) < 40, 'la page ne saute pas');
+  d = await db(nono);
+  ok(Object.values(d['shared/events']).some(e => e.text === 'Naadam' && e.date === later), 'date enregistrée');
+  ok(Object.values(d).some(v => v?.key?.startsWith?.('event:') && v.text.startsWith('Fête ou rassemblement : Naadam (le ')), 'nouvelle avec la date de l\'événement');
+  await nono.click('[data-go="home"]'); await nono.waitForTimeout(150);
+  ok((await nono.textContent('.group-events')).includes('Naadam'), 'événement à venir aussi sur l\'accueil');
 
   console.log('Joueur (Idriss)');
   const idr = await open('idriss', 'idriss@test.fr');
@@ -186,7 +207,7 @@ const ok = (cond, label) => { console.log((cond ? '  ok  ' : '  ÉCHEC ') + labe
   const ed = await open('eden', 'eden@test.fr');
   ok((await ed.textContent('.news')).includes('a noté'), 'Eden voit la nouvelle de l\'activité commune');
   ok((await ed.textContent('.news')).includes('Grand événement de chasse : Inscrivez-vous'), 'Eden reçoit la nouvelle de l\'événement');
-  ok((await ed.textContent('.group-events')).includes('Annoncé par Nono'), 'Eden voit l\'annonce sur l\'accueil');
+  ok((await ed.textContent('.group-events')).toLowerCase().includes('annoncé par nono'), 'Eden voit l\'annonce sur l\'accueil');
   ok(await ed.locator('[data-ev-del]').count() === 0, 'Eden ne peut pas retirer l\'annonce de Nono');
   await ed.evaluate(() => go('buyan')); await ed.waitForTimeout(200);
   ok((await ed.textContent('.shared-acts')).includes('Oldaghar a noté « Chasse au faucon » avec Buyan et Shuna'), 'fiche de Buyan : activité commune notée par Oldaghar');

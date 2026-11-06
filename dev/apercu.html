@@ -194,7 +194,15 @@ html, body, #view { overflow-anchor: none; }
 .shared-acts .joined { color: var(--dim); }
 .group-events { display: grid; gap: .6rem; }
 .group-events h2 { display: flex; align-items: center; gap: .5rem; }
-.g-event { display: flex; align-items: flex-start; gap: .7rem; padding: .7rem .8rem; border: 1px solid var(--gold); border-radius: 8px; background: color-mix(in srgb, var(--gold) 9%, var(--surface)); }
+.group-events h2 .ev-cal-btn { margin-left: auto; order: 3; }
+.ev-cal-btn .ico { width: 1.25rem; height: 1.25rem; color: var(--gold); }
+.ev-dates { display: flex; flex-wrap: wrap; gap: .6rem; }
+.ev-back { margin: 0; }
+.cal-day.ev-day { border-color: var(--gold); }
+.cal-day .ev-count { position: absolute; top: 3px; right: 5px; font-style: normal; font-size: .65rem; color: var(--gold); line-height: 1; }
+.cal-day.sel .ev-count { color: var(--bg); }
+
+.g-event { display: flex; align-items: flex-start; text-align: left; gap: .7rem; padding: .7rem .8rem; border: 1px solid var(--gold); border-radius: 8px; background: color-mix(in srgb, var(--gold) 9%, var(--surface)); }
 .g-event > .ico { width: 1.3rem; height: 1.3rem; color: var(--gold); flex: none; margin-top: .15rem; }
 .g-event > div { display: grid; gap: .15rem; flex: 1; min-width: 0; }
 .g-event b { font: 500 .8rem/1.2 var(--display); letter-spacing: .1em; text-transform: uppercase; color: var(--gold); }
@@ -645,6 +653,7 @@ ICONS.globe = '<circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.6 2
 ICONS.route = '<circle cx="6" cy="18" r="2.2"/><circle cx="18" cy="6" r="2.2"/><path d="M8.2 18H15a3 3 0 0 0 0-6H9a3 3 0 0 1 0-6h6.8"/>';
 ICONS.warn = '<path d="M12 3.5 21.5 20h-19z"/><path d="M12 10v4.5"/><circle cx="12" cy="17.2" r=".6" style="fill:currentColor"/>';
 ICONS.users = '<circle cx="9" cy="8" r="3.2"/><path d="M3 19.5c.6-3.4 3-5.3 6-5.3s5.4 1.9 6 5.3"/><circle cx="16.8" cy="8.8" r="2.6"/><path d="M16.5 14.3c2.4.2 4 1.8 4.5 4.6"/>';
+ICONS.calendar = '<rect x="3.5" y="5" width="17" height="15.5" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/><path d="M8 14h2M14 14h2M8 17h2"/>';
 ICONS.flag = '<path d="M5 21V4"/><path d="M5 4h11l-2 4 2 4H5"/>';
 ICONS.zone = '<path d="M3 19 9.5 8l4 6.5 2.5-4L21 19z"/>';
 ICONS.star = '<path d="M12 3l2.6 5.6 6 .7-4.5 4.1 1.2 6L12 16.4 6.7 19.4l1.2-6L3.4 9.3l6-.7z"/>';
@@ -838,46 +847,97 @@ const EVENT_TYPES = [
 const GROUP_EVENTS = {};   // id → { type, text, by (joueur), at, until (AAAA-MM-JJ ou null) } — rempli par sync.js (shared/events)
 const evType = t => EVENT_TYPES.find(x => x.id === t) || EVENT_TYPES[EVENT_TYPES.length - 1];
 const evText = e => `${evType(e.type).label} : ${e.text}`;
-const activeEvents = () => Object.entries(GROUP_EVENTS).filter(([, e]) => e && (!e.until || e.until >= isoDay(rpDay))).sort((a, b) => b[1].at - a[1].at);
+// Date de l'événement (AAAA-MM-JJ) ; sans date de fin, il ne figure au calendrier que ce jour-là mais reste annoncé jusqu'à son retrait.
+const evStart = e => e.date || isoDay(new Date(e.at));
+const evOn = (e, iso) => evStart(e) <= iso && iso <= (e.until || evStart(e));
+const evWhen = e => { const a = evStart(e), t = isoDay(rpDay);
+  return e.until && e.until !== a ? (a > t ? `du ${fmtIso(a)} au ${fmtIso(e.until)}` : `jusqu'au ${fmtIso(e.until)}`) : a > t ? `le ${fmtIso(a)}` : a === t ? "aujourd'hui" : `depuis le ${fmtIso(a)}`; };
+const activeEvents = () => Object.entries(GROUP_EVENTS).filter(([, e]) => e && (!e.until || e.until >= isoDay(rpDay)))
+  .sort((a, b) => evStart(a[1]).localeCompare(evStart(b[1])) || a[1].at - b[1].at);
 const evView = { open: false, del: null, type: 'info' };
-const addGroupEvent = (type, text, until) => {
+const evCal = { y: null, m: null, sel: null };   // calendrier des événements : mois affiché et jour choisi
+const addGroupEvent = (type, text, until, date) => {
   const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6), at = Date.now();
-  const e = { type, text, by: me, at, until: until || null };
+  date = date || isoDay(rpDay);
+  const e = { type, text, by: me, at, date, until: until && until > date ? until : null };
   GROUP_EVENTS[id] = e; window.RP_SYNC?.saveEvent(id, e);
-  PLAYERS.filter(p => p.id !== me).forEach(p => NEWS.unshift({ to: p.id, text: evText(e), charId: null, key: 'event:' + id + ':' + p.id, read: false, at }));
+  const txt = evText(e) + (date > isoDay(rpDay) ? ` (${evWhen(e)})` : '');
+  PLAYERS.filter(p => p.id !== me).forEach(p => NEWS.unshift({ to: p.id, text: txt, charId: null, key: 'event:' + id + ':' + p.id, read: false, at }));
 };
 const removeGroupEvent = id => { delete GROUP_EVENTS[id]; window.RP_SYNC?.saveEvent(id, null); dropNews(PLAYERS.map(p => 'event:' + id + ':' + p.id)); };
 const fmtIso = iso => { const [y, m, d] = iso.split('-').map(Number); return fmtDay(new Date(y, m - 1, d)); };
-const groupEventsHtml = () => {
-  const list = activeEvents();
-  return `<section class="group-events"><h2>${icon('flag')}Événements du groupe</h2>
-    ${list.map(([id, e]) => `<div class="g-event">${icon(evType(e.type).icon)}<div><b>${esc(evType(e.type).label)}</b><span>${esc(e.text)}</span>
-      <small>Annoncé par ${esc(PLAYER_NAME[e.by] || '?')} le ${fmtDay(new Date(e.at))}${e.until ? ` · jusqu'au ${fmtIso(e.until)}` : ''}</small></div>
+const evCardHtml = ([id, e]) => `<div class="g-event">${icon(evType(e.type).icon)}<div><b>${esc(evType(e.type).label)}</b><span>${esc(e.text)}</span>
+      <small>${evWhen(e).replace(/^./, c => c.toUpperCase())} · annoncé par ${esc(PLAYER_NAME[e.by] || '?')}</small></div>
       ${e.by === me || isAdminMe() ? evView.del === id ? `<span class="g-del"><button type="button" class="link small danger" data-ev-del-ok="${id}">Retirer l'annonce</button> <button type="button" class="link small" data-ev-del-no>Annuler</button></span>`
-        : `<button type="button" class="link small ico-btn" data-ev-del="${id}" title="Retirer l'annonce" aria-label="Retirer l'annonce">${icon('trash')}</button>` : ''}</div>`).join('')}
-    ${list.length ? '' : '<p class="reserved">Aucun événement en cours.</p>'}
-    <details class="ev-new"${evView.open ? ' open' : ''}><summary>${icon('plus')}Annoncer un événement au groupe</summary>
+        : `<button type="button" class="link small ico-btn" data-ev-del="${id}" title="Retirer l'annonce" aria-label="Retirer l'annonce">${icon('trash')}</button>` : ''}</div>`;
+const evFormHtml = date => `<details class="ev-new"${evView.open ? ' open' : ''}><summary>${icon('plus')}Annoncer un événement sur l'Iloh</summary>
       <div class="ev-form">
         <div class="place-list" role="group" aria-label="Type d'événement">${EVENT_TYPES.map(t => `<button type="button" data-ev-type="${t.id}" aria-pressed="${evView.type === t.id}">${icon(t.icon)}${esc(t.label)}</button>`).join('')}</div>
         <input type="text" id="ev-text" maxlength="200" placeholder="Ex. : Couvre-feu à partir de ce soir" enterkeyhint="send">
-        <label class="ev-until"><span>Jusqu'au (facultatif)</span><input type="date" id="ev-until" min="${isoDay(rpDay)}"></label>
+        <div class="ev-dates"><label class="ev-until"><span>Date</span><input type="date" id="ev-date" value="${date}" min="${isoDay(rpDay)}"></label>
+          <label class="ev-until"><span>Jusqu'au (facultatif)</span><input type="date" id="ev-until" min="${date}"></label></div>
         <button type="button" class="btn" id="ev-add">Annoncer à tout le groupe</button>
         <p class="reserved">Tous les autres joueurs recevront une nouvelle et une notification.</p>
-      </div></details></section>`;
+      </div></details>`;
+const groupEventsHtml = () => {
+  const list = activeEvents();
+  return `<section class="group-events"><h2>${icon('flag')}Événements sur l'Iloh<button type="button" class="link ico-btn ev-cal-btn" data-go="events" title="Calendrier des événements" aria-label="Calendrier des événements">${icon('calendar')}</button></h2>
+    ${list.map(evCardHtml).join('')}
+    ${list.length ? '' : '<p class="reserved">Aucun événement en cours.</p>'}
+    ${evFormHtml(isoDay(rpDay))}</section>`;
+};
+// Page « Calendrier des événements » : un mois, les jours avec un événement marqués ; le jour choisi en dessous.
+function renderEvents() {
+  root.className = 't-khurdan';
+  if (evCal.y === null) Object.assign(evCal, { y: rpDay.getFullYear(), m: rpDay.getMonth(), sel: isoDay(rpDay) });
+  const { y, m } = evCal, n = daysIn(y, m), lead = (new Date(y, m, 1).getDay() + 6) % 7;
+  const all = Object.entries(GROUP_EVENTS).filter(([, e]) => e);
+  const on = iso => all.filter(([, e]) => evOn(e, iso));
+  const sel = evCal.sel, selList = sel ? on(sel) : [];
+  document.getElementById('view').innerHTML = `
+    <p class="ev-back"><button type="button" class="link" data-go="home">‹ Accueil</button></p>
+    <header><p class="kicker">${APP_NAME}</p><h1>Événements sur l'Iloh</h1></header>
+    <section>
+      <div class="cal-head"><button type="button" class="btn" data-ev-month="-1" aria-label="Mois précédent">‹</button>
+        <h2>${MONTHS[m]} ${y}</h2>
+        <button type="button" class="btn" data-ev-month="1" aria-label="Mois suivant">›</button></div>
+      <div class="cal" role="grid">
+        ${['L', 'M', 'M', 'J', 'V', 'S', 'D'].map(d => `<span class="cal-dow">${d}</span>`).join('')}
+        ${'<span></span>'.repeat(lead)}
+        ${Array.from({ length: n }, (_, i) => new Date(y, m, i + 1)).map(d => { const iso = isoDay(d), L = on(iso);
+          return `<button type="button" class="cal-day ${L.length ? 'filled ev-day' : ''} ${sameDay(d, rpDay) ? 'today' : ''} ${sel === iso ? 'sel' : ''}" data-ev-day="${iso}">
+            <span class="n">${d.getDate()}</span>${L.length ? icon(evType(L[0][1].type).icon) : ''}${L.length > 1 ? `<i class="ev-count">${L.length}</i>` : ''}</button>`; }).join('')}
+      </div>
+      ${sel ? `<div class="day-detail"><h3>${fmtIso(sel)}</h3>
+        ${selList.length ? selList.map(evCardHtml).join('') : '<p class="reserved">Aucun événement ce jour-là.</p>'}</div>` : ''}
+      ${evFormHtml(sel && sel >= isoDay(rpDay) ? sel : isoDay(rpDay))}
+    </section>`;
+}
+// Réaffichage de l'accueil ou du calendrier sans saut de page (même cale que pour les fiches).
+const evRefresh = () => {
+  if (current !== 'events' && current !== 'home') return;
+  const y = window.scrollY, h = fullH();
+  current === 'events' ? renderEvents() : renderHome();
+  holdHeight(h); window.scrollTo({ top: y }); holdPlace(null, y);
 };
 document.addEventListener('toggle', e => { if (e.target.classList?.contains('ev-new')) evView.open = e.target.open; }, true);
 document.addEventListener('click', e => {
   const t = e.target.closest('[data-ev-type]'), add = e.target.closest('#ev-add'), del = e.target.closest('[data-ev-del]'), ok = e.target.closest('[data-ev-del-ok]');
   if (t) { evView.type = t.dataset.evType; document.querySelectorAll('[data-ev-type]').forEach(b => b.setAttribute('aria-pressed', b === t)); return; }
-  if (e.target.closest('[data-ev-del-no]')) { evView.del = null; return go('home'); }
-  if (del) { evView.del = del.dataset.evDel; return go('home'); }
-  if (ok) { evView.del = null; removeGroupEvent(ok.dataset.evDelOk); return go('home'); }
+  const day = e.target.closest('[data-ev-day]'), mo = e.target.closest('[data-ev-month]');
+  if (day) { evCal.sel = day.dataset.evDay; evView.del = null; return evRefresh(); }
+  if (mo) { const d = new Date(evCal.y, evCal.m + +mo.dataset.evMonth, 1); Object.assign(evCal, { y: d.getFullYear(), m: d.getMonth() }); return evRefresh(); }
+  if (e.target.closest('[data-ev-del-no]')) { evView.del = null; return evRefresh(); }
+  if (del) { evView.del = del.dataset.evDel; return evRefresh(); }
+  if (ok) { evView.del = null; removeGroupEvent(ok.dataset.evDelOk); return evRefresh(); }
   if (add) {
     const f = document.getElementById('ev-text'), text = f.value.trim(); if (!text) return f.focus();
-    addGroupEvent(evView.type, text, document.getElementById('ev-until').value || null);
-    evView.open = false; go('home');
+    const date = document.getElementById('ev-date').value || isoDay(rpDay);
+    addGroupEvent(evView.type, text, document.getElementById('ev-until').value || null, date < isoDay(rpDay) ? isoDay(rpDay) : date);
+    evView.open = false; evRefresh();
   }
 });
+document.addEventListener('change', e => { if (e.target.id === 'ev-date') { const u = document.getElementById('ev-until'); if (u) u.min = e.target.value; } });
 document.addEventListener('keydown', e => { if (e.target.id === 'ev-text' && e.key === 'Enter') { e.preventDefault(); document.getElementById('ev-add')?.click(); } });
 const MS_NEWS = {
   'Rencontre':   (a, b) => `${a} et ${b} se sont rencontrés !`,
@@ -2821,7 +2881,7 @@ function renderCharNow(id) {
   document.getElementById('done-'+id).addEventListener('click', () => { s.done = true; s.doneAt ??= Date.now(); renderNav(); renderChar(id); });
 }
 
-function go(id) { resetSpacer(); lastPage = null; current = id; renderNav(); if (id !== 'home') fxOff(); id === 'home' ? renderHome() : renderChar(id); window.scrollTo({ top:0 }); }
+function go(id) { resetSpacer(); lastPage = null; current = id; renderNav(); if (id !== 'home') fxOff(); id === 'home' ? renderHome() : id === 'events' ? renderEvents() : renderChar(id); window.scrollTo({ top:0 }); }
 document.addEventListener('click', e => { const b = e.target.closest('[data-go]'); if (b) go(b.dataset.go); });
 document.addEventListener('click', async e => {
   const b = e.target.closest('[data-wrap-open]'); if (!b) return;
@@ -2844,7 +2904,7 @@ document.querySelectorAll('.nav-filter button').forEach(b => b.addEventListener(
   const row = b.dataset.f ? '[data-f]' : '[data-g]';
   if (b.dataset.f) filter = b.dataset.f; else groupFilter = b.dataset.g;
   document.querySelectorAll('.nav-filter button' + row).forEach(x => x.setAttribute('aria-pressed', x === b));
-  if (current !== 'home' && !C.some(c => c.id === current && shown(c))) current = 'home';
+  if (current !== 'home' && current !== 'events' && !C.some(c => c.id === current && shown(c))) current = 'home';
   go(current);
 }));
 initPlaces();
