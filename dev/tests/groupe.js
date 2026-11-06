@@ -36,7 +36,7 @@ const ok = (cond, label) => { console.log((cond ? '  ok  ' : '  ÉCHEC ') + labe
     'access/idriss@test.fr': { player: 'idriss', role: 'joueur' },
     'shared/discord': { webhook: 'https://discord.com/api/webhooks/1/test' },
     // « Contrat de chasse » coché sans contrat en cours : l'affichage le retire (cas qui faisait renvoyer la fiche à chaque lancement)
-    [`days/tamachag/months/${ym}`]: { [day]: { mood: 'Recopié de Journée RP.', done: true, checked: { $set: ['Travail du bois', 'Contrat de chasse'] } } },
+    [`days/tamachag/months/${ym}`]: { [day]: { mood: 'Recopié de Journée RP.', done: true, checked: { $set: ['Travail du bois', 'Contrat de chasse'] }, nightStates: { $set: ['Cauchemar'] } } },
     [`days/tengis/months/${ym}`]: { [day]: { mood: 'Tengis aussi.', done: true } },
     [`couples/taiga-tamachag/months/${ym}`]: { [day]: { nights: { tamachag: { hot: true, with: 'taiga' }, taiga: { hot: true, with: 'tamachag' } } } } };
   const open = async (name, email, first = false) => {
@@ -96,6 +96,7 @@ const ok = (cond, label) => { console.log((cond ? '  ok  ' : '  ÉCHEC ') + labe
   // Tamachag : fiche recopiée de Journée RP → lecture seule, même pour Nono
   await nono.evaluate(() => go('tamachag')); await nono.waitForTimeout(200);
   ok((await nono.textContent('#view h1')).includes('Tamachag'), 'fiche de Tamachag');
+  ok((await nono.textContent('#view')).includes('Cauchemar'), 'le joueur du personnage voit ses lignes de nuit');
   ok(await nono.locator('#mood-tamachag').count() === 0 && (await nono.textContent('#view')).includes('Journée RP'), 'Tamachag en lecture seule (tenu dans Journée RP)');
   // Tengis : pas de couple → pas de nuit chaude ; Vie intime absente
   ok(await nono.locator('#hot-tengis').count() === 0, 'pas de nuit chaude pour Tengis (hors couple)');
@@ -145,6 +146,8 @@ const ok = (cond, label) => { console.log((cond ? '  ok  ' : '  ÉCHEC ') + labe
   ok(await jy.locator('.discord-set').count() === 0, 'pas de réglage Discord (pas admin)');
   await jy.evaluate(() => go('taiga')); await jy.waitForTimeout(200);
   ok((await jy.textContent('#view')).includes('Nuit chaude'), 'Taiga : nuit chaude recopiée visible pour Jynette');
+  await jy.evaluate(() => go('tamachag')); await jy.waitForTimeout(200);
+  ok((await jy.textContent('#view')).includes('Cauchemar'), 'la joueuse du couple voit les lignes de nuit de Tamachag');
   await jy.evaluate(() => go('shiruun')); await jy.waitForTimeout(200);
   ok(await jy.locator('#mood-shiruun').count() === 1, 'Shiruun (absent de Journée RP) se remplit dans Iloh');
 
@@ -160,6 +163,10 @@ const ok = (cond, label) => { console.log((cond ? '  ok  ' : '  ÉCHEC ') + labe
   ok(!(await ed.textContent('#view')).includes('Nuit chaude'), 'Eden ne voit pas la nuit chaude d\'Oldaghar');
   await ed.evaluate(() => go('taiga')); await ed.waitForTimeout(200);
   ok(!(await ed.textContent('#view')).includes('Nuit chaude'), 'Eden ne voit pas la nuit chaude de Taiga');
+  await ed.evaluate(() => go('tamachag')); await ed.waitForTimeout(200);
+  ok(!/Cauchemar|Nuit (à venir|précédente)/.test(await ed.textContent('#view')), 'Eden ne voit aucune ligne de nuit sur la fiche de Tamachag');
+  await ed.evaluate(() => { const c = C.find(x => x.id === 'tamachag'); state.tamachag.view = 'history'; go('tamachag'); }); await ed.waitForTimeout(300);
+  ok(!/Cauchemar|Nuit chaude/.test(await ed.textContent('#view')), 'ni dans son historique');
   ok(await ed.evaluate(() => Object.keys(nightsBy).length) === 0, 'aucune nuit chaude chargée chez Eden');
   await ed.waitForTimeout(2500);
   ok(posts.length === before, 'pas de second envoi des fiches recopiées (verrou)');

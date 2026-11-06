@@ -659,6 +659,9 @@ const hasHot = id => !!C.find(c => c.id === id)?.hotNights;
 // Vue publique (images envoyées sur le salon Discord commun) : aucune nuit chaude, même pour les joueurs du couple,
 // et ni « Nuit précédente » ni « Nuit à venir » dans le récap.
 let publicView = false;
+// Lignes de nuit (nuit précédente, nuit à venir, historique) : visibles seulement du joueur du personnage
+// et des joueurs de son couple ; jamais dans la vue publique (images Discord).
+const seesNights = id => !publicView && (playerOf(id) === me || !!pairOf(id)?.some(x => playerOf(x) === me));
 const partnerOf = id => pairOf(id)?.find(x => x !== id) || null;
 const charByName = v => C.find(c => c.name.toLowerCase() === v.toLowerCase())?.id || null;
 const whoLabel = x => isChar(x) ? nameOf(x) : x;
@@ -1238,11 +1241,11 @@ function renderHistory(id) {
           ${selRec.cond ? `<p class="where">${icon(selRec.cond.icon)}<span>${selRec.cond.label} · ${deg(selRec.cond.tp.max)} / ${deg(selRec.cond.tp.min)}</span></p>` : ''}
           ${selRec.place ? `<p class="where">${icon('pin')}<span>${esc(selRec.place)}</span></p>` : ''}
           ${selRec.acts.length ? `<p class="where">${icon('matin')}<span>${selRec.acts.map(esc).join(' · ')}</span></p>` : ''}
-          ${selRec.nightStates?.length || selRec.nightNote || selRec.nightNotes?.['Nuit chaude'] ? `<p class="where">${icon('lips')}<span>Nuit : ${esc([nightStatesText(id, selRec.nightStates, selRec.nightNotes, selRec.calmWith), selRec.nightNote].filter(Boolean).join(' · '))}</span></p>` : ''}
+          ${seesNights(id) && (selRec.nightStates?.length || selRec.nightNote || selRec.nightNotes?.['Nuit chaude']) ? `<p class="where">${icon('lips')}<span>Nuit : ${esc([nightStatesText(id, selRec.nightStates, selRec.nightNotes, selRec.calmWith), selRec.nightNote].filter(Boolean).join(' · '))}</span></p>` : ''}
           ${statesLine(id, selRec.phys, selRec.notes, 'heartbeat')}${statesLine(id, selRec.mental, selRec.notes, 'brain')}
           ${selRec.trip ? `<p class="where">${icon('route')}<span>Voyage${selRec.tripInfo?.from ? ' : ' + esc(REGIONS[selRec.tripInfo.from]?.label || '') + (selRec.tripInfo.to ? ' → ' + esc(REGIONS[selRec.tripInfo.to]?.label || '') : '') : ''}${selRec.tripInfo && tripBits(selRec.tripInfo) ? ' · ' + esc(tripBits(selRec.tripInfo)) : ''}</span></p>` : ''}
-          ${selRec.hot ? `<p class="where night-line">${icon('lips')}<span>Nuit chaude${selRec.with ? ' avec ' + esc(whoLabel(selRec.with)) : ''}${selRec.nightNotes?.['Nuit chaude'] ? ' (' + esc(selRec.nightNotes['Nuit chaude']) + ')' : ''}</span></p>` : (n => n ? `<p class="where night-line">${icon('lips')}<span>Nuit chaude${n.with ? ' avec ' + esc(whoLabel(n.with)) : ''}</span></p>` : '')(nightOn(c, sel))}`
-        : `<p class="reserved">Pas de fiche remplie ce jour-là.</p>${(n => n ? `<p class="where night-line">${icon('lips')}<span>Nuit chaude${n.with ? ' avec ' + esc(whoLabel(n.with)) : ''}</span></p>` : '')(nightOn(c, sel))}`}
+          ${seesNights(id) && selRec.hot ? `<p class="where night-line">${icon('lips')}<span>Nuit chaude${selRec.with ? ' avec ' + esc(whoLabel(selRec.with)) : ''}${selRec.nightNotes?.['Nuit chaude'] ? ' (' + esc(selRec.nightNotes['Nuit chaude']) + ')' : ''}</span></p>` : (n => n ? `<p class="where night-line">${icon('lips')}<span>Nuit chaude${n.with ? ' avec ' + esc(whoLabel(n.with)) : ''}</span></p>` : '')(nightOn(c, sel))}`
+        : `<p class="reserved">Pas de fiche remplie ce jour-là.</p>${(n => n && seesNights(id) ? `<p class="where night-line">${icon('lips')}<span>Nuit chaude${n.with ? ' avec ' + esc(whoLabel(n.with)) : ''}</span></p>` : '')(nightOn(c, sel))}`}
       </div>` : '<p class="reserved">Touche un jour pour revoir sa fiche.</p>'}
     </section>
 
@@ -1256,7 +1259,7 @@ function renderHistory(id) {
         ${st.hottest ? `<div><dt>Températures</dt><dd>de ${deg(st.coldest.min)} (${fmtDay(st.coldest.d)}) à ${deg(st.hottest.max)} (${fmtDay(st.hottest.d)})</dd></div>` : ''}
         ${st.phys.length ? `<div><dt>État physique</dt><dd>${listOf(st.phys)}</dd></div>` : ''}
         ${st.mental.length ? `<div><dt>État mental</dt><dd>${listOf(st.mental)}</dd></div>` : ''}
-        ${hasHot(id) && !publicView ? `<div><dt>Nuits chaudes</dt><dd>${st.nights}</dd></div>` : ''}
+        ${hasHot(id) && seesNights(id) ? `<div><dt>Nuits chaudes</dt><dd>${st.nights}</dd></div>` : ''}
         ${st.trips ? `<div><dt>Voyages</dt><dd>${st.trips}</dd></div>` : ''}
       </dl>
     </section>
@@ -1822,8 +1825,8 @@ function renderCharNow(id) {
       ${statesLine(id, [...(s.phys || [])], s.stateNotes, 'heartbeat').replace('</span></p>', s.physNote ? ' — ' + esc(s.physNote) + '</span></p>' : '</span></p>')}
       ${statesLine(id, [...(s.mental || [])], s.stateNotes, 'brain')}
       ${isKhurdan(id) && s.violet ? `<p class="where">${icon('cloth')}<span>A porté du violet</span></p>` : ''}
-      ${publicView ? '' : prevNightLine(id)}
-      ${publicView ? '' : nightLine(id)}
+      ${seesNights(id) ? prevNightLine(id) : ''}
+      ${seesNights(id) ? nightLine(id) : ''}
       ${groups.length ? `<ul class="recap-list">${groups.map(({ sl, items }) => `<li>
         <span class="recap-when">${sl.icon ? icon(sl.icon) : ''}${sl.label}</span>
         <span class="recap-what">${items.map(l => esc(dispLabel(l))).join(' · ')}</span></li>`).join('')}</ul>` : ''}
