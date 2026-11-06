@@ -1482,7 +1482,7 @@ const climatesFor = id => {
     .map(x => ({ ...x, where: `${tag} · ${x.where || REGIONS[l.region].label}` }));
   return [...leg(t.from, 'Départ'), ...leg(t.to, 'Arrivée')];
 };
-const TRAVEL_MODES = ['Éthérite', 'Monture'];   // chez les Khurdans : ni bateau ni aéronef
+const TRAVEL_MODES = ['Éthérite', 'Monture', 'Bateau'];   // chez les Khurdans : pas d'aéronef
 // Durée d'un voyage (en minutes) : « 2 h 30 », « 45 min », « 3 j 4 h ».
 const fmtDur = m => { m = Math.round(m || 0); const j = Math.floor(m / 1440), h = Math.floor(m % 1440 / 60), mn = m % 60;
   return j ? `${j} j${h ? ' ' + h + ' h' : ''}` : h ? `${h} h${mn ? ' ' + String(mn).padStart(2, '0') : ''}` : `${mn} min`; };
