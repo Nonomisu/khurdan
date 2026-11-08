@@ -4,7 +4,7 @@ const { chromium } = require('playwright'); const fs = require('fs'); const path
 const MOCK = path.join(__dirname, 'mockfb');
 const W = +(process.argv[2] || 420);
 // Sections de nuit dépliées d'office (sinon les cases sont repliées sous « Comment va se passer la nuit ? »).
-const IDS = ["tamachag", "khokkutsai", "ankhbayar", "tengis", "taiga", "inkaraa", "khubunjin", "ogloo", "javkhaanhun", "shiruun", "djokhodthai", "buyan", "cheyenne", "taivan", "altan", "henbilee", "shuna", "oldaghar", "nehsundheigei", "boroo", "reaksa", "davaajav", "tsewang"];
+const IDS = ["tamachag", "khokkutsai", "ankhbayar", "tengis", "taiga", "inkaraa", "khubunjin", "ogloo", "javkhaanhun", "shiruun", "djokhodthai", "buyan", "cheyenne", "taivan", "altan", "henbilee", "boroo", "reaksa", "davaajav", "tsewang"];
 const ok = (cond, label) => { console.log((cond ? '  ok  ' : '  ÉCHEC ') + label); if (!cond) process.exitCode = 1; };
 (async () => {
   const b = await chromium.launch(process.env.CHROME ? { executablePath: process.env.CHROME } : {});
@@ -63,13 +63,13 @@ const ok = (cond, label) => { console.log((cond ? '  ok  ' : '  ÉCHEC ') + labe
   const nono = await open('nono', 'nono@test.fr', true);
   ok(await nono.isHidden('#login'), 'connexion réussie');
   ok((await nono.textContent('.session')).includes('Nono'), 'session : Nono');
-  ok(await nono.locator('.grid .card').count() === 23, '23 cartes sur l\'accueil');
+  ok(await nono.locator('.grid .card').count() === 20, '20 cartes sur l\'accueil');
   ok((await nono.textContent('#view header .kicker')).includes('Iloh Khurdan'), 'nom de l\'appli sur l\'accueil');
-  ok(await nono.locator('#nav-players button').count() === 7, 'filtre par joueur : Tous + 6 joueurs');
+  ok(await nono.locator('#nav-players button').count() === 6, 'filtre par joueur : Tous + 5 joueurs (Sheyla n\'a plus de personnage)');
   ok(await nono.locator('#nav-groups button').count() === 3, 'filtre par groupe : Tous, Khurdans, Invités');
   ok(await nono.evaluate(() => document.documentElement.className) === 't-khurdan', 'thème khurdan sur l\'accueil');
   let d = await db(nono);
-  ok(Object.keys(d).filter(k => k.startsWith('characters/')).length === 23, 'fiches des 23 personnages créées par l\'admin');
+  ok(Object.keys(d).filter(k => k.startsWith('characters/')).length === 20, 'fiches des 20 personnages créées par l\'admin');
   ok(d['characters/buyan']?.player === 'eden' && d['characters/tsewang']?.player === 'jynette', 'joueurs des fiches repris de la config');
   ok(await nono.locator('.discord-set').count() === 1, 'réglage Discord visible pour l\'admin');
   const mir = () => posts.filter(t => t.titles?.length && t.method === 'POST');
@@ -103,55 +103,39 @@ const ok = (cond, label) => { console.log((cond ? '  ok  ' : '  ÉCHEC ') + labe
   ok(await nono.locator('#hot-tengis').count() === 0, 'pas de nuit chaude pour Tengis (hors couple)');
   ok(await nono.locator('text=Vie intime').count() === 0, 'plus de section Vie intime');
 
-  console.log('Joueuse (Sheyla) : couple Oldaghar & Reaksa');
-  const sh = await open('sheyla', 'sheyla@test.fr');
-  await sh.evaluate(() => go('oldaghar')); await sh.waitForTimeout(200);
-  ok(await sh.locator('#hot-oldaghar').count() === 1, 'case nuit chaude présente (couple)');
-  await sh.fill('#mood-oldaghar', 'Serein ce matin.'); await sh.dispatchEvent('#mood-oldaghar', 'input');
-  await sh.click('#hot-oldaghar'); await sh.waitForTimeout(150);
-  ok(await sh.isChecked('#protect-oldaghar') === false, 'protection proposée');
-  // Amant : un autre personnage du groupe est refusé, un PNJ accepté
-  await sh.fill('#lover-new-oldaghar', 'Ogloo'); await sh.click('#lover-add-oldaghar'); await sh.waitForTimeout(150);
-  ok((await sh.textContent('#view')).includes('seul un PNJ'), 'un personnage du groupe ne peut pas être ajouté comme amant');
-  await sh.fill('#lover-new-oldaghar', 'Une voyageuse'); await sh.click('#lover-add-oldaghar'); await sh.waitForTimeout(300);
+  console.log('Joueur (Idriss) : Boroo');
+  const sh = await open('idriss', 'idriss@test.fr');
+  await sh.evaluate(() => go('boroo')); await sh.waitForTimeout(200);
+  ok(await sh.locator('#hot-boroo').count() === 0 && await sh.locator('#hot-reaksa').count() === 0, 'pas de nuit chaude hors couple (Boroo, Reaksa)');
+  await sh.fill('#mood-boroo', 'Serein ce matin.'); await sh.dispatchEvent('#mood-boroo', 'input');
   // Activité commune : plusieurs personnages sur une même activité
-  await sh.evaluate(() => { C.find(x => x.id === 'oldaghar').acts.quotidien = ['Chasse au faucon']; go('oldaghar'); }); await sh.waitForTimeout(150);
+  await sh.evaluate(() => { C.find(x => x.id === 'boroo').acts.quotidien = ['Chasse au faucon']; go('boroo'); }); await sh.waitForTimeout(150);
   const act = await sh.evaluate(() => [...document.querySelectorAll('#view [data-act]')].map(x => x.dataset.act).find(l => l !== 'Voyage' && l !== 'Contrat de chasse'));
   await sh.click(`[data-act="${act}"]`); await sh.waitForTimeout(150);
   await sh.click(`details[data-with-fold="${act}"] summary`); await sh.waitForTimeout(100);
   // Repère : position à l'écran du sélecteur (Playwright fait défiler la page jusqu'aux boutons s'ils sont hors de l'écran)
   await sh.evaluate(act => document.querySelector(`details[data-with-fold="${act}"]`).scrollIntoView({ block: 'center' }), act); await sh.waitForTimeout(150);
   const y0 = await sh.evaluate(act => document.querySelector(`details[data-with-fold="${act}"]`).getBoundingClientRect().top, act);
-  for (const w of ['buyan', 'tengis', 'shuna']) { await sh.evaluate(([a, w]) => document.querySelector(`[data-share-act="${a}"][data-share="${w}"]`).click(), [act, w]); await sh.waitForTimeout(120); }
+  for (const w of ['buyan', 'tengis', 'reaksa']) { await sh.evaluate(([a, w]) => document.querySelector(`[data-share-act="${a}"][data-share="${w}"]`).click(), [act, w]); await sh.waitForTimeout(120); }
   await sh.evaluate(a => document.querySelector(`[data-share-act="${a}"][data-share="tengis"]`).click(), act); await sh.waitForTimeout(150);   // (clic direct : sans le défilement automatique de Playwright)
   ok(Math.abs(await sh.evaluate(act => document.querySelector(`details[data-with-fold="${act}"]`).getBoundingClientRect().top, act) - y0) < 5, 'choisir des personnages ne fait pas sauter la page');
   ok(await sh.isVisible(`[data-share-act="${act}"][data-share="buyan"]`), 'le sélecteur reste ouvert après un choix');
-  ok((await sh.textContent(`details[data-with-fold="${act}"] summary`)).includes('Avec Buyan et Shuna'), 'résumé : « Avec Buyan et Shuna »');
-  ok(await sh.locator(`[data-share-act="${act}"][data-share="oldaghar"]`).count() === 0, 'on ne peut pas se choisir soi-même');
-  ok(await sh.evaluate(() => NEWS.filter(n => n.key.startsWith('with:')).length) === 1, 'une seule nouvelle en attente : Eden (Buyan) ; ni Tengis retiré, ni Shuna (même joueuse)');
-  await sh.click('#done-oldaghar'); await sh.waitForTimeout(1500);
+  ok((await sh.textContent(`details[data-with-fold="${act}"] summary`)).includes('Avec Buyan et Reaksa'), 'résumé : « Avec Buyan et Reaksa »');
+  ok(await sh.locator(`[data-share-act="${act}"][data-share="boroo"]`).count() === 0, 'on ne peut pas se choisir soi-même');
+  ok(await sh.evaluate(() => NEWS.filter(n => n.key.startsWith('with:')).length) === 1, 'une seule nouvelle en attente : Eden (Buyan) ; ni Tengis retiré, ni Reaksa (même joueur)');
+  await sh.click('#done-boroo'); await sh.waitForTimeout(1500);
   d = await db(sh);
-  ok(d[`days/oldaghar/months/${ym}`]?.[day]?.mood === 'Serein ce matin.', 'journée d\'Oldaghar enregistrée');
+  ok(d[`days/boroo/months/${ym}`]?.[day]?.mood === 'Serein ce matin.', 'journée de Boroo enregistrée');
   const old = posts.filter(t => t.includes('Serein ce matin.'));
-  ok(!/Nuit (à venir|précédente)/.test(old[0] || ''), 'image d\'Oldaghar : ni nuit à venir ni nuit précédente');
-  ok(old.length === 1, 'récap d\'Oldaghar envoyé sur le salon commun');
-  ok(!old[0].includes('Nuit chaude') && !old[0].includes('voyageuse'), 'image Discord sans nuit chaude, même envoyée par la joueuse du couple');
-  await sh.waitForTimeout(300);
-  ok((await sh.textContent('#view')).includes('Nuit chaude'), 'après l\'envoi, Sheyla revoit la nuit chaude dans l\'appli');
+  ok(!/Nuit (à venir|précédente)/.test(old[0] || ''), 'image de Boroo : ni nuit à venir ni nuit précédente');
+  ok(old.length === 1, 'récap de Boroo envoyé sur le salon commun');
   const news = Object.entries(d).filter(([k]) => k.startsWith('news/')).map(([, v]) => v);
-  ok(news.some(n => n.to === 'idriss' && n.from === 'sheyla'), 'nouvelle pour Idriss (nuit chaude), auteur noté');
   ok(news.every(n => n.to !== n.from), 'aucune nouvelle vers soi-même');
-  ok(news.some(n => n.to === 'eden' && n.charId === 'buyan' && n.text.includes('Oldaghar') && n.text.includes(act)), 'activité commune : nouvelle pour Eden (Buyan)');
-  ok(!news.some(n => n.key?.startsWith('with:') && n.to !== 'eden'), 'aucune nouvelle d\'activité pour Nono (Tengis retiré) ni pour Sheyla');
-  ok(JSON.stringify(d[`days/oldaghar/months/${ym}`]?.[day]?.withActs?.[act]) === '["buyan","shuna"]', 'personnages de l\'activité enregistrés');
-  ok(old[0]?.includes(act + ' avec Buyan et Shuna'), 'récap et image Discord : « avec Buyan et Shuna »');
-  // Confidentialité : la nuit chaude n'est que dans l'espace du couple
-  ok(d['couples/oldaghar-reaksa']?.players?.length === 2, 'espace du couple Oldaghar & Reaksa créé (2 joueurs)');
-  ok(Object.keys(d).filter(k => /^couples\/[^/]+$/.test(k)).length === 4, '4 espaces de couple créés');
-  ok(d[`couples/oldaghar-reaksa/months/${ym}`]?.[day]?.nights?.oldaghar?.hot === true, 'nuit chaude rangée dans l\'espace du couple');
-  ok(JSON.stringify(d['couples/oldaghar-reaksa/state/main'] || {}).includes('Une voyageuse'), 'amant PNJ rangé dans l\'espace du couple');
-  ok(!JSON.stringify(Object.entries(d).filter(([k]) => k.startsWith('shared/') || k.startsWith('days/') || k.startsWith('today/'))).match(/"hot"|Une voyageuse/),
-    'ni nuit chaude ni amant dans les données lues par tout le groupe');
+  ok(news.some(n => n.to === 'eden' && n.charId === 'buyan' && n.text.includes('Boroo') && n.text.includes(act)), 'activité commune : nouvelle pour Eden (Buyan)');
+  ok(!news.some(n => n.key?.startsWith('with:') && n.to !== 'eden'), 'aucune nouvelle d\'activité pour Nono (Tengis retiré) ni pour Idriss');
+  ok(JSON.stringify(d[`days/boroo/months/${ym}`]?.[day]?.withActs?.[act]) === '["buyan","reaksa"]', 'personnages de l\'activité enregistrés');
+  ok(old[0]?.includes(act + ' avec Buyan et Reaksa'), 'récap et image Discord : « avec Buyan et Reaksa »');
+  ok(Object.keys(d).filter(k => /^couples\/[^/]+$/.test(k)).length === 3, '3 espaces de couple créés (couples recopiés de Journée RP)');
 
   console.log('Événement du groupe (Nono)');
   await nono.evaluate(() => go('home')); await nono.waitForTimeout(200);
@@ -284,13 +268,6 @@ const ok = (cond, label) => { console.log((cond ? '  ok  ' : '  ÉCHEC ') + labe
   ok((await n4.textContent('.recap')).includes('Changé dans Journée RP') && (await n4.textContent('.recap')).includes('Travail du bois avec Buyan') && (await n4.textContent('.recap')).includes('Chasse en groupe'), 'après une nouvelle recopie : fiche à jour, compléments gardés');
   await n4.close();
 
-  console.log('Joueur (Idriss)');
-  const idr = await open('idriss', 'idriss@test.fr');
-  ok((await idr.textContent('.news')).match(/Reaksa|Oldaghar/) !== null, 'Idriss voit la nouvelle de la nuit');
-  await idr.evaluate(() => go('reaksa')); await idr.waitForTimeout(200);
-  ok((await idr.textContent('#view')).includes('Nuit chaude'), 'Reaksa : nuit chaude reportée depuis la fiche d\'Oldaghar');
-  ok(await idr.locator('text=Monsieur se protège').count() === 0, 'Reaksa : pas de case « Monsieur se protège » (fiche féminine)');
-
   console.log('Joueuse (Jynette) : couple recopié de Journée RP');
   const jy = await open('jynette', 'jynette@test.fr');
   ok((await jy.textContent('.session')).includes('Jynette'), 'session : Jynette');
@@ -318,20 +295,20 @@ const ok = (cond, label) => { console.log((cond ? '  ok  ' : '  ÉCHEC ') + labe
   ok(await ed.locator(`.cal-day.sel[data-ev-day="${later}"]`).count() === 1 && (await ed.textContent('.day-detail')).includes('Naadam'), 'lien de la notification (?evenements=) : calendrier sur le bon jour');
   await ed.evaluate(() => go('home')); await ed.waitForTimeout(150);
   await ed.evaluate(() => go('buyan')); await ed.waitForTimeout(200);
-  ok((await ed.textContent('.shared-acts')).includes('Oldaghar a noté « Chasse au faucon » avec Buyan et Shuna'), 'fiche de Buyan : activité commune notée par Oldaghar');
+  ok((await ed.textContent('.shared-acts')).includes('Boroo a noté « Chasse au faucon » avec Buyan et Reaksa'), 'fiche de Buyan : activité commune notée par Boroo');
   ok((await ed.textContent('.shared-acts')).includes('Tamachag a noté « Travail du bois » avec Buyan'), 'et celle notée par Tamachag (fiche recopiée)');
-  await ed.click('[data-join-from="oldaghar"]'); await ed.waitForTimeout(200);
+  await ed.click('[data-join-from="boroo"]'); await ed.waitForTimeout(200);
   ok(await ed.evaluate(() => state.buyan.checked.has('Chasse au faucon') && state.buyan.specials.includes('Chasse au faucon')), 'activité ajoutée à la fiche de Buyan (activité spéciale du jour)');
-  ok(await ed.evaluate(() => JSON.stringify(state.buyan.withActs['Chasse au faucon'])) === '["oldaghar","shuna"]', 'avec Oldaghar et Shuna');
-  ok(await ed.evaluate(() => NEWS.filter(n => n.key.startsWith('with:') && n.to === 'sheyla').length) === 1, 'une seule nouvelle pour Sheyla (Oldaghar et Shuna sont à elle)');
+  ok(await ed.evaluate(() => JSON.stringify(state.buyan.withActs['Chasse au faucon'])) === '["boroo","reaksa"]', 'avec Boroo et Reaksa');
+  ok(await ed.evaluate(() => NEWS.filter(n => n.key.startsWith('with:') && n.to === 'idriss').length) === 1, 'une seule nouvelle pour Idriss (Boroo et Reaksa sont à lui)');
   ok((await ed.textContent('.shared-acts')).includes('Sur la fiche'), 'repère « Sur la fiche » à la place du bouton');
   await ed.evaluate(() => go('buyan')); await ed.waitForTimeout(200);
   ok(await ed.locator('#mood-buyan').count() === 1, 'Eden remplit Buyan');
   ok(await ed.locator('#hot-buyan').count() === 0, 'pas de nuit chaude pour Buyan');
   ok((await ed.textContent('#view h1')).includes('Buyan'), 'nom de Buyan');
-  await ed.evaluate(() => go('oldaghar')); await ed.waitForTimeout(200);
-  ok((await ed.textContent('#view')).includes('lecture seule'), 'Eden lit Oldaghar en lecture seule');
-  ok(!(await ed.textContent('#view')).includes('Nuit chaude'), 'Eden ne voit pas la nuit chaude d\'Oldaghar');
+  await ed.evaluate(() => go('boroo')); await ed.waitForTimeout(200);
+  ok((await ed.textContent('#view')).includes('lecture seule'), 'Eden lit Boroo en lecture seule');
+  ok(!(await ed.textContent('#view')).includes('Nuit chaude'), 'pas de nuit chaude sur la fiche de Boroo');
   await ed.evaluate(() => go('taiga')); await ed.waitForTimeout(200);
   ok(!(await ed.textContent('#view')).includes('Nuit chaude'), 'Eden ne voit pas la nuit chaude de Taiga');
   await ed.evaluate(() => go('tamachag')); await ed.waitForTimeout(200);
@@ -359,7 +336,7 @@ const ok = (cond, label) => { console.log((cond ? '  ok  ' : '  ÉCHEC ') + labe
   const reqs = Object.entries(d).filter(([k]) => k.startsWith('requests/'));
   ok(reqs.length === 1 && reqs[0][1].from === 'eden' && reqs[0][1].charId === 'buyan' && reqs[0][1].status === 'pending', 'demande enregistrée');
   ok(Object.values(d).some(v => v?.key?.startsWith?.('req:') && v.to === 'nono' && v.text === 'Demande de matériel de Buyan : Nouvelle yourte' && v.charId === 'khokkutsai'), 'nouvelle (et notification) pour Nono, avec l\'origine');
-  ok(await sh.evaluate(() => Object.keys(REQUESTS).length) === 0, 'Sheyla ne voit pas les demandes des autres');
+  ok(await sh.evaluate(() => Object.keys(REQUESTS).length) === 0, 'Idriss ne voit pas les demandes des autres');
   const lg = await open('nono', 'nono@test.fr');
   await lg.evaluate(() => go('khokkutsai')); await lg.waitForTimeout(300);
   ok((await lg.textContent('.logi')).includes('Demandes en cours') && (await lg.textContent('.logi .req.pending')).includes('Pour Buyan'), 'Nono voit la demande en cours, avec son origine');

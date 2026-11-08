@@ -10,7 +10,7 @@ const COUPLES = [['tamachag', 'taiga'], ['khokkutsai', 'inkaraa'], ['ankhbayar',
   .map(p => { const chars = [...p].sort(); return { id: chars.join('-'), chars }; });
 const coupleOf = id => COUPLES.find(k => k.chars.includes(id)) || null;
 // Tous les personnages d'Iloh Khurdan : un identifiant de Journée RP absent d'ici devient un nom (PNJ).
-const ILOH = [...MIRROR, 'shiruun', 'djokhodthai', 'buyan', 'cheyenne', 'taivan', 'altan', 'henbilee', 'shuna', 'oldaghar', 'nehsundheigei', 'boroo', 'reaksa', 'tsewang'];
+const ILOH = [...MIRROR, 'shiruun', 'djokhodthai', 'buyan', 'cheyenne', 'taivan', 'altan', 'henbilee', 'boroo', 'reaksa', 'tsewang'];
 const JRP_NAMES = { eoor: 'Eoor', unegen: 'Unegen', yasmeen: 'Yasmeen', hokkyoku: 'Hokkyoku', viggo: 'Viggo', khopses: 'Khopses', echo: 'Echo', prism: 'Prism' };
 const who = x => typeof x !== 'string' || ILOH.includes(x) ? x : (JRP_NAMES[x] || x);
 
