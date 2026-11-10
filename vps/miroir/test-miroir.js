@@ -8,7 +8,7 @@ const ok = (c, l) => { console.log((c ? '  ok  ' : '  ÉCHEC ') + l); if (!c) fa
 // ---------- Firestore simulé ----------
 const DEL = Symbol('delete');
 class FieldPath { constructor(...s) { this.s = s; } }
-const FieldValue = { delete: () => DEL };
+const FieldValue = { delete: () => DEL, serverTimestamp: () => 'TS' };
 const stores = {}, listeners = {};
 const getAt = (o, segs) => segs.reduce((a, k) => a == null ? undefined : a[k], o);
 function fakeDb(name) {
@@ -29,6 +29,7 @@ function fakeDb(name) {
       } else st[p] = JSON.parse(JSON.stringify(data));
       fire(p);
     },
+    create: async data => { if (p in st) { const e = new Error('6 ALREADY_EXISTS: document exists'); e.code = 6; throw e; } st[p] = JSON.parse(JSON.stringify(data)); fire(p); },
     delete: async () => { delete st[p]; fire(p); },
     onSnapshot: cb => { const l = { path: p, cb }; ls.push(l); setTimeout(() => cb(snap(p)), 0); return () => { ls.splice(ls.indexOf(l), 1); }; },
   });
@@ -52,7 +53,8 @@ const rp = new Date(Date.now() - 5 * 3600e3), ym = `${rp.getFullYear()}-${pad(rp
 const iso = `${ym}-${pad(rp.getDate())}`;
 const S = stores['journee-rp'] = {
   [`days/tamachag/months/2026-03`]: { '4': { mood: 'Ancien', checked: { $set: ['Travail du bois', 'Sexe avec Taiga'] }, night: { hot: true, with: 'taiga' }, intime: 'secret' } },
-  [`days/tamachag/months/${ym}`]: { [day]: { mood: 'Aujourd\'hui', done: true, night: { hot: true, with: 'taiga' } } },
+  [`days/tamachag/months/${ym}`]: { [day]: { mood: 'Aujourd\'hui', done: true, night: { hot: true, with: 'taiga' },
+    checked: { $set: ['Course de chevaux', 'Sexe avec Taiga'] }, withActs: { 'Course de chevaux': ['shiruun', 'taiga', 'buyan', 'eoor'], 'Sexe avec Taiga': ['taiga'] } } },
   [`days/tengis/months/2026-03`]: { '4': { mood: 'Seul', night: { hot: true, with: 'Une passante' } } },
   [`days/eoor/months/2026-03`]: { '4': { mood: 'Hors groupe' } },
   [`shared/day-${iso}`]: { nights: { tamachag: { hot: true, with: 'taiga' }, taiga: { hot: true, with: 'tamachag' }, eoor: { hot: true, with: 'yasmeen' } },
@@ -81,7 +83,14 @@ process.exit = code => {
   const D = stores['iloh-khurdan'];
   console.log('Recopie complète (code ' + code + ')');
   ok(JSON.stringify(Object.fromEntries(Object.entries(S).filter(([k]) => !k.startsWith('iloh/')))) === before, 'Journée RP : journées, fiches et réglages jamais modifiés');
-  ok(Object.keys(S).filter(k => k.startsWith('iloh/')).join() === `iloh/tamachag/months/${ym}`, 'retour : seulement iloh/…, seulement pour les personnages recopiés');
+  ok(Object.keys(S).filter(k => k.startsWith('iloh/')).sort().join() === `iloh/_noms/months/liste,iloh/tamachag/months/${ym}`, 'retour : seulement iloh/…, seulement pour les personnages recopiés (et la liste des noms)');
+  const noms = S['iloh/_noms/months/liste']?.chars || {};
+  ok(noms.shiruun?.name === 'Shiruun' && noms.buyan?.name === 'Buyan' && !noms.tamachag && !noms.taiga && Object.keys(noms).length === 10, 'noms des 10 personnages propres à Iloh déposés dans Journée RP');
+  const N = Object.entries(D).filter(([k]) => k.startsWith('news/'));
+  ok(N.length === 2 && D[`news/with:${rp.getFullYear()}-${rp.getMonth() + 1}-${rp.getDate()}:tamachag:shiruun:Course de chevaux`]?.to === 'jynette', 'nouvelle dans Iloh pour Shiruun (joueuse : Jynette)');
+  ok(N.some(([, n]) => n.charId === 'buyan' && n.to === 'eden' && n.text === 'Tamachag a noté « Course de chevaux » avec Buyan.'), 'nouvelle pour Buyan : « Tamachag a noté « Course de chevaux » avec Buyan. »');
+  ok(!N.some(([, n]) => n.charId === 'taiga' || n.charId === 'eoor' || /Sexe/.test(n.text)), 'pas de nouvelle pour Taiga (déjà prévenue dans Journée RP), Eoor ni l\'intime');
+  ok(JSON.stringify(D[`days/tamachag/months/${ym}`]?.[day]?.withActs) === '{"Course de chevaux":["shiruun","taiga","buyan"]}', 'activité commune recopiée sans Eoor');
   ok(JSON.stringify(S[`iloh/tamachag/months/${ym}`]) === JSON.stringify({ [day]: { added: ['Chasse en groupe'], with: { 'Travail du bois': ['Buyan', 'taiga'] } } }), 'retour : activités communes, sans rien d\'intime');
   ok(D['days/tamachag/months/2026-03']?.['4']?.mood === 'Ancien', 'journée passée recopiée');
   ok(!JSON.stringify(D['days/tamachag/months/2026-03']).match(/intime|night|Sexe avec/), 'journée recopiée sans rien d\'intime');
@@ -98,7 +107,7 @@ process.exit = code => {
   ok(!JSON.stringify(D['shared/global'] || {}).match(/lovers|"protect"/), 'ni amants ni protection dans les réglages partagés');
   ok(D['characters/tamachag']?.addedActs?.length === 1 && !('player' in D['characters/tamachag']), 'fiche recopiée, sans activité intime ni joueur de Journée RP');
   ok(D['today/tamachag']?.activities?.length === 1, 'encart public sans activité intime');
-  ok(Object.keys(D).every(k => /^(days|couples|shared|characters|today|extras)\//.test(k)), 'écriture seulement dans les collections prévues');
+  ok(Object.keys(D).every(k => /^(days|couples|shared|characters|today|extras|news)\//.test(k)), 'écriture seulement dans les collections prévues');
   const dv = JSON.stringify(D['days/davaajav/months/2026-03'] || {}) + JSON.stringify(D[`days/davaajav/months/${ym}`] || {});
   ok(D['days/davaajav/months/2026-03']?.['5']?.mood === 'Nuit agitée' && !/"night"|intime|Sexe avec|Nuit chaude|Sous la yourte/.test(dv), 'Davaajav : fiche recopiée sans sa nuit chaude avec Taiga');
   ok(!Object.keys(D).some(k => k.startsWith('couples/') && k.includes('davaajav')), 'Davaajav (hors couple) : aucun espace de couple créé');
@@ -123,6 +132,8 @@ async function live(D) {
   await src._doc(`days/tamachag/months/${ym}`).set({ [day]: { mood: 'Changé', done: true, intime: 'non' } });
   await new Promise(r => setTimeout(r, 50));
   ok(D[`days/tamachag/months/${ym}`]?.[day]?.mood === 'Changé' && !D[`days/tamachag/months/${ym}`][day].intime, 'modification de la journée recopiée aussitôt');
+  ok(!Object.keys(D).some(k => k.startsWith('news/')), 'activité commune retirée : nouvelles retirées dans Iloh');
+  D['news/with:2026-1-1:x:y:z'] = { from: 'jynette', key: 'with:2026-1-1:x:y:z' };
   ok(D[`couples/taiga-tamachag/months/${ym}`]?.[day]?.nights?.tamachag?.hot === true, 'nuit du jour gardée (shared/day fait foi pour aujourd\'hui)');
   const g = JSON.parse(JSON.stringify(S['shared/global'])); g.alerts.ankhbayar = null;
   await src._doc('shared/global').set(g);
@@ -150,6 +161,7 @@ async function live(D) {
   await D_doc(`extras/tamachag/months/${ym}`).set({ [day]: { withActs: { 'Pêche': ['shiruun'] } } });
   await new Promise(r => setTimeout(r, 100));
   ok(JSON.stringify(S[`iloh/tamachag/months/${ym}`]?.[day]?.with) === '{"Pêche":["Shiruun"]}', 'nouveau complément dans Iloh : aussitôt dans Journée RP');
+  ok(D['news/with:2026-1-1:x:y:z']?.from === 'jynette', 'nouvelles écrites par les joueurs d\'Iloh jamais touchées');
   console.log(fails ? `${fails} échec(s)` : 'Tout est bon.');
   process.exit(fails ? 1 : 0);
 }

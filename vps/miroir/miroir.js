@@ -6,7 +6,8 @@
 // Clés de service (jamais dans le dépôt) : variables d'environnement SRC_KEY (projet journal-rp)
 // et DST_KEY (projet khurdans-afc03), chemins de fichiers JSON dans ~/secrets (droits 600).
 // Dans Journée RP, le service n'écrit QUE dans la collection « iloh » (iloh/{personnage}/months/{AAAA-MM}) :
-// les activités communes acceptées dans Iloh pour les 10 personnages recopiés (retour demandé, voir copyBack).
+// les activités communes acceptées dans Iloh pour les 10 personnages recopiés (retour demandé, voir copyBack),
+// et la liste des noms des personnages propres à Iloh (iloh/_noms/months/liste, voir copyNames).
 // Il ne touche jamais aux journées, fiches ou réglages de Journée RP.
 'use strict';
 process.env.TZ = 'Europe/Paris';
@@ -65,7 +66,37 @@ async function copyMonth(id, ym, data) {
   const today = rpDate(), todayKey = ym === ymOf(today) ? String(today.getDate()) : null;
   if (k) n += await setFields(dst.doc(`couples/${k.id}/months/${ym}`), days.filter(d => d !== todayKey).map(d => [[d, 'nights', id], T.hotNight(data[d]?.night)]));
   if (n) log(`journées ${id} ${ym} : ${n} champ(s) recopié(s)`);
+  await sendWithNews(id, ym, data);
   if (id in lastToday) await copyToday(id, lastToday[id]);   // activités masquées aujourd'hui : l'encart suit
+}
+
+// ---------- Activités communes avec un personnage propre à Iloh : nouvelle dans Iloh ----------
+// Seulement la journée RP en cours et la veille (rien pour l'historique). Une activité retirée : la nouvelle part aussi.
+const sentNews = {};   // 'id:AAAA-MM:J' → clés envoyées
+async function sendWithNews(id, ym, data) {
+  const today = rpDate(), yest = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1);
+  for (const d of [today, yest].filter(x => ymOf(x) === ym)) {
+    const k = String(d.getDate()), slot = `${id}:${ym}:${k}`, prev = sentNews[slot] || new Set();
+    const want = T.withNews(id, d, T.publicEntry(data?.[k], always[id]));
+    for (const [key, n] of Object.entries(want)) {
+      if (prev.has(key)) continue;
+      try { await dst.doc(`news/${key.replace(/\//g, '_')}`).create({ ...n, at: Date.now(), createdAt: FieldValue.serverTimestamp() }); log(`nouvelle pour ${n.to} : ${n.text}`); }
+      catch (e) { if (e.code !== 6 && !/exist/i.test(e.message || '')) throw e; }   // déjà envoyée
+    }
+    for (const key of prev) if (!(key in want)) {
+      const ref = dst.doc(`news/${key.replace(/\//g, '_')}`), s = await ref.get();
+      if (s.exists && s.data()?.from === 'miroir') { await ref.delete(); log(`nouvelle retirée : ${key}`); }
+    }
+    sentNews[slot] = new Set(Object.keys(want));
+  }
+}
+
+// ---------- Noms des personnages propres à Iloh, déposés dans Journée RP (iloh/_noms/months/liste) ----------
+async function copyNames() {
+  const v = T.ilohNames();
+  if (!changed('noms', v)) return;
+  await src.doc('iloh/_noms/months/liste').set(v);
+  log(`noms des personnages d'Iloh déposés dans Journée RP (${Object.keys(v.chars).length})`);
 }
 
 // ---------- Journée en cours : shared/day-AAAA-MM-JJ ----------
@@ -151,6 +182,7 @@ function watch() {
   }
   subs.push(src.doc(`shared/day-${iso}`).onSnapshot(guard('journée')(s => copyDay(iso, s.data()))));
   subs.push(src.doc('shared/global').onSnapshot(guard('réglages')(s => copyGlobal(s.data()))));
+  copyNames().catch(e => console.error('noms', e.message || e));
   log(`écoute de Journée RP pour la journée du ${iso} (${subs.length} documents)`);
 }
 
@@ -172,6 +204,7 @@ async function copyAll() {
     for (const ref of await dst.collection(`extras/${id}/months`).listDocuments()) await copyBack(id, ref.id, (await ref.get()).data());
   }
   await copyGlobal((await src.doc('shared/global').get()).data());
+  await copyNames();
   const iso = isoOf(rpDate());
   await copyDay(iso, (await src.doc(`shared/day-${iso}`).get()).data());
 }

@@ -1,0 +1,146 @@
+{
+ "chars": {
+  "tamachag": {
+   "name": "Tamachag",
+   "gender": "m",
+   "player": "nono"
+  },
+  "khokkutsai": {
+   "name": "Khokkutsai",
+   "gender": "m",
+   "player": "nono"
+  },
+  "ankhbayar": {
+   "name": "Ankhbayar",
+   "gender": "m",
+   "player": "nono"
+  },
+  "tengis": {
+   "name": "Tengis",
+   "gender": "m",
+   "player": "nono"
+  },
+  "taiga": {
+   "name": "Taiga",
+   "gender": "f",
+   "player": "jynette"
+  },
+  "inkaraa": {
+   "name": "Inkaraa",
+   "gender": "f",
+   "player": "jynette"
+  },
+  "khubunjin": {
+   "name": "Khubunjin",
+   "gender": "f",
+   "player": "jynette"
+  },
+  "ogloo": {
+   "name": "Ogloo",
+   "gender": "f",
+   "player": "jynette"
+  },
+  "javkhaanhun": {
+   "name": "Javkhaanhun",
+   "gender": "f",
+   "player": "jynette"
+  },
+  "shiruun": {
+   "name": "Shiruun",
+   "gender": "m",
+   "player": "jynette"
+  },
+  "djokhodthai": {
+   "name": "Djokhodthai",
+   "gender": "m",
+   "player": "jynette"
+  },
+  "buyan": {
+   "name": "Buyan",
+   "gender": "f",
+   "player": "eden"
+  },
+  "cheyenne": {
+   "name": "Cheyenne",
+   "gender": "f",
+   "player": "eden"
+  },
+  "taivan": {
+   "name": "Taivan",
+   "gender": "m",
+   "player": "eden"
+  },
+  "altan": {
+   "name": "Altan",
+   "gender": "m",
+   "player": "lou"
+  },
+  "henbilee": {
+   "name": "Henbilee",
+   "gender": "m",
+   "player": "lou"
+  },
+  "boroo": {
+   "name": "Boroo",
+   "gender": "f",
+   "player": "idriss"
+  },
+  "reaksa": {
+   "name": "Reaksa",
+   "gender": "f",
+   "player": "idriss"
+  },
+  "davaajav": {
+   "name": "Davaajav",
+   "gender": "m",
+   "player": "nono"
+  },
+  "tsewang": {
+   "name": "Tsewang",
+   "gender": "m",
+   "player": "jynette"
+  }
+ },
+ "birthdays": {
+  "tamachag": [
+   10,
+   16
+  ],
+  "khokkutsai": [
+   1,
+   27
+  ],
+  "ankhbayar": [
+   7,
+   22
+  ],
+  "tengis": [
+   5,
+   4
+  ],
+  "taiga": [
+   3,
+   1
+  ],
+  "inkaraa": [
+   3,
+   26
+  ],
+  "ogloo": [
+   6,
+   27
+  ],
+  "javkhaanhun": [
+   11,
+   1
+  ],
+  "davaajav": [
+   1,
+   8
+  ],
+  "shiruun": [
+   7,
+   16
+  ]
+ }
+}

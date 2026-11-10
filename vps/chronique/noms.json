@@ -2,83 +2,103 @@
  "chars": {
   "tamachag": {
    "name": "Tamachag",
-   "gender": "m"
+   "gender": "m",
+   "player": "nono"
   },
   "khokkutsai": {
    "name": "Khokkutsai",
-   "gender": "m"
+   "gender": "m",
+   "player": "nono"
   },
   "ankhbayar": {
    "name": "Ankhbayar",
-   "gender": "m"
+   "gender": "m",
+   "player": "nono"
   },
   "tengis": {
    "name": "Tengis",
-   "gender": "m"
+   "gender": "m",
+   "player": "nono"
   },
   "taiga": {
    "name": "Taiga",
-   "gender": "f"
+   "gender": "f",
+   "player": "jynette"
   },
   "inkaraa": {
    "name": "Inkaraa",
-   "gender": "f"
+   "gender": "f",
+   "player": "jynette"
   },
   "khubunjin": {
    "name": "Khubunjin",
-   "gender": "f"
+   "gender": "f",
+   "player": "jynette"
   },
   "ogloo": {
    "name": "Ogloo",
-   "gender": "f"
+   "gender": "f",
+   "player": "jynette"
   },
   "javkhaanhun": {
    "name": "Javkhaanhun",
-   "gender": "f"
+   "gender": "f",
+   "player": "jynette"
   },
   "shiruun": {
    "name": "Shiruun",
-   "gender": "m"
+   "gender": "m",
+   "player": "jynette"
   },
   "djokhodthai": {
    "name": "Djokhodthai",
-   "gender": "m"
+   "gender": "m",
+   "player": "jynette"
   },
   "buyan": {
    "name": "Buyan",
-   "gender": "f"
+   "gender": "f",
+   "player": "eden"
   },
   "cheyenne": {
    "name": "Cheyenne",
-   "gender": "f"
+   "gender": "f",
+   "player": "eden"
   },
   "taivan": {
    "name": "Taivan",
-   "gender": "m"
+   "gender": "m",
+   "player": "eden"
   },
   "altan": {
    "name": "Altan",
-   "gender": "m"
+   "gender": "m",
+   "player": "lou"
   },
   "henbilee": {
    "name": "Henbilee",
-   "gender": "m"
+   "gender": "m",
+   "player": "lou"
   },
   "boroo": {
    "name": "Boroo",
-   "gender": "f"
+   "gender": "f",
+   "player": "idriss"
   },
   "reaksa": {
    "name": "Reaksa",
-   "gender": "f"
+   "gender": "f",
+   "player": "idriss"
   },
   "davaajav": {
    "name": "Davaajav",
-   "gender": "m"
+   "gender": "m",
+   "player": "nono"
   },
   "tsewang": {
    "name": "Tsewang",
-   "gender": "m"
+   "gender": "m",
+   "player": "jynette"
   }
  },
  "birthdays": {

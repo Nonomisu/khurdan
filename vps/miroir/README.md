@@ -42,4 +42,14 @@ Garde-fou : le service s'arrête si les clés ne sont pas celles de `journal-rp`
 Le service recopie aussi, dans l'autre sens, **les activités communes acceptées dans Iloh** pour les 10 personnages recopiés
 (compléments `extras/{id}/months/{AAAA-MM}` → Journée RP `iloh/{id}/months/{AAAA-MM}`) : activités ajoutées dans Iloh
 et personnages présents sur une activité, jamais rien d'intime. Journée RP les affiche avec la fiche, en lecture seule.
-C'est la seule écriture du service dans Journée RP : journées, fiches et réglages n'y sont jamais modifiés.
+Il y dépose aussi la liste des personnages propres à Iloh (`iloh/_noms/months/liste` : noms et genres, tirés de `noms.json`),
+pour que les Khurdans puissent les noter sur une activité commune dans Journée RP.
+Ce sont les seules écritures du service dans Journée RP : journées, fiches et réglages n'y sont jamais modifiés.
+
+## Nouvelles pour les personnages propres à Iloh
+
+Quand un Khurdan note dans Journée RP une activité commune avec un personnage propre à Iloh (Shiruun, Buyan…),
+et que sa journée est validée, le service crée dans Iloh la nouvelle verte pour le joueur de ce personnage
+(« Tamachag a noté « Chasse » avec Shiruun. »), envoyée ensuite en notification par `iloh-notifs`.
+Seulement pour la journée en cours et la veille ; si l'activité est retirée, la nouvelle l'est aussi.
+`noms.json` (noms, genres, joueurs) est recréé par `dev/build.py` à chaque construction de l'appli.

@@ -198,12 +198,17 @@ if TEST:
     page_out = page_out.replace('<link rel="manifest" href="manifest.webmanifest">\n', '')
     assert 'RP_TEST_COPY' in page_out and 'manifest' not in page_out
 (OUT / 'index.html').write_text(page_out)
-# Noms, genres et anniversaires des personnages pour la chronique de la semaine (service du VPS, vps/chronique).
+# Noms, genres, joueurs et anniversaires des personnages pour les services du VPS (vps/chronique, vps/miroir).
 if not TEST:
     import json, re
     src_txt = (ROOT / 'dev' / 'apercu.html').read_text()
     chars = {m[0]: {'name': m[1], 'gender': m[2]} for m in re.findall(r"\{ id:'([a-z]+)', name:'([^']+)'[^\n]*?gender:'([mf])'", src_txt)}
     bd = re.search(r"const BIRTHDAYS = \{(.*?)\};", src_txt, re.S).group(1)
     births = {k: [int(a), int(b)] for k, a, b in re.findall(r"([a-z]+):\[(\d+),(\d+)\]", bd)}
-    (ROOT / 'vps' / 'chronique' / 'noms.json').write_text(json.dumps({'chars': chars, 'birthdays': births}, ensure_ascii=False, indent=1) + '\n')
+    for cid, pl in re.findall(r"\{ id:'([a-z]+)'[^\n]*?player:'([a-z0-9]+)'", src_txt):
+        if cid in chars: chars[cid]['player'] = pl
+    noms = json.dumps({'chars': chars, 'birthdays': births}, ensure_ascii=False, indent=1) + '\n'
+    (ROOT / 'vps' / 'chronique' / 'noms.json').write_text(noms)
+    # Même liste pour le service de recopie (vps/miroir) : personnages propres à Iloh et leurs joueurs.
+    (ROOT / 'vps' / 'miroir' / 'noms.json').write_text(noms)
 print('ok', len(js.splitlines()), 'lignes JS')

@@ -10,7 +10,16 @@ const COUPLES = [['tamachag', 'taiga'], ['khokkutsai', 'inkaraa'], ['ankhbayar',
   .map(p => { const chars = [...p].sort(); return { id: chars.join('-'), chars }; });
 const coupleOf = id => COUPLES.find(k => k.chars.includes(id)) || null;
 // Tous les personnages d'Iloh Khurdan : un identifiant de Journée RP absent d'ici devient un nom (PNJ).
-const ILOH = [...MIRROR, 'shiruun', 'djokhodthai', 'buyan', 'cheyenne', 'taivan', 'altan', 'henbilee', 'boroo', 'reaksa', 'tsewang'];
+// Liste lue dans noms.json (créé par dev/build.py depuis l'appli) ; celle-ci sert si le fichier manque.
+let NOMS = {};
+try { NOMS = require('./noms.json').chars || {}; } catch { /* fichier absent : liste par défaut */ }
+const ILOH = Object.keys(NOMS).length ? [...new Set([...MIRROR, ...Object.keys(NOMS)])]
+  : [...MIRROR, 'shiruun', 'djokhodthai', 'buyan', 'cheyenne', 'taivan', 'altan', 'henbilee', 'boroo', 'reaksa', 'tsewang'];
+// Personnages propres à Iloh (sans fiche dans Journée RP) : leurs noms sont déposés dans Journée RP (iloh/_noms/months/liste)
+// pour que les Khurdans puissent les noter sur une activité commune.
+const ILOH_ONLY = ILOH.filter(x => !MIRROR.includes(x));
+const nameOf = x => NOMS[x]?.name || (x[0].toUpperCase() + x.slice(1));
+const ilohNames = () => ({ chars: Object.fromEntries(ILOH_ONLY.map(x => [x, { name: nameOf(x), gender: NOMS[x]?.gender || null }])) });
 const JRP_NAMES = { eoor: 'Eoor', unegen: 'Unegen', yasmeen: 'Yasmeen', hokkyoku: 'Hokkyoku', viggo: 'Viggo', khopses: 'Khopses', echo: 'Echo', prism: 'Prism' };
 const who = x => typeof x !== 'string' || ILOH.includes(x) ? x : (JRP_NAMES[x] || x);
 
@@ -107,4 +116,24 @@ function ilohBack(x) {
 }
 const ilohBackMonth = data => { const out = {}; for (const [d, x] of Object.entries(data || {})) { const b = ilohBack(x); if (b) out[d] = b; } return out; };
 
-module.exports = { MIRROR, COUPLES, ILOH, coupleOf, who, publicEntry, hotNight, lovers, protectFor, charDoc, todayDoc, isPrivateAct, hiddenOf, ilohBack, ilohBackMonth };
+// ---------- Nouvelles dans Iloh pour les personnages propres à Iloh, notés sur une activité commune dans Journée RP ----------
+// Leurs joueurs ne sont pas dans Journée RP : la nouvelle (verte) naît ici. Seulement une fois la journée validée
+// (le bouton « L'ajouter à la fiche » n'apparaît qu'à ce moment-là). pub : journée déjà filtrée par publicEntry.
+// Renvoie { clé: nouvelle } ; clé au format de l'appli Iloh (with:AAAA-M-J:de:pour:activité).
+function withNews(id, date, pub) {
+  const out = {};
+  if (!pub?.done || !pub.withActs) return out;
+  const from = NOMS[id]?.player || null, checked = new Set(setList(pub.checked) || []);
+  for (const [l, ids] of Object.entries(pub.withActs)) {
+    if (!checked.has(l) || isPrivateAct(l) || l === 'Voyage') continue;
+    for (const o of ids) {
+      const to = NOMS[o]?.player;
+      if (!ILOH_ONLY.includes(o) || !to || to === from) continue;
+      const key = `with:${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}:${id}:${o}:${l}`;
+      out[key] = { to, text: `${nameOf(id)} a noté « ${l} » avec ${nameOf(o)}.`, charId: o, key, read: false, src: id, from: 'miroir' };
+    }
+  }
+  return out;
+}
+
+module.exports = { MIRROR, ILOH_ONLY, ilohNames, withNews, COUPLES, ILOH, coupleOf, who, publicEntry, hotNight, lovers, protectFor, charDoc, todayDoc, isPrivateAct, hiddenOf, ilohBack, ilohBackMonth };
