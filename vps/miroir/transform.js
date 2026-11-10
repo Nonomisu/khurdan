@@ -26,7 +26,11 @@ const who = x => typeof x !== 'string' || ILOH.includes(x) ? x : (JRP_NAMES[x] |
 // Champs de la journée qui ne sont pas repris.
 const DROP_KEYS = ['intime', 'intimeWith', 'jais', 'set', 'setLate', 'lateAt', 'wait', 'door', 'callPartner', 'returnHour',
   'discordMsg', 'film', 'nefaste', 'night', 'hideIloh'];
-const isPrivateAct = a => typeof a === 'string' && /^Sexe avec /i.test(a);
+// Activités intimes : « Sexe avec … », « Plaisir en solo sur Moonstone » et celles marquées « intime » dans Journée RP
+// (shared/global → privActs, voir setPrivate) : jamais recopiées.
+const PRIV = new Set();
+const setPrivate = list => { PRIV.clear(); (setList(list) || []).forEach(a => typeof a === 'string' && PRIV.add(a)); };
+const isPrivateAct = a => typeof a === 'string' && (/^Sexe avec /i.test(a) || a === 'Plaisir en solo sur Moonstone' || PRIV.has(a));
 const clone = v => v === undefined ? undefined : JSON.parse(JSON.stringify(v));
 const setList = v => Array.isArray(v?.$set) ? v.$set : Array.isArray(v) ? v : null;
 // Activités masquées dans Iloh Khurdan depuis Journée RP : ce jour-là (entrée hideIloh) ou toujours (shared/global hideIloh).
@@ -136,4 +140,4 @@ function withNews(id, date, pub) {
   return out;
 }
 
-module.exports = { MIRROR, ILOH_ONLY, ilohNames, withNews, COUPLES, ILOH, coupleOf, who, publicEntry, hotNight, lovers, protectFor, charDoc, todayDoc, isPrivateAct, hiddenOf, ilohBack, ilohBackMonth };
+module.exports = { setPrivate, MIRROR, ILOH_ONLY, ilohNames, withNews, COUPLES, ILOH, coupleOf, who, publicEntry, hotNight, lovers, protectFor, charDoc, todayDoc, isPrivateAct, hiddenOf, ilohBack, ilohBackMonth };

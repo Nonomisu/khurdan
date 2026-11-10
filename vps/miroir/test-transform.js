@@ -48,5 +48,9 @@ ok(c.addedActs.length === 1 && !('Sexe avec Taiga' in c.actCat), 'fiche : activi
 ok(T.todayDoc({ mood: 'ok', activities: ['Pêche', 'Sexe avec Taiga'] }).activities.length === 1, 'encart public : activité intime retirée');
 ok(T.MIRROR.length === 10 && T.MIRROR.every(x => T.ILOH.includes(x)), '10 personnages recopiés, tous présents dans Iloh');
 
+T.setPrivate({ $set: ['Instant coquin'] });
+ok(T.isPrivateAct('Instant coquin') && T.isPrivateAct('Sexe avec Taiga') && T.isPrivateAct('Plaisir en solo sur Moonstone') && !T.isPrivateAct('Pêche'), 'activités intimes : prévues et marquées');
+ok(!JSON.stringify(T.publicEntry({ checked: { $set: ['Pêche', 'Instant coquin'] }, withActs: { 'Instant coquin': ['taiga'] } })).includes('coquin'), 'activité marquée intime retirée de la journée');
+T.setPrivate(null);
 console.log(fails ? `${fails} échec(s)` : 'Tout est bon.');
 process.exitCode = fails ? 1 : 0;

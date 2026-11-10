@@ -54,15 +54,16 @@ const iso = `${ym}-${pad(rp.getDate())}`;
 const S = stores['journee-rp'] = {
   [`days/tamachag/months/2026-03`]: { '4': { mood: 'Ancien', checked: { $set: ['Travail du bois', 'Sexe avec Taiga'] }, night: { hot: true, with: 'taiga' }, intime: 'secret' } },
   [`days/tamachag/months/${ym}`]: { [day]: { mood: 'Aujourd\'hui', done: true, night: { hot: true, with: 'taiga' },
-    checked: { $set: ['Course de chevaux', 'Sexe avec Taiga'] }, withActs: { 'Course de chevaux': ['shiruun', 'taiga', 'buyan', 'eoor'], 'Sexe avec Taiga': ['taiga'] } } },
+    checked: { $set: ['Course de chevaux', 'Sexe avec Taiga', 'Instant coquin'] }, specials: { $set: ['Instant coquin'] }, slots: { 'Instant coquin': ['soir'] },
+    withActs: { 'Course de chevaux': ['shiruun', 'taiga', 'buyan', 'eoor'], 'Sexe avec Taiga': ['taiga'], 'Instant coquin': ['buyan', 'taiga'] } } },
   [`days/tengis/months/2026-03`]: { '4': { mood: 'Seul', night: { hot: true, with: 'Une passante' } } },
   [`days/eoor/months/2026-03`]: { '4': { mood: 'Hors groupe' } },
   [`shared/day-${iso}`]: { nights: { tamachag: { hot: true, with: 'taiga' }, taiga: { hot: true, with: 'tamachag' }, eoor: { hot: true, with: 'yasmeen' } },
     protect: { tamachag: true }, shell: { taiga: true }, rp: { tamachag: 'eoor' }, calm: {} },
-  'shared/global': { lovers: { tamachag: ['ogloo', 'Une voyageuse'], viggo: ['Jais'] }, protect: { tamachag: true, viggo: false },
+  'shared/global': { privActs: { $set: ['Instant coquin'] }, lovers: { tamachag: ['ogloo', 'Une voyageuse'], viggo: ['Jais'] }, protect: { tamachag: true, viggo: false },
     alerts: { ankhbayar: 'En exil temporaire', khopses: 'Malade' }, milestones: { tamachag: [{ key: '2026-1-1', type: 'Mariage', with: 'taiga' }] } },
-  'characters/tamachag': { player: 'corentin', addedActs: ['Pêche', 'Sexe avec Taiga'] },
-  'today/tamachag': { mood: 'ok', activities: ['Pêche', 'Sexe avec Taiga'], place: 'Khurdan Iloh' },
+  'characters/tamachag': { player: 'corentin', addedActs: ['Pêche', 'Sexe avec Taiga', 'Instant coquin'] },
+  'today/tamachag': { mood: 'ok', activities: ['Pêche', 'Sexe avec Taiga', 'Instant coquin'], place: 'Khurdan Iloh' },
   // Nuit chaude de Davaajav (invité, hors couple) avec Taiga, passée et du jour
   [`days/davaajav/months/2026-03`]: { '5': { mood: 'Nuit agitée', done: true, checked: { $set: ['Travail du bois', 'Sexe avec Taiga'] }, slots: { 'Sexe avec Taiga': ['nuit'] },
     night: { hot: true, with: 'taiga' }, nightNotes: { 'Nuit chaude': 'Sous la yourte des invités' }, intime: 'détails', intimeWith: { $set: ['taiga'] } } },
@@ -91,6 +92,8 @@ process.exit = code => {
   ok(N.some(([, n]) => n.charId === 'buyan' && n.to === 'eden' && n.text === 'Tamachag a noté « Course de chevaux » avec Buyan.'), 'nouvelle pour Buyan : « Tamachag a noté « Course de chevaux » avec Buyan. »');
   ok(!N.some(([, n]) => n.charId === 'taiga' || n.charId === 'eoor' || /Sexe/.test(n.text)), 'pas de nouvelle pour Taiga (déjà prévenue dans Journée RP), Eoor ni l\'intime');
   ok(JSON.stringify(D[`days/tamachag/months/${ym}`]?.[day]?.withActs) === '{"Course de chevaux":["shiruun","taiga","buyan"]}', 'activité commune recopiée sans Eoor');
+  ok(!JSON.stringify(D).includes('Instant coquin'), 'activité marquée intime dans Journée RP : jamais recopiée (journée, fiche, encart, nouvelles)');
+  ok(!JSON.stringify(D['shared/global'] || {}).includes('privActs'), 'la liste des activités intimes n\'est pas recopiée');
   ok(JSON.stringify(S[`iloh/tamachag/months/${ym}`]) === JSON.stringify({ [day]: { added: ['Chasse en groupe'], with: { 'Travail du bois': ['Buyan', 'taiga'] } } }), 'retour : activités communes, sans rien d\'intime');
   ok(D['days/tamachag/months/2026-03']?.['4']?.mood === 'Ancien', 'journée passée recopiée');
   ok(!JSON.stringify(D['days/tamachag/months/2026-03']).match(/intime|night|Sexe avec/), 'journée recopiée sans rien d\'intime');

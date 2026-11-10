@@ -50,7 +50,8 @@ async function setFields(ref, fields) {
 
 // Activités toujours masquées dans Iloh (réglées dans Journée RP, shared/global → hideIloh), et dernières données lues
 // (pour refaire la recopie quand ce réglage change).
-let always = {};
+let always = {}, priv = null;
+const lastChar = {};
 const lastMonth = {}, lastToday = {};
 const todayEntry = id => { const t = rpDate(); return lastMonth[`${id}:${ymOf(t)}`]?.[String(t.getDate())] || null; };
 
@@ -121,9 +122,10 @@ async function copyDay(iso, d) {
 // ---------- Réglages durables : shared/global ----------
 async function copyGlobal(g) {
   let n = 0;
-  const nextAlways = g?.hideIloh || {};
-  if (J(nextAlways) !== J(always)) {
-    always = nextAlways;
+  const nextAlways = g?.hideIloh || {}, nextPriv = g?.privActs || null;
+  if (J(nextAlways) !== J(always) || J(nextPriv) !== J(priv)) {
+    always = nextAlways; priv = nextPriv; T.setPrivate(priv);
+    for (const [id, d] of Object.entries(lastChar)) await copyChar(id, d);
     // Réglage « toujours masquée » changé : on refait les journées déjà lues, puis tout l'historique.
     for (const key of Object.keys(lastMonth)) { const [id, ym] = key.split(':'); await copyMonth(id, ym, lastMonth[key]); }
     if (startedLive) copyHistory().catch(e => console.error('historique', e.message || e));
@@ -144,6 +146,7 @@ async function copyGlobal(g) {
 
 // ---------- Fiches et encarts publics ----------
 async function copyChar(id, d) {
+  lastChar[id] = d;
   const c = T.charDoc(d); if (!c) return;
   const n = await setFields(dst.doc(`characters/${id}`), Object.entries(c).map(([k, v]) => [[k], v]));
   if (n) log(`fiche ${id} : ${n} champ(s) recopié(s)`);
@@ -169,8 +172,11 @@ async function copyBack(id, ym, data) {
 // ---------- Écoute en direct ----------
 let subs = [], watchingIso = null;
 const guard = label => fn => async snap => { try { await fn(snap); } catch (e) { console.error(new Date().toLocaleString('fr-FR'), label, e.message || e); } };
-function watch() {
+async function watch() {
   subs.forEach(u => u()); subs = []; written.clear();
+  // D'abord les réglages (activités masquées ou intimes) : rien d'intime ne doit passer, même un instant, au démarrage.
+  const g0 = (await src.doc('shared/global').get()).data();
+  always = g0?.hideIloh || {}; priv = g0?.privActs || null; T.setPrivate(priv);
   const today = rpDate(), iso = isoOf(today);
   watchingIso = iso;
   const months = [ymOf(prevMonth(today)), ymOf(today)];   // le mois précédent aussi : la « nuit précédente » se corrige le lendemain
@@ -213,8 +219,9 @@ if (process.argv.includes('--tout')) {
   copyAll().then(() => { log('historique recopié'); process.exit(0); }, e => { console.error(e); process.exit(1); });
 } else {
   startedLive = true;
-  watch();
+  const start = () => watch().catch(e => { console.error('démarrage', e.message || e); setTimeout(start, 30e3); });
+  start();
   // Nouvelle journée RP (5 h) : on suit les nouveaux documents du jour (et du mois).
-  setInterval(() => { if (isoOf(rpDate()) !== watchingIso) watch(); }, 5 * 60e3);
+  setInterval(() => { if (isoOf(rpDate()) !== watchingIso) start(); }, 5 * 60e3);
   process.on('SIGINT', () => { subs.forEach(u => u()); process.exit(0); });
 }
