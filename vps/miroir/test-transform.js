@@ -27,6 +27,10 @@ const h = T.publicEntry({ checked: { $set: ['Travail du bois', 'Chasse solo', 'P
 ok(JSON.stringify(h.checked.$set) === '["Travail du bois"]', 'activités masquées (ce jour-là et toujours) retirées');
 ok(!('Chasse solo' in h.slots) && !('Pêche' in h.slots) && !('Pêche' in h.details), 'masquées aussi dans les périodes et précisions');
 ok(!('hideIloh' in h), 'le réglage « masquer » lui-même n\'est pas recopié');
+const w = T.publicEntry({ checked: { $set: ['Pêche', 'Sexe avec Taiga', 'Chasse solo'] }, hideIloh: { $set: ['Chasse solo'] },
+  withActs: { 'Pêche': ['taiga', 'eoor', 'buyan'], 'Sexe avec Taiga': ['taiga'], 'Chasse solo': ['tengis'], 'Ancienne': ['taiga'] } });
+ok(JSON.stringify(w.withActs) === '{"Pêche":["taiga","buyan"]}', 'activités communes de Journée RP : sans activité intime ni masquée, personnages d\'Iloh seulement');
+ok(!('withActs' in T.publicEntry({ checked: { $set: ['Pêche'] }, withActs: { 'Pêche': ['eoor'] } })), 'activité commune avec des personnages hors Iloh seulement : rien');
 ok(T.todayDoc({ activities: ['Pêche', 'Chasse solo', 'Travail du bois'] }, { hideIloh: { $set: ['Chasse solo'] } }, { $set: ['Pêche'] }).activities.join() === 'Travail du bois', 'encart public : activités masquées retirées');
 
 ok(JSON.stringify(T.hotNight({ hot: true, with: 'taiga' })) === '{"hot":true,"with":"taiga"}', 'nuit chaude avec la partenaire');

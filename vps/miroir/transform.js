@@ -37,6 +37,15 @@ function publicEntry(e, always) {
   if (o.slots) o.slots = filterKeys(o.slots, hid);
   if (o.details) o.details = filterKeys(o.details, hid);
   if (o.huntSet) o.huntSet = filterKeys(o.huntSet, hid);
+  // Activités communes notées dans Journée RP : seulement sur des activités recopiées, avec des personnages présents dans Iloh.
+  if (o.withActs) {
+    const kept = new Set(setList(o.checked) || []), w = {};
+    for (const [l, ids] of Object.entries(filterKeys(o.withActs, hid) || {})) {
+      const f = (Array.isArray(ids) ? ids : []).filter(x => ILOH.includes(x));
+      if (kept.has(l) && f.length) w[l] = f;
+    }
+    if (Object.keys(w).length) o.withActs = w; else delete o.withActs;
+  }
   if (o.nightNotes && typeof o.nightNotes === 'object') { delete o.nightNotes['Nuit chaude']; }
   if (o.rp) o.rp = who(o.rp);
   if (o.calmWith) o.calmWith = who(o.calmWith);
