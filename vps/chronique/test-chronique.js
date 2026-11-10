@@ -47,6 +47,10 @@ Object.assign(st, {
   await Ch.send(week, c);
   ok(posts.length === 1 && posts[0].url.startsWith('https://discord.test/hook') && posts[0].body.embeds[0].title === c.title, 'envoyée sur le salon Discord commun');
   ok(st['shared/chronique']?.week === '2026-S45' && writes.every(p => p === 'shared/chronique'), 'semaine notée ; aucune autre écriture');
+  const long = 'A cuisiner.. Beaucoup... Beaucoup trop. Et a porter de quoi manger ceux qui forme les protection magique.';
+  st['days/shiruun/months/2026-11']['4'] = { done: true, checked: { $set: [long] }, withActs: { [long]: ['buyan', 'tamachag'] } };
+  const c2 = Ch.compose(week, await Ch.gather(week));
+  ok(/• A cuisiner\.\. Beaucoup\.\.\. Beaucoup trop\. Et a porter de quoi…, mercredi 4/.test(c2.text), 'activité longue coupée proprement');
   console.log(fails ? `${fails} échec(s)` : 'Tout est bon.');
   process.exit(fails ? 1 : 0);
 })();

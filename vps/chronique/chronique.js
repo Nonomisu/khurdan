@@ -27,6 +27,8 @@ const nameOf = id => NOMS.chars[id]?.name || null;
 const and = a => a.length < 2 ? a.join('') : a.slice(0, -1).join(', ') + ' et ' + a[a.length - 1];
 const list = v => Array.isArray(v) ? v : Array.isArray(v?.$set) ? v.$set : [];
 const HUNT = ['Chasse solo', 'Chasse en groupe'];
+// Activités libres parfois longues : coupées à 60 caractères, au dernier mot entier.
+const short = t => { t = String(t).replace(/\s+/g, ' ').trim(); if (t.length <= 60) return t.replace(/[.\s]+$/, ''); const c = t.slice(0, 60); return c.slice(0, c.lastIndexOf(' ') > 30 ? c.lastIndexOf(' ') : 60).replace(/[.,;:\s]+$/, '') + '…'; };
 
 // Semaine RP en cours (la journée commence à 5 h) : du lundi au dimanche.
 function weekOf(now = new Date()) {
@@ -80,7 +82,7 @@ function compose(week, g) {
   if (duos.length) {
     out.push(`🤝 **Activités communes** : ${and(duos.slice(0, 4).map(([[a, b], n]) => `${nameOf(a)} et ${nameOf(b)} (${n} jour${n > 1 ? 's' : ''})`))}.`);
     const big = Object.values(groups).filter(x => x.who.size >= 3).sort((a, b) => b.who.size - a.who.size).slice(0, 3);
-    big.forEach(x => out.push(`   • ${x.l}, ${dayLabel(x.d)} : ${and([...x.who].map(nameOf))}`));
+    big.forEach(x => out.push(`   • ${short(x.l)}, ${dayLabel(x.d)} : ${and([...x.who].map(nameOf))}`));
   }
   // Chasse
   const hunts = {}; g.entries.forEach(x => { const n = HUNT.filter(h => x.checked.has(h)).length; if (n) hunts[x.id] = (hunts[x.id] || 0) + n; });
