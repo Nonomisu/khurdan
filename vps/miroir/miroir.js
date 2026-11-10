@@ -5,7 +5,9 @@
 //
 // Clés de service (jamais dans le dépôt) : variables d'environnement SRC_KEY (projet journal-rp)
 // et DST_KEY (projet khurdans-afc03), chemins de fichiers JSON dans ~/secrets (droits 600).
-// Le service ne fait que LIRE Journée RP : il n'y écrit jamais rien.
+// Dans Journée RP, le service n'écrit QUE dans la collection « iloh » (iloh/{personnage}/months/{AAAA-MM}) :
+// les activités communes acceptées dans Iloh pour les 10 personnages recopiés (retour demandé, voir copyBack).
+// Il ne touche jamais aux journées, fiches ou réglages de Journée RP.
 'use strict';
 process.env.TZ = 'Europe/Paris';
 const admin = require('firebase-admin');
@@ -123,6 +125,16 @@ async function copyToday(id, t) {
   log(`encart « Aujourd'hui » ${id} recopié`);
 }
 
+// ---------- Retour : activités communes acceptées dans Iloh → Journée RP (iloh/{id}/months/{AAAA-MM}) ----------
+async function copyBack(id, ym, data) {
+  if (!T.MIRROR.includes(id)) return;
+  const back = T.ilohBackMonth(data), ref = src.doc(`iloh/${id}/months/${ym}`);
+  if (!changed('back:' + ref.path, back)) return;
+  const n = Object.keys(back).length;
+  if (n) await ref.set(back); else if ((await ref.get()).exists) await ref.delete(); else return;
+  log(`retour vers Journée RP : ${id} ${ym} (${n} jour(s) avec des activités communes)`);
+}
+
 // ---------- Écoute en direct ----------
 let subs = [], watchingIso = null;
 const guard = label => fn => async snap => { try { await fn(snap); } catch (e) { console.error(new Date().toLocaleString('fr-FR'), label, e.message || e); } };
@@ -135,6 +147,7 @@ function watch() {
     for (const ym of months) subs.push(src.doc(`days/${id}/months/${ym}`).onSnapshot(guard(`days ${id} ${ym}`)(s => copyMonth(id, ym, s.data()))));
     subs.push(src.doc(`characters/${id}`).onSnapshot(guard(`fiche ${id}`)(s => copyChar(id, s.data()))));
     subs.push(src.doc(`today/${id}`).onSnapshot(guard(`today ${id}`)(s => copyToday(id, s.data() || null))));
+    for (const ym of months) subs.push(dst.doc(`extras/${id}/months/${ym}`).onSnapshot(guard(`retour ${id} ${ym}`)(s => copyBack(id, ym, s.data()))));
   }
   subs.push(src.doc(`shared/day-${iso}`).onSnapshot(guard('journée')(s => copyDay(iso, s.data()))));
   subs.push(src.doc('shared/global').onSnapshot(guard('réglages')(s => copyGlobal(s.data()))));
@@ -156,6 +169,7 @@ async function copyAll() {
     for (const ref of refs) await copyMonth(id, ref.id, (await ref.get()).data());
     await copyChar(id, (await src.doc(`characters/${id}`).get()).data());
     await copyToday(id, (await src.doc(`today/${id}`).get()).data() || null);
+    for (const ref of await dst.collection(`extras/${id}/months`).listDocuments()) await copyBack(id, ref.id, (await ref.get()).data());
   }
   await copyGlobal((await src.doc('shared/global').get()).data());
   const iso = isoOf(rpDate());

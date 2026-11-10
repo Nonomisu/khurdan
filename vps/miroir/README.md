@@ -36,3 +36,10 @@ pm2 logs iloh-miroir --lines 30
 ```
 
 Garde-fou : le service s'arrête si les clés ne sont pas celles de `journal-rp` (source) et `khurdans-afc03` (destination).
+
+## Retour vers Journée RP (activités communes)
+
+Le service recopie aussi, dans l'autre sens, **les activités communes acceptées dans Iloh** pour les 10 personnages recopiés
+(compléments `extras/{id}/months/{AAAA-MM}` → Journée RP `iloh/{id}/months/{AAAA-MM}`) : activités ajoutées dans Iloh
+et personnages présents sur une activité, jamais rien d'intime. Journée RP les affiche avec la fiche, en lecture seule.
+C'est la seule écriture du service dans Journée RP : journées, fiches et réglages n'y sont jamais modifiés.

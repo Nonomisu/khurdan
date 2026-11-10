@@ -68,7 +68,10 @@ const S = stores['journee-rp'] = {
   [`days/davaajav/months/${ym}`]: { [day]: { mood: 'Invité comblé', done: true, checked: { $set: ['Sexe avec Taiga'] }, night: { hot: true, with: 'taiga' } } },
 };
 S[`shared/day-${iso}`].nights.davaajav = { hot: true, with: 'taiga' };
-const before = JSON.stringify(S);
+// Compléments acceptés dans Iloh (écrits par l'appli Iloh)
+stores['iloh-khurdan'] = { [`extras/tamachag/months/${ym}`]: { [day]: { added: ['Chasse en groupe', 'Sexe avec Taiga'], withActs: { 'Travail du bois': ['buyan', 'taiga'], 'Sexe avec Taiga': ['taiga'] } } },
+  'extras/buyan/months/2026-03': { '4': { added: ['Pêche'] } } };
+const before = JSON.stringify(Object.fromEntries(Object.entries(S).filter(([k]) => !k.startsWith('iloh/'))));
 
 // ---------- 1. Recopie complète ----------
 process.argv.push('--tout');
@@ -77,7 +80,9 @@ process.exit = code => {
   process.exit = realExit;
   const D = stores['iloh-khurdan'];
   console.log('Recopie complète (code ' + code + ')');
-  ok(JSON.stringify(S) === before, 'Journée RP n\'est pas modifiée');
+  ok(JSON.stringify(Object.fromEntries(Object.entries(S).filter(([k]) => !k.startsWith('iloh/')))) === before, 'Journée RP : journées, fiches et réglages jamais modifiés');
+  ok(Object.keys(S).filter(k => k.startsWith('iloh/')).join() === `iloh/tamachag/months/${ym}`, 'retour : seulement iloh/…, seulement pour les personnages recopiés');
+  ok(JSON.stringify(S[`iloh/tamachag/months/${ym}`]) === JSON.stringify({ [day]: { added: ['Chasse en groupe'], with: { 'Travail du bois': ['Buyan', 'taiga'] } } }), 'retour : activités communes, sans rien d\'intime');
   ok(D['days/tamachag/months/2026-03']?.['4']?.mood === 'Ancien', 'journée passée recopiée');
   ok(!JSON.stringify(D['days/tamachag/months/2026-03']).match(/intime|night|Sexe avec/), 'journée recopiée sans rien d\'intime');
   ok(D['couples/taiga-tamachag/months/2026-03']?.['4']?.nights?.tamachag?.hot === true, 'nuit chaude passée dans l\'espace du couple');
@@ -93,7 +98,7 @@ process.exit = code => {
   ok(!JSON.stringify(D['shared/global'] || {}).match(/lovers|"protect"/), 'ni amants ni protection dans les réglages partagés');
   ok(D['characters/tamachag']?.addedActs?.length === 1 && !('player' in D['characters/tamachag']), 'fiche recopiée, sans activité intime ni joueur de Journée RP');
   ok(D['today/tamachag']?.activities?.length === 1, 'encart public sans activité intime');
-  ok(Object.keys(D).every(k => /^(days|couples|shared|characters|today)\//.test(k)), 'écriture seulement dans les collections prévues');
+  ok(Object.keys(D).every(k => /^(days|couples|shared|characters|today|extras)\//.test(k)), 'écriture seulement dans les collections prévues');
   const dv = JSON.stringify(D['days/davaajav/months/2026-03'] || {}) + JSON.stringify(D[`days/davaajav/months/${ym}`] || {});
   ok(D['days/davaajav/months/2026-03']?.['5']?.mood === 'Nuit agitée' && !/"night"|intime|Sexe avec|Nuit chaude|Sous la yourte/.test(dv), 'Davaajav : fiche recopiée sans sa nuit chaude avec Taiga');
   ok(!Object.keys(D).some(k => k.startsWith('couples/') && k.includes('davaajav')), 'Davaajav (hors couple) : aucun espace de couple créé');
@@ -112,6 +117,7 @@ async function live(D) {
   process.argv.pop();
   delete require.cache[require.resolve('./miroir.js')];
   const src = fakeDb('journee-rp');
+  global.D_doc = fakeDb('iloh-khurdan')._doc;
   require('./miroir.js');
   await new Promise(r => setTimeout(r, 50));
   await src._doc(`days/tamachag/months/${ym}`).set({ [day]: { mood: 'Changé', done: true, intime: 'non' } });
@@ -137,6 +143,13 @@ async function live(D) {
   ok(JSON.stringify(D[`days/tamachag/months/${ym}`]?.[day]?.checked) === '{"$set":[]}', 'activité toujours masquée : retirée aussitôt');
   ok(!JSON.stringify(D['days/tamachag/months/2026-03'] || {}).includes('Travail du bois'), 'et retirée de l\'historique déjà recopié');
   ok(!JSON.stringify(D['shared/global']).includes('hideIloh'), 'le réglage lui-même n\'est pas recopié');
+  // Retour en direct : complément retiré dans Iloh → retiré dans Journée RP
+  await D_doc(`extras/tamachag/months/${ym}`).set({ [day]: { added: [], withActs: {} } });
+  await new Promise(r => setTimeout(r, 100));
+  ok(!(`iloh/tamachag/months/${ym}` in S), 'complément retiré dans Iloh : retiré aussi dans Journée RP');
+  await D_doc(`extras/tamachag/months/${ym}`).set({ [day]: { withActs: { 'Pêche': ['shiruun'] } } });
+  await new Promise(r => setTimeout(r, 100));
+  ok(JSON.stringify(S[`iloh/tamachag/months/${ym}`]?.[day]?.with) === '{"Pêche":["Shiruun"]}', 'nouveau complément dans Iloh : aussitôt dans Journée RP');
   console.log(fails ? `${fails} échec(s)` : 'Tout est bon.');
   process.exit(fails ? 1 : 0);
 }

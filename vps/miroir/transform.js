@@ -81,4 +81,21 @@ function todayDoc(t, entry, always) {
   return o;
 }
 
-module.exports = { MIRROR, COUPLES, ILOH, coupleOf, who, publicEntry, hotNight, lovers, protectFor, charDoc, todayDoc, isPrivateAct, hiddenOf };
+// ---------- Retour vers Journée RP : compléments acceptés dans Iloh (extras/{id}/months) ----------
+// Seulement les activités communes : activités ajoutées dans Iloh et personnages présents sur une activité.
+// Personnages connus de Journée RP : identifiant ; personnages propres à Iloh : leur nom.
+const backName = x => MIRROR.includes(x) ? x : typeof x === 'string' && x ? x[0].toUpperCase() + x.slice(1) : null;
+function ilohBack(x) {
+  if (!x || typeof x !== 'object') return null;
+  const added = (Array.isArray(x.added) ? x.added : []).filter(a => typeof a === 'string' && a && !isPrivateAct(a)).slice(0, 30);
+  const w = {};
+  for (const [l, ids] of Object.entries(x.withActs || {})) {
+    if (isPrivateAct(l) || !Array.isArray(ids)) continue;
+    const names = ids.map(backName).filter(Boolean);
+    if (names.length) w[l] = names;
+  }
+  return added.length || Object.keys(w).length ? { added, with: w } : null;
+}
+const ilohBackMonth = data => { const out = {}; for (const [d, x] of Object.entries(data || {})) { const b = ilohBack(x); if (b) out[d] = b; } return out; };
+
+module.exports = { MIRROR, COUPLES, ILOH, coupleOf, who, publicEntry, hotNight, lovers, protectFor, charDoc, todayDoc, isPrivateAct, hiddenOf, ilohBack, ilohBackMonth };
