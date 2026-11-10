@@ -284,6 +284,10 @@ const ok = (cond, label) => { console.log((cond ? '  ok  ' : '  ÉCHEC ') + labe
   const before = posts.length;
   const ed = await open('eden', 'eden@test.fr');
   ok((await ed.textContent('.news')).includes('a noté'), 'Eden voit la nouvelle de l\'activité commune');
+  ok(await ed.evaluate(() => { const li = [...document.querySelectorAll('.news li')].find(l => l.textContent.includes('a noté'));
+    return li?.classList.contains('k-with') && getComputedStyle(li).borderLeftColor === 'rgb(111, 191, 115)'; }), 'nouvelle d\'activité commune en vert');
+  ok(await ed.evaluate(() => [...document.querySelectorAll('.news li')].filter(l => l.textContent.includes('Grand événement')).every(l => l.classList.contains('k-other'))), 'annonce d\'événement : couleur par défaut');
+  ok(await ed.evaluate(() => newsKind({ key: 'night:2026-11-10:taiga+tamachag' }) === 'k-hot' && newsKind({ key: 'risk:x' }) === 'k-hot' && newsKind({ key: 'intime:x' }) === 'k-hot'), 'nuits chaudes, grossesse et vie intime : en rose');
   ok((await ed.textContent('.news')).includes('Grand événement de chasse : Inscrivez-vous'), 'Eden reçoit la nouvelle de l\'événement');
   ok((await ed.textContent('.group-events')).toLowerCase().includes('annoncé par nono'), 'Eden voit l\'annonce sur l\'accueil');
   ok(await ed.locator('[data-ev-del]').count() === 0, 'Eden ne peut pas retirer l\'annonce de Nono');

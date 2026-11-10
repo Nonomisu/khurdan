@@ -409,7 +409,11 @@ button.link { background: none; border: 0; padding: 0; color: var(--gold); text-
 .news ul { list-style: none; margin: 0; padding: 0; display: grid; gap: .35rem; }
 .news li button { text-decoration: none; color: var(--dim); font-size: .95rem; text-align: left; }
 .news li.unread button { color: var(--text); font-weight: 500; }
-.news li.unread::before { content: "● "; color: #d8708a; }
+.news li { padding-left: .55rem; border-left: 3px solid var(--news-c, var(--gold)); }
+.news li.unread::before { content: "● "; color: var(--news-c, var(--gold)); }
+/* Couleur selon le type de nouvelle : nuits chaudes et vie intime en rose, activités communes en vert */
+.news li.k-hot { --news-c: #e38fa8; }
+.news li.k-with { --news-c: #6fbf73; }
 .act.manage { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem .6rem; }
 .act.manage span { flex: 1 1 10rem; }
 .cat-move { max-width: 11rem; }
@@ -637,6 +641,6 @@ button.link.danger { color: #e0a24d; }
 <div class="sync-state" id="sync-state" aria-live="polite"></div>
 </div>
 
-<script src="app.js?v=049b86344a" charset="utf-8"></script>
+<script src="app.js?v=8f83c6bbf0" charset="utf-8"></script>
 <script type="module" src="sync.js?v=7c17eb1dc1"></script>
 

@@ -702,6 +702,8 @@ const openEventsOn = iso => {
   const d = /^\d{4}-\d\d-\d\d$/.test(iso || '') ? iso : isoDay(rpDay), [y, m] = d.split('-').map(Number);
   Object.assign(evCal, { y, m: m - 1, sel: d }); evView.del = null; go('events');
 };
+// Type de nouvelle (couleur) : nuit chaude, grossesse possible ou vie intime → rose ; personnage mentionné dans une activité commune → vert.
+const newsKind = n => /^(night|risk|intime):/.test(n.key || '') ? 'k-hot' : /^with:/.test(n.key || '') ? 'k-with' : 'k-other';
 // Nouvelle cliquable : la fiche du personnage, ou le calendrier pour un événement de l'Iloh.
 const newsLink = (n, inner) => n.charId ? `<button type="button" class="link" data-go="${n.charId}">${inner}</button>`
   : n.key?.startsWith('event:') ? `<button type="button" class="link" data-ev-open="${esc(n.key.split(':')[1])}">${inner}</button>` : `<span>${inner}</span>`;
@@ -2097,10 +2099,10 @@ function renderHome() {
     <header><p class="kicker">${APP_NAME}</p><h1>Aujourd'hui</h1><p class="date">${today}<br>${eorzeaDate}</p>
       <p class="home-links"><button type="button" class="chip-link" data-go="iloh">${icon('map')}Carte de l'Iloh</button></p>${(f => f ? `<p class="fest home-fest">${icon('star')}En Eorzea : ${f.name}</p>` : '')(festivalOn(rpDay))}</header>
     ${((unread, day) => `<section class="news"><h2>${icon('bell')}Nouvelles${unread.length ? ` <span class="badge">${unread.length}</span>` : ''}</h2>
-      ${unread.length ? `<ul>${unread.slice(0, 8).map(n => `<li class="unread">${newsLink(n, esc(n.text))}</li>`).join('')}</ul>
+      ${unread.length ? `<ul>${unread.slice(0, 8).map(n => `<li class="unread ${newsKind(n)}">${newsLink(n, esc(n.text))}</li>`).join('')}</ul>
       <button type="button" class="link ico-btn" id="news-read" title="Tout marquer comme lu" aria-label="Tout marquer comme lu">${icon('checks')}</button>` : '<p class="reserved">Rien de nouveau pour l\'instant.</p>'}
       <details class="news-day"${newsDayOpen ? ' open' : ''}><summary>Nouvelles du jour (${day.length})</summary>
-        ${day.length ? `<ul>${day.map(n => `<li class="${n.read ? '' : 'unread'}">${newsLink(n, `<small>${newsHour(n)}</small> ${esc(n.text)}`)}</li>`).join('')}</ul>` : '<p class="reserved">Aucune nouvelle depuis 5 h ce matin.</p>'}</details>
+        ${day.length ? `<ul>${day.map(n => `<li class="${n.read ? '' : 'unread'} ${newsKind(n)}">${newsLink(n, `<small>${newsHour(n)}</small> ${esc(n.text)}`)}</li>`).join('')}</ul>` : '<p class="reserved">Aucune nouvelle depuis 5 h ce matin.</p>'}</details>
       </section>`)(myNews().filter(n => !n.read), newsOfToday())}
     ${groupEventsHtml()}
     ${wrapBanner(`<div class="wrap-open">${C.filter(c => c.player === me).map(c => `<button type="button" class="btn" data-wrap-open="${c.id}">${c.name}</button>`).join('')}</div>`)}
