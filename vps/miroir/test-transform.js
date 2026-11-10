@@ -51,6 +51,7 @@ ok(T.MIRROR.length === 10 && T.MIRROR.every(x => T.ILOH.includes(x)), '10 person
 T.setPrivate({ $set: ['Instant coquin'] });
 ok(T.isPrivateAct('Instant coquin') && T.isPrivateAct('Sexe avec Taiga') && T.isPrivateAct('Plaisir en solo sur Moonstone') && !T.isPrivateAct('Pêche'), 'activités intimes : prévues et marquées');
 ok(!JSON.stringify(T.publicEntry({ checked: { $set: ['Pêche', 'Instant coquin'] }, withActs: { 'Instant coquin': ['taiga'] } })).includes('coquin'), 'activité marquée intime retirée de la journée');
+ok(!('privWith' in T.publicEntry({ mood: 'x', privWith: { 'Instant coquin': ['khubunjin'] } })), 'partenaires d\'une activité intime jamais recopiés');
 T.setPrivate(null);
 console.log(fails ? `${fails} échec(s)` : 'Tout est bon.');
 process.exitCode = fails ? 1 : 0;

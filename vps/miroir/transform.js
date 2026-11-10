@@ -25,7 +25,7 @@ const who = x => typeof x !== 'string' || ILOH.includes(x) ? x : (JRP_NAMES[x] |
 
 // Champs de la journée qui ne sont pas repris.
 const DROP_KEYS = ['intime', 'intimeWith', 'jais', 'set', 'setLate', 'lateAt', 'wait', 'door', 'callPartner', 'returnHour',
-  'discordMsg', 'film', 'nefaste', 'night', 'hideIloh'];
+  'discordMsg', 'film', 'nefaste', 'night', 'hideIloh', 'privWith'];
 // Activités intimes : « Sexe avec … », « Plaisir en solo sur Moonstone » et celles marquées « intime » dans Journée RP
 // (shared/global → privActs, voir setPrivate) : jamais recopiées.
 const PRIV = new Set();
