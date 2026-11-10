@@ -40,7 +40,7 @@ Module._load = (orig => function (req, ...rest) {
   if (/vapid\.json$/.test(req)) return { publicKey: 'p', privateKey: 'k' };
   return orig.call(this, req, ...rest);
 })(Module._load);
-process.env.DST_KEY = '/x/khurdans-cle.json'; process.env.VAPID_KEY = '/x/iloh-vapid.json'; process.env.WAIT_MS = '80';
+process.env.DST_KEY = '/x/khurdans-cle.json'; process.env.VAPID_KEY = '/x/iloh-vapid.json'; process.env.WAIT_MS = '80'; process.env.REMIND_EVERY_MS = '999999999';
 
 // ---------- Données de départ ----------
 st['pushSubs/eden/subs/a'] = { endpoint: 'https://push/eden-tel', keys: {}, welcomedAt: ts(1) };
@@ -83,6 +83,15 @@ st['news/vieille'] = { from: 'nono', to: 'eden', text: 'Vieille', charId: 'tengi
   await sleep(100);
   ok(sent.filter(s => s.tag === 'bienvenue').length === 1, 'bienvenue envoyée une seule fois');
 
+  // Rappel la veille d'un événement, pour les joueurs inscrits
+  const { remindEvents } = require('./notifs.js');
+  const now = new Date(2026, 10, 6, 19, 0), before2 = sent.length;
+  st['shared/events'] = { ev2: { type: 'fete', text: 'Naadam', date: '2026-11-07', going: { tamachag: 'nono', buyan: 'eden', shiruun: 'eden' } }, ev3: { type: 'info', text: 'Plus tard', date: '2026-11-20', going: { buyan: 'eden' } } };
+  ok(await remindEvents(new Date(2026, 10, 6, 10, 0)) === 0, 'pas de rappel avant 18 h');
+  ok(await remindEvents(now) === 2 && st['news/event:ev2:rappel:eden']?.to === 'eden' && st['news/event:ev2:rappel:nono']?.text.startsWith('Demain : « Naadam »'), 'rappel la veille : une nouvelle par joueur inscrit');
+  ok(await remindEvents(now) === 0, 'rappel envoyé une seule fois');
+  await sleep(250);
+  ok(sent.slice(before2).some(x => x.body.startsWith('Demain : « Naadam »') && x.url.endsWith('?evenements=2026-11-07')), 'notification du rappel : ouvre le calendrier sur le jour');
   console.log(fails ? `${fails} échec(s)` : 'Tout est bon.');
   process.exit(fails ? 1 : 0);
 })();

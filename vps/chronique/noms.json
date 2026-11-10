@@ -1,0 +1,126 @@
+{
+ "chars": {
+  "tamachag": {
+   "name": "Tamachag",
+   "gender": "m"
+  },
+  "khokkutsai": {
+   "name": "Khokkutsai",
+   "gender": "m"
+  },
+  "ankhbayar": {
+   "name": "Ankhbayar",
+   "gender": "m"
+  },
+  "tengis": {
+   "name": "Tengis",
+   "gender": "m"
+  },
+  "taiga": {
+   "name": "Taiga",
+   "gender": "f"
+  },
+  "inkaraa": {
+   "name": "Inkaraa",
+   "gender": "f"
+  },
+  "khubunjin": {
+   "name": "Khubunjin",
+   "gender": "f"
+  },
+  "ogloo": {
+   "name": "Ogloo",
+   "gender": "f"
+  },
+  "javkhaanhun": {
+   "name": "Javkhaanhun",
+   "gender": "f"
+  },
+  "shiruun": {
+   "name": "Shiruun",
+   "gender": "m"
+  },
+  "djokhodthai": {
+   "name": "Djokhodthai",
+   "gender": "m"
+  },
+  "buyan": {
+   "name": "Buyan",
+   "gender": "f"
+  },
+  "cheyenne": {
+   "name": "Cheyenne",
+   "gender": "f"
+  },
+  "taivan": {
+   "name": "Taivan",
+   "gender": "m"
+  },
+  "altan": {
+   "name": "Altan",
+   "gender": "m"
+  },
+  "henbilee": {
+   "name": "Henbilee",
+   "gender": "m"
+  },
+  "boroo": {
+   "name": "Boroo",
+   "gender": "f"
+  },
+  "reaksa": {
+   "name": "Reaksa",
+   "gender": "f"
+  },
+  "davaajav": {
+   "name": "Davaajav",
+   "gender": "m"
+  },
+  "tsewang": {
+   "name": "Tsewang",
+   "gender": "m"
+  }
+ },
+ "birthdays": {
+  "tamachag": [
+   10,
+   16
+  ],
+  "khokkutsai": [
+   1,
+   27
+  ],
+  "ankhbayar": [
+   7,
+   22
+  ],
+  "tengis": [
+   5,
+   4
+  ],
+  "taiga": [
+   3,
+   1
+  ],
+  "inkaraa": [
+   3,
+   26
+  ],
+  "ogloo": [
+   6,
+   27
+  ],
+  "javkhaanhun": [
+   11,
+   1
+  ],
+  "davaajav": [
+   1,
+   8
+  ],
+  "shiruun": [
+   7,
+   16
+  ]
+ }
+}

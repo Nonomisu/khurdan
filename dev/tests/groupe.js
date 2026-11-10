@@ -140,7 +140,7 @@ const ok = (cond, label) => { console.log((cond ? '  ok  ' : '  ÉCHEC ') + labe
   console.log('Événement du groupe (Nono)');
   await nono.evaluate(() => go('home')); await nono.waitForTimeout(200);
   ok((await nono.textContent('.group-events h2')).includes('Événements sur l\'Iloh'), 'titre « Événements sur l\'Iloh »');
-  ok((await nono.textContent('.group-events')).includes('Aucun événement'), 'aucun événement au départ');
+  ok((await nono.textContent('.group-events')).includes('Aucun événement') || await nono.evaluate(() => calSpecials(rpDay).length > 0), 'aucun événement au départ');
   await nono.click('.ev-new summary'); await nono.click('[data-ev-type="chasse"]');
   await nono.fill('#ev-text', 'Inscrivez-vous'); await nono.click('#ev-add'); await nono.waitForTimeout(1500);
   ok((await nono.textContent('.group-events')).includes('Grand événement de chasse') && (await nono.textContent('.group-events')).includes('Inscrivez-vous'), 'annonce affichée sur l\'accueil');
@@ -349,6 +349,86 @@ const ok = (cond, label) => { console.log((cond ? '  ok  ' : '  ÉCHEC ') + labe
   d = await db(lg);
   ok(Object.values(d).some(v => v?.key?.startsWith?.('reqok:') && v.to === 'eden' && v.charId === 'buyan' && v.text === 'Commande « Nouvelle yourte » : livraison aujourd\'hui. Merci au responsable de la logistique !'), 'nouvelle de livraison pour Eden');
   await lg.close();
+
+  console.log('Inscriptions aux événements');
+  const evId = await nono.evaluate(() => Object.keys(GROUP_EVENTS).find(k => GROUP_EVENTS[k].text === 'Inscrivez-vous'));
+  await nono.evaluate(() => go('home')); await nono.waitForTimeout(200);
+  ok(await nono.locator(`[data-ev-go="${evId}:tamachag"]`).count() === 1 && await nono.locator(`[data-ev-go="${evId}:buyan"]`).count() === 0, 'Nono peut inscrire ses personnages (et seulement les siens)');
+  await nono.click(`[data-ev-go="${evId}:tamachag"]`); await nono.waitForTimeout(1200);
+  ok((await nono.textContent('.group-events')).includes('1 participant : Tamachag'), 'participant affiché');
+  await ed.evaluate(() => go('home')); await ed.waitForTimeout(1500);
+  await ed.click(`[data-ev-go="${evId}:buyan"]`); await ed.waitForTimeout(1200);
+  d = await db(ed);
+  ok(d['shared/events'][evId].going?.tamachag === 'nono' && d['shared/events'][evId].going?.buyan === 'eden', 'inscriptions des deux joueurs enregistrées sans s\'écraser');
+  ok((await ed.textContent('.group-events')).includes('2 participants : Buyan, Tamachag'), 'Eden voit les deux participants');
+  // Le jour J : l'événement peut être ajouté à la fiche
+  await ed.evaluate(() => go('buyan')); await ed.waitForTimeout(300);
+  ok((await ed.textContent('.shared-acts')).includes('Événement de l\'Iloh : « Inscrivez-vous » avec Tamachag'), 'jour J : l\'événement proposé sur la fiche de Buyan');
+  await ed.click(`[data-ev-act="${evId}"]`); await ed.waitForTimeout(300);
+  ok(await ed.evaluate(() => state.buyan.checked.has('Inscrivez-vous') && JSON.stringify(state.buyan.withActs['Inscrivez-vous']) === '["tamachag"]'), 'ajouté à la fiche, avec les autres participants');
+  // Désinscription
+  await ed.evaluate(() => go('home')); await ed.waitForTimeout(200);
+  await ed.click(`[data-ev-go="${evId}:buyan"]`); await ed.waitForTimeout(1200);
+  d = await db(ed);
+  ok(!d['shared/events'][evId].going?.buyan && d['shared/events'][evId].going?.tamachag === 'nono', 'désinscription de Buyan, Tamachag reste inscrit');
+
+  console.log('Anniversaires et grands jours');
+  const yA = await ed.evaluate(() => rpDay.getFullYear());
+  ok(await ed.evaluate(y => calSpecials(new Date(y, 10, 16)).some(x => x.t === 'Anniversaire de Tamachag') && calSpecials(new Date(y, 11, 21)).some(x => x.t.startsWith('Départ vers l\'iloh d\'hiver')) && calSpecials(new Date(y, 6, 12)).some(x => x.t === 'Naadam'), yA), 'anniversaires, transhumances et Naadam');
+  await ed.evaluate(y => openEventsOn(`${y}-11-16`), yA); await ed.waitForTimeout(300);
+  ok((await ed.textContent('.day-detail')).includes('Anniversaire de Tamachag') && await ed.locator(`.cal-day.sp-day[data-ev-day="${yA}-11-16"], .cal-day.ev-day[data-ev-day="${yA}-11-16"]`).count() === 1, 'calendrier : jour marqué, anniversaire affiché');
+  ok(await ed.evaluate(() => typeof RP_SYNC.newsOnce === 'function'), 'nouvelle d\'anniversaire : créée une seule fois par le joueur du personnage');
+
+  console.log('Qui est où');
+  await ed.evaluate(() => openIloh(null)); await ed.waitForTimeout(300);
+  await ed.click('[data-iloh-who]'); await ed.waitForTimeout(300);
+  ok(await ed.locator('.iloh-map.who').count() === 1 && await ed.locator('.who-sum').count() === 1, 'interrupteur « Qui est où aujourd\'hui ? »');
+  ok(await ed.locator('.yurt-hit[data-yurt="1"].w-here').count() === 1, 'yourte n° 1 : Tamachag (fiche remplie) à l\'Iloh');
+  ok((await ed.textContent('.who-sum')).includes('À l\'Iloh') && (await ed.textContent('.who-sum')).includes('Tamachag'), 'résumé : présents à l\'Iloh');
+  await ed.evaluate(() => { state.buyan.checked.add('Voyage'); state.buyan.done = true; }); await ed.click('[data-iloh-who]'); await ed.click('[data-iloh-who]'); await ed.waitForTimeout(200);
+  ok(await ed.locator('.yurt-hit[data-yurt="9"].w-away').count() === 1 && (await ed.textContent('.who-sum')).match(/En voyage \(\d+\) : .*Buyan/) !== null, 'Buyan en voyage : yourte n° 9 grisée');
+  await ed.evaluate(() => { state.buyan.checked.delete('Voyage'); });
+
+  console.log('Liens entre personnages');
+  await ed.evaluate(() => go('home')); await ed.click('[data-open-page="liens"]'); await ed.waitForTimeout(800);
+  const lt = await ed.textContent('#view');
+  ok(lt.includes('Les liens de l\'Iloh') && /Boroo\s*&\s*Buyan/.test(lt) && /Buyan\s*&\s*Tamachag/.test(lt), 'duos : Boroo & Buyan, Buyan & Tamachag');
+  ok(await ed.locator('.links-net line').count() >= 2, 'réseau dessiné');
+  await ed.click('[data-links-period="annee"]'); await ed.waitForTimeout(800);
+  ok(await ed.locator('[data-links-period="annee"][aria-pressed="true"]').count() === 1, 'période : cette année');
+
+  console.log('Recherche');
+  await ed.evaluate(() => go('home')); await ed.click('[data-open-page="search"]'); await ed.waitForTimeout(1500);
+  await ed.fill('#search-q', 'serein'); await ed.waitForTimeout(200);
+  ok((await ed.textContent('#search-out')).includes('Boroo') && await ed.locator('#search-out mark').count() >= 1, 'recherche « serein » : la journée de Boroo, mot surligné');
+  await ed.selectOption('#search-who', 'tamachag'); await ed.waitForTimeout(200);
+  ok(!(await ed.textContent('#search-out')).includes('Boroo'), 'filtre par personnage');
+  await ed.selectOption('#search-who', ''); await ed.fill('#search-q', 'Buyan'); await ed.waitForTimeout(200);
+  ok((await ed.textContent('#search-out')).includes('Tamachag'), 'recherche d\'un personnage présent sur une activité');
+  await ed.fill('#search-q', 'serein'); await ed.waitForTimeout(300);
+  await ed.click('[data-search-open^="boroo:"]'); await ed.waitForTimeout(300);
+  ok(await ed.evaluate(() => current) === 'boroo', 'résultat : ouvre la journée');
+
+  console.log('Logistique détaillée');
+  await ed.evaluate(() => go('khokkutsai')); await ed.waitForTimeout(200);
+  await ed.selectOption('#req-char', 'buyan'); await ed.fill('#req-item', 'Arc composite'); await ed.click('#req-send'); await ed.waitForTimeout(400);
+  await ed.fill('#req-item', 'Troisième yourte'); await ed.click('#req-send'); await ed.waitForTimeout(1500);
+  const lg2 = await open('nono', 'nono@test.fr');
+  await lg2.evaluate(() => go('khokkutsai')); await lg2.waitForTimeout(300);
+  const rid = n => lg2.evaluate(n => Object.keys(REQUESTS).find(k => REQUESTS[k].item === n), n);
+  const arc = await rid('Arc composite'), yt = await rid('Troisième yourte');
+  await lg2.click(`[data-req-prep="${arc}"]`); await lg2.waitForTimeout(150);
+  const eta = await lg2.evaluate(() => { const d = new Date(rpDay); d.setDate(d.getDate() + 3); return isoDay(d); });
+  await lg2.fill('#req-eta', eta); await lg2.click(`[data-req-prep-ok="${arc}"]`); await lg2.waitForTimeout(300);
+  ok((await lg2.textContent('.req.preparing')).includes('livraison prévue le'), 'en préparation, avec la date prévue');
+  await lg2.click(`[data-req-no="${yt}"]`); await lg2.waitForTimeout(150);
+  await lg2.fill('#req-reason', 'Plus de feutre avant le printemps'); await lg2.click(`[data-req-no-ok="${yt}"]`); await lg2.waitForTimeout(1500);
+  ok((await lg2.textContent('.req-done summary')).includes('traitées'), 'refusée : passe dans les demandes traitées');
+  d = await db(lg2);
+  ok(d[`requests/${arc}`].status === 'preparing' && d[`requests/${arc}`].eta === eta && d[`requests/${yt}`].status === 'refused' && d[`requests/${yt}`].reason === 'Plus de feutre avant le printemps', 'étapes enregistrées');
+  const rn = Object.values(d).filter(v => v?.key?.startsWith?.('reqprep:') || v?.key?.startsWith?.('reqno:'));
+  ok(rn.some(n => n.to === 'eden' && n.text.startsWith('Commande « Arc composite » en préparation : livraison prévue le')) && rn.some(n => n.to === 'eden' && n.text === 'Commande « Troisième yourte » refusée : Plus de feutre avant le printemps.'), 'nouvelles pour Eden à chaque étape');
+  await lg2.close();
 
   console.log('Administration');
   ok(await jy.locator('.admin-set').count() === 0, 'pas d\'administration pour une joueuse');

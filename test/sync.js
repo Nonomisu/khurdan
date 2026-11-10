@@ -116,6 +116,10 @@ window.RP_SYNC = {
   saveRequest: (id, r) => noWrites ? Promise.resolve() : setDoc(doc(db, 'requests', id), r).catch(report),
   updateRequest: (id, patch) => noWrites ? Promise.resolve() : updateDoc(doc(db, 'requests', id), patch).catch(report),
   deleteRequest: id => noWrites ? Promise.resolve() : deleteDoc(doc(db, 'requests', id)).catch(report),
+  // Inscription d'un personnage à un événement (champ par champ : deux inscriptions simultanées ne s'écrasent pas).
+  setGoing: (evId, cid, player) => noWrites ? Promise.resolve() : updateDoc(evRef, new FieldPath(evId, 'going', cid), player || deleteField()).catch(report),
+  // Nouvelle créée une seule fois (même clé depuis plusieurs appareils) : si elle existe déjà, l'écriture est refusée, sans erreur affichée.
+  newsOnce: (key, n) => noWrites ? Promise.resolve() : setDoc(newsRef(key), { ...n, key, read: false, from: me, createdAt: serverTimestamp() }).catch(() => {}),
   saveIloh: d => noWrites ? Promise.resolve() : setDoc(ilohRef, d, { merge: true }).catch(report),
   saveEvent: (id, e) => noWrites ? Promise.resolve() : setDoc(evRef, { [id]: e === null ? deleteField() : e }, { merge: true }).catch(report),
   setWebhook: url => setDoc(doc(db, 'shared', 'discord'), { webhook: url }, { merge: true }),

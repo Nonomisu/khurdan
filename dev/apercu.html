@@ -197,13 +197,51 @@ html, body, #view { overflow-anchor: none; }
 .group-events h2 .ev-cal-btn { margin-left: auto; order: 3; }
 .ev-cal-btn .ico { width: 1.25rem; height: 1.25rem; color: var(--gold); }
 .ev-dates { display: flex; flex-wrap: wrap; gap: .6rem; }
-.home-links { margin: .6rem 0 0; display: flex; justify-content: center; }
+.ev-going { display: grid; gap: .35rem; margin-top: .35rem; }
+.ev-who { display: flex; gap: .35rem; align-items: flex-start; margin: 0; font-size: .88rem; }
+.ev-who .ico { width: 1rem; height: 1rem; flex: none; margin-top: .1rem; color: #6fbf73; }
+.ev-who .yc-dot { margin: 0 .25rem 0 0; }
+.ev-join { display: grid; gap: .25rem; font-size: .85rem; color: var(--dim); }
+.ev-join .place-list { margin: 0; }
+.cal-sp { display: flex; align-items: center; gap: .45rem; margin: 0 0 .4rem; padding: .45rem .7rem; border: 1px dashed var(--gold); border-radius: 8px; text-align: left; }
+.cal-sp .ico { width: 1.1rem; height: 1.1rem; color: var(--gold); flex: none; }
+.cal-day.sp-day { border-style: dashed; border-color: var(--gold); }
+.shared-item > span .ico { width: 1rem; height: 1rem; vertical-align: -2px; margin-right: .3rem; }
+.home-links { margin: .6rem 0 0; display: flex; flex-wrap: wrap; gap: .45rem; justify-content: center; }
+.duos { list-style: none; margin: 0; padding: 0; display: grid; gap: .45rem; }
+.duos li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .15rem .7rem; align-items: center; text-align: left; }
+.duo-names { min-width: 0; } .duo-names .dim { color: var(--dim); }
+.duo-bar { grid-column: 1 / -1; height: 6px; border-radius: 3px; background: color-mix(in srgb, var(--gold) 15%, transparent); overflow: hidden; }
+.duo-bar i { display: block; height: 100%; background: #6fbf73; border-radius: 3px; }
+.duos b { grid-column: 2; grid-row: 1; font-weight: 500; font-size: .85rem; color: var(--dim); }
+.links-net { width: 100%; max-width: 440px; display: block; margin: 0 auto; overflow: visible; }
+.links-net line { stroke: #6fbf73; stroke-linecap: round; }
+.links-net text { fill: var(--text); font-size: 11px; }
+.per-char { list-style: none; margin: 0; padding: 0; display: grid; gap: .35rem; text-align: left; font-size: .92rem; }
+.per-char small { color: var(--dim); }
+.search-form { display: grid; gap: .5rem; }
+.search-form input { width: 100%; }
+.search-res { list-style: none; margin: 0; padding: 0; display: grid; gap: .45rem; }
+.search-hit { display: grid; gap: .2rem; width: 100%; padding: .55rem .7rem; text-align: left; background: none; border: 1px solid var(--rule); border-radius: 8px; color: var(--text); font: inherit; cursor: pointer; }
+.search-hit:hover, .search-hit:focus-visible { border-color: var(--gold); }
+.sr-head small { color: var(--dim); margin-left: .3rem; }
+.sr-text { font-size: .9rem; color: var(--dim); overflow-wrap: anywhere; }
+.sr-text mark { background: color-mix(in srgb, var(--gold) 40%, transparent); color: var(--text); border-radius: 2px; padding: 0 1px; }
 .chip-link { display: inline-flex; align-items: center; gap: .4rem; padding: .35rem .9rem; border: 1px solid var(--gold); border-radius: 999px; background: none; color: var(--gold); font: inherit; font-size: .9rem; cursor: pointer; }
 .chip-link .ico { width: 1.05rem; height: 1.05rem; }
 .iloh-wrap { position: relative; min-width: 0; max-width: 100%; }   /* la carte zoomée défile dans son cadre, sans élargir la page */
 .iloh-zoom { display: flex; align-items: center; justify-content: flex-end; gap: .5rem; margin-bottom: .5rem; font-size: .85rem; color: var(--dim); }
 .iloh-zoom .btn { min-width: 2.4rem; padding: .2rem .6rem; font-size: 1.1rem; line-height: 1.2; }
 .iloh-zoom .btn:disabled { opacity: .35; }
+.iloh-zoom { flex-wrap: wrap; }
+.who-btn { margin-right: auto; }
+@media (max-width: 520px) { .who-btn { flex: 1 0 100%; justify-content: center; margin: 0 0 .2rem; } }
+.who-btn[aria-pressed="true"] { background: color-mix(in srgb, var(--gold) 22%, transparent); }
+.iloh-map.who .yurt-hit.w-here { border-color: #6fbf73; background: rgba(111, 191, 115, .22); }
+.iloh-map.who .yurt-hit.w-away { border-color: #9aa3b5; background: rgba(15, 20, 32, .55); }
+.iloh-map.who .yurt-hit.w-none { border: 2px dashed rgba(243, 232, 214, .55); }
+.yurt-key.w-here { background: #6fbf73; } .yurt-key.w-away { background: #5b6478; } .yurt-key.w-none { background: transparent; border-style: dashed; }
+.who-sum { display: grid; gap: .25rem; font-size: .9rem; text-align: left; } .who-sum p { margin: 0; } .who-sum small { color: var(--dim); }
 .iloh-scroll { max-width: 100%; overflow: auto; border-radius: 8px; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
 .iloh-scroll.zoomed { max-height: 72vh; cursor: grab; }
 .iloh-scroll.zoomed .yurt-hit, .iloh-scroll.zoomed .iloh-spot { cursor: pointer; }
@@ -234,6 +272,12 @@ html, body, #view { overflow-anchor: none; }
 .req-ok, .req-wait { display: inline-flex; align-items: center; gap: .3rem; font-size: .85rem; color: var(--dim); white-space: nowrap; }
 .req-ok .ico { width: 1rem; height: 1rem; color: #7fbf7a; }
 .req .join-btn { flex: none; }
+.req.preparing { border-color: #6fa8dc; }
+.req.refused { opacity: .75; }
+.req-actions { display: flex; flex-direction: column; align-items: flex-end; gap: .3rem; flex: none; }
+.req-step { display: grid; gap: .35rem; margin-top: .35rem; }
+.req-step label { display: grid; gap: .15rem; font-size: .85rem; color: var(--dim); }
+.req-wait.refused { color: #d8708a; }
 .req-done summary { cursor: pointer; color: var(--dim); }
 .yc-guest { display: grid; gap: .1rem; justify-items: start; }
 .yc-guest + .yc-guest { margin-top: .2rem; }
@@ -719,6 +763,7 @@ ICONS.warn = '<path d="M12 3.5 21.5 20h-19z"/><path d="M12 10v4.5"/><circle cx="
 ICONS.users = '<circle cx="9" cy="8" r="3.2"/><path d="M3 19.5c.6-3.4 3-5.3 6-5.3s5.4 1.9 6 5.3"/><circle cx="16.8" cy="8.8" r="2.6"/><path d="M16.5 14.3c2.4.2 4 1.8 4.5 4.6"/>';
 ICONS.calendar = '<rect x="3.5" y="5" width="17" height="15.5" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/><path d="M8 14h2M14 14h2M8 17h2"/>';
 ICONS.box = '<path d="M3.5 7.5 12 3l8.5 4.5v9L12 21l-8.5-4.5z"/><path d="M3.5 7.5 12 12l8.5-4.5M12 12v9"/>';
+ICONS.search = '<circle cx="10.5" cy="10.5" r="6"/><path d="M15 15l5 5"/>';
 ICONS.map = '<path d="M3.5 6.5l5-2 7 2.5 5-2v13l-5 2-7-2.5-5 2z"/><path d="M8.5 4.5v13M15.5 7v13"/>';
 ICONS.flag = '<path d="M5 21V4"/><path d="M5 4h11l-2 4 2 4H5"/>';
 ICONS.zone = '<path d="M3 19 9.5 8l4 6.5 2.5-4L21 19z"/>';
@@ -875,8 +920,10 @@ const setWith = (id, l, other, on, quiet = false) => {
 const sharedActsOf = id => C.filter(x => x.id !== id && state[x.id]?.done).flatMap(x => Object.entries(state[x.id].withActs || {})
   .filter(([l, ids]) => ids.includes(id) && state[x.id].checked?.has(l)).map(([l, ids]) => ({ from: x.id, act: l, others: ids.filter(o => o !== id && isChar(o)) })));
 const sharedActsHtml = (id, canJoin) => {
-  const L = sharedActsOf(id); if (!L.length) return '';
-  return `<div class="shared-acts"><p class="shared-h">${icon('users')}Activités communes du jour</p>${L.map(a => `<div class="shared-item"><span>${esc(nameOf(a.from))} a noté « ${esc(a.act)} » avec ${esc(andList([nameOf(id), ...a.others.map(nameOf)]))}.</span>
+  const L = sharedActsOf(id), E = evActsOf(id); if (!L.length && !E.length) return '';
+  const evItems = E.map(x => `<div class="shared-item"><span>${icon(evType(x.e.type).icon)}Événement de l'Iloh : « ${esc(x.e.text)} »${goingOf(x.e).length > 1 ? ` avec ${esc(andList(goingOf(x.e).filter(o => o !== id).map(nameOf)))}` : ''}.</span>
+    ${canJoin ? state[id].checked.has(x.act) ? '<small class="joined">✓ Sur la fiche</small>' : `<button type="button" class="join-btn" data-ev-act="${x.evId}">${icon('plus')}L'ajouter à la fiche ${deName(nameOf(id))}</button>` : ''}</div>`).join('');
+  return `<div class="shared-acts"><p class="shared-h">${icon('users')}Activités communes du jour</p>${evItems}${L.map(a => `<div class="shared-item"><span>${esc(nameOf(a.from))} a noté « ${esc(a.act)} » avec ${esc(andList([nameOf(id), ...a.others.map(nameOf)]))}.</span>
     ${canJoin ? state[id].checked.has(a.act) ? '<small class="joined">✓ Sur la fiche</small>' : `<button type="button" class="join-btn" data-join-from="${a.from}" data-join-act="${esc(a.act)}">${icon('plus')}L'ajouter à la fiche ${deName(nameOf(id))}</button>` : ''}</div>`).join('')}</div>`;
 };
 // Reprend l'activité d'un autre personnage : cochée (en activité spéciale si elle n'est pas dans la liste), mêmes moments, mêmes personnages.
@@ -1026,9 +1073,14 @@ const setGuests = (n, list) => { ILOH_GUESTS[n] = list; window.RP_SYNC?.saveIloh
 const yurtTitle = y => y.chars ? andList(y.chars.map(nameOf)) : y.kind === 'lieu' ? y.label : y.kind === 'invites' ? 'Les invités'
   : y.kind === 'speciale' ? 'Yourte spéciale' : y.elite ? 'Yourte à prendre (élite)' : 'Yourte à prendre';
 const ILOH_ZOOMS = [1, 1.5, 2, 3];
-const ilohView = { sel: null, from: null, z: 1 };   // sel : numéro de yourte ou clé d'ILOH_SPOTS ; z : zoom (1 à 3)
+const ilohView = { sel: null, from: null, z: 1, who: false };   // who : « Qui est où aujourd'hui »   // sel : numéro de yourte ou clé d'ILOH_SPOTS ; z : zoom (1 à 3)
 const openIloh = (from, sel) => { Object.assign(ilohView, { from: from || null, sel: sel || (from && yurtOf(from)) || null }); go('iloh'); centerYurt(ilohView.sel, false); };
-const yurtTodayHtml = cid => { const st = state[cid], place = st.checked?.has('Voyage') ? 'en voyage' : st.places?.size ? [...st.places][0] : '';
+// Qui est où aujourd'hui : à l'Iloh (fiche du jour remplie, pas en voyage), en voyage, ou pas encore de nouvelles.
+const travels = st => st.checked?.has('Voyage') || !!st.trip;
+const whereOf = cid => { const st = state[cid]; return !st?.done ? 'none' : travels(st) ? 'away' : 'here'; };
+const tripDest = st => st.trip?.to ? legLabel(st.trip.to) : '';
+const yurtWhere = n => { const w = (occupantsOf(n) || []).map(whereOf); return w.includes('here') ? 'here' : w.includes('away') ? 'away' : w.length ? 'none' : ''; };
+const yurtTodayHtml = cid => { const st = state[cid], place = travels(st) ? (tripDest(st) && tripDest(st) !== '…' ? 'en voyage vers ' + tripDest(st) : 'en voyage') : st.places?.size ? [...st.places][0] : '';
   return st.done ? `<span class="yc-today">${st.mood ? `« ${esc(st.mood)} »` : 'Journée racontée'}${place ? ' · ' + esc(place) : ''}</span>` : '<span class="yc-today dim">Pas encore de fiche aujourd\'hui</span>'; };
 const occupantHtml = cid => { const c = C.find(x => x.id === cid); if (!c) return '';
   return `<div class="yc-char"><b><i class="yc-dot" style="background:${PLAYERS.find(p => p.id === c.player)?.color || 'var(--dim)'}"></i>${esc(c.name)}${c.surname ? ` <small>${esc(c.surname)}</small>` : ''}</b>
@@ -1058,20 +1110,25 @@ function renderIloh() {
       <div class="iloh-zoom" role="group" aria-label="Zoom de la carte">
         <button type="button" class="btn" data-iloh-zoom="-1" aria-label="Dézoomer" ${z > 1 ? '' : 'disabled'}>−</button>
         <span class="iloh-zlabel" aria-live="polite">${Math.round(z * 100)} %</span>
-        <button type="button" class="btn" data-iloh-zoom="1" aria-label="Zoomer" ${z < ILOH_ZMAX ? '' : 'disabled'}>+</button></div>
-      <div class="iloh-scroll${z > 1 ? ' zoomed' : ''}"><div class="iloh-map" style="--z:${z}">
+        <button type="button" class="btn" data-iloh-zoom="1" aria-label="Zoomer" ${z < ILOH_ZMAX ? '' : 'disabled'}>+</button>
+        <button type="button" class="chip-link who-btn" data-iloh-who aria-pressed="${ilohView.who}">${icon('users')}Qui est où aujourd'hui ?</button></div>
+      <div class="iloh-scroll${z > 1 ? ' zoomed' : ''}"><div class="iloh-map${ilohView.who ? ' who' : ''}" style="--z:${z}">
         <img src="iloh-carte.webp" alt="Carte de l'Iloh : 53 yourtes numérotées autour de la grande place" width="2048" height="1564" draggable="false">
         ${Object.entries(ILOH_SPOTS).map(([k, p]) => `<button type="button" class="iloh-spot k-${p.kind} ${sel === k ? 'sel' : ''}" data-yurt="${k}"
           style="left:${p.x}%;top:${p.y}%;width:${p.w}%;height:${p.h}%" aria-label="${esc(p.title)}" aria-pressed="${sel === k}"></button>`).join('')}
         ${Object.entries(YURTS).map(([n, y]) => { const [w, h] = YURT_SIZE[y.size || 's'];
           const occ = peopleOf(n);
-          return `<button type="button" class="yurt-hit ${y.chars ? 'occ' : 'k-' + (y.kind || 'libre')} ${sel === n ? 'sel' : ''}" data-yurt="${n}"
+          return `<button type="button" class="yurt-hit ${y.chars ? 'occ' : 'k-' + (y.kind || 'libre')} ${sel === n ? 'sel' : ''} ${ilohView.who && yurtWhere(n) ? 'w-' + yurtWhere(n) : ''}" data-yurt="${n}"
             style="left:${y.x - w / 2}%;top:${y.y - 1.8}%;width:${w}%;height:${h}%" aria-label="Yourte ${n} : ${esc(yurtTitle(y))}" aria-pressed="${sel === n}">
             ${occ?.length ? `<span class="yurt-dots">${occ.map(cid => `<i style="background:${PLAYERS.find(p => p.id === playerOf(cid))?.color}"></i>`).join('')}</span>` : ''}</button>`; }).join('')}
       </div></div>
       ${sel ? ilohCardHtml(sel) : ''}
     </div>
-    <p class="reserved cal-legend"><span class="yurt-key occ"></span> habitée (couleur du joueur) · <span class="yurt-key k-lieu"></span> lieu commun · <span class="yurt-key k-invites"></span> invités · <span class="yurt-key k-libre"></span> à prendre</p>`;
+    ${ilohView.who ? (() => { const all = C.map(c => [c, whereOf(c.id)]), here = all.filter(x => x[1] === 'here'), away = all.filter(x => x[1] === 'away');
+      return `<div class="who-sum"><p><span class="yurt-key w-here"></span> <b>À l'Iloh (${here.length})</b> : ${esc(here.map(x => x[0].name).join(', ') || 'personne pour l\'instant')}</p>
+        <p><span class="yurt-key w-away"></span> <b>En voyage (${away.length})</b> : ${away.length ? away.map(([c]) => esc(c.name) + (tripDest(state[c.id]) && tripDest(state[c.id]) !== '…' ? ` <small>(${esc(tripDest(state[c.id]))})</small>` : '')).join(', ') : 'personne'}</p>
+        <p><span class="yurt-key w-none"></span> Pas encore de fiche aujourd'hui : ${all.length - here.length - away.length}</p></div>`; })()
+    : `<p class="reserved cal-legend"><span class="yurt-key occ"></span> habitée (couleur du joueur) · <span class="yurt-key k-lieu"></span> lieu commun · <span class="yurt-key k-invites"></span> invités · <span class="yurt-key k-libre"></span> à prendre</p>`}`;
   const sc = document.querySelector('.iloh-scroll');
   sc.addEventListener('scroll', placeIlohCard, { passive: true });
   // Molette de la souris sur la carte (PC) : zoom autour du pointeur. Aux limites, la page défile normalement.
@@ -1151,6 +1208,7 @@ document.addEventListener('click', e => {
   const b = e.target.closest('[data-yurt]'), yo = e.target.closest('[data-yurt-of]'), zb = e.target.closest('[data-iloh-zoom]');
   if (yo) return openIloh(yo.dataset.yurtOf);
   if (zb) return zoomIloh(+zb.dataset.ilohZoom);
+  if (e.target.closest('[data-iloh-who]')) { ilohView.who = !ilohView.who; return ilohRefresh(); }
   if (e.target.closest('[data-yurt-close]')) { ilohView.sel = null; return ilohRefresh(); }
   const gd = e.target.closest('[data-guest-del]');
   if (gd) { const [n, cid] = gd.dataset.guestDel.split(':'); return setGuests(n, (ILOH_GUESTS[n] || []).filter(x => x !== cid)); }
@@ -1165,7 +1223,7 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape' && current ==
 const LOGI_CHAR = 'khokkutsai';
 const REQUESTS = {};   // rempli par sync.js
 const isLogi = () => playerOf(LOGI_CHAR) === me;
-const reqView = { char: null, msg: '' };
+const reqView = { char: null, msg: '', step: null };   // step : demande en cours de passage en préparation ou de refus
 const fmtAt = ms => fmtDay(new Date(ms));
 const addRequest = (charId, item, note) => {
   const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6), at = Date.now();
@@ -1173,23 +1231,46 @@ const addRequest = (charId, item, note) => {
   REQUESTS[id] = r; window.RP_SYNC?.saveRequest(id, r);
   if (!isLogi()) NEWS.unshift({ to: playerOf(LOGI_CHAR), text: `Demande de matériel de ${nameOf(charId)} : ${item}`, charId: LOGI_CHAR, key: 'req:' + id, read: false, at });
 };
+// Étapes : en attente → en préparation (date prévue, facultative) → livrée ; ou refusée (motif). Une nouvelle à chaque étape.
+const reqNews = (id, r, key, text) => { if (r.from !== me) NEWS.unshift({ to: r.from, text, charId: r.charId, key: key + ':' + id, read: false, at: Date.now() }); };
+const reqStep = (id, patch) => { const r = REQUESTS[id]; Object.assign(r, patch); window.RP_SYNC?.updateRequest(id, patch); return r; };
 const validateRequest = id => {
-  const r = REQUESTS[id]; if (!r || r.status === 'done') return;
-  Object.assign(r, { status: 'done', doneAt: Date.now() }); window.RP_SYNC?.updateRequest(id, { status: 'done', doneAt: r.doneAt });
-  if (r.from !== me) NEWS.unshift({ to: r.from, text: `Commande « ${r.item} » : livraison aujourd'hui. Merci au responsable de la logistique !`, charId: r.charId, key: 'reqok:' + id, read: false, at: Date.now() });
+  const r = REQUESTS[id]; if (!r || r.status === 'done' || r.status === 'refused') return;
+  reqStep(id, { status: 'done', doneAt: Date.now() });
+  reqNews(id, r, 'reqok', `Commande « ${r.item} » : livraison aujourd'hui. Merci au responsable de la logistique !`);
+};
+const prepareRequest = (id, eta) => {
+  const r = REQUESTS[id]; if (!r || r.status !== 'pending') return;
+  reqStep(id, { status: 'preparing', eta: eta || null, stepAt: Date.now() });
+  reqNews(id, r, 'reqprep', `Commande « ${r.item} » en préparation${eta ? ` : livraison prévue le ${fmtIso(eta)}` : ''}.`);
+};
+const refuseRequest = (id, reason) => {
+  const r = REQUESTS[id]; if (!r || !['pending', 'preparing'].includes(r.status)) return;
+  reqStep(id, { status: 'refused', reason: reason || '', stepAt: Date.now() });
+  reqNews(id, r, 'reqno', `Commande « ${r.item} » refusée${reason ? ` : ${reason}` : ''}.`);
 };
 const cancelRequest = id => { const r = REQUESTS[id]; if (!r || r.status !== 'pending' || r.from !== me) return;
   delete REQUESTS[id]; window.RP_SYNC?.deleteRequest(id); dropNews(['req:' + id]); };
+const REQ_STATUS = { pending: 'En attente', preparing: 'En préparation', done: 'Livrée', refused: 'Refusée' };
 const reqLine = ([id, r], logi) => `<li class="req ${r.status}"><div><b>${esc(r.item)}</b>
-    <small>${logi ? `Pour ${esc(nameOf(r.charId))} · ` : `${esc(nameOf(r.charId))} · `}demandé le ${fmtAt(r.at)}${r.status === 'done' ? ` · livré le ${fmtAt(r.doneAt)}` : ''}</small>
-    ${r.note ? `<span class="req-note">${esc(r.note)}</span>` : ''}</div>
+    <small>${logi ? `Pour ${esc(nameOf(r.charId))} · ` : `${esc(nameOf(r.charId))} · `}demandé le ${fmtAt(r.at)}${r.status === 'done' ? ` · livré le ${fmtAt(r.doneAt)}` : ''}${r.status === 'preparing' && r.eta ? ` · livraison prévue le ${fmtIso(r.eta)}` : ''}</small>
+    ${r.note ? `<span class="req-note">${esc(r.note)}</span>` : ''}
+    ${r.status === 'refused' && r.reason ? `<span class="req-note">Motif : ${esc(r.reason)}</span>` : ''}
+    ${logi && reqView.step?.id === id ? reqView.step.kind === 'prep'
+      ? `<span class="req-step"><label><span>Livraison prévue le (facultatif)</span><input type="date" id="req-eta" min="${isoDay(rpDay)}"></label>
+          <span><button type="button" class="btn" data-req-prep-ok="${id}">Passer en préparation</button> <button type="button" class="link small" data-req-step-no>Annuler</button></span></span>`
+      : `<span class="req-step"><input type="text" id="req-reason" maxlength="200" placeholder="Motif du refus (facultatif)">
+          <span><button type="button" class="btn danger" data-req-no-ok="${id}">Refuser la demande</button> <button type="button" class="link small" data-req-step-no>Annuler</button></span></span>` : ''}</div>
   ${r.status === 'done' ? `<span class="req-ok">${icon('checks')}Livrée</span>`
-    : logi ? `<button type="button" class="join-btn" data-req-ok="${id}">${icon('checks')}Validée</button>`
-    : `<span class="req-wait">En attente</span><button type="button" class="link small" data-req-cancel="${id}">Annuler</button>`}</li>`;
+    : r.status === 'refused' ? `<span class="req-wait refused">Refusée</span>`
+    : logi ? `<span class="req-actions">${r.status === 'pending' ? `<button type="button" class="link small" data-req-prep="${id}">En préparation</button>` : '<span class="req-wait">En préparation</span>'}
+        <button type="button" class="join-btn" data-req-ok="${id}">${icon('checks')}Validée</button>
+        <button type="button" class="link small danger" data-req-no="${id}">Refuser</button></span>`
+    : `<span class="req-wait">${REQ_STATUS[r.status]}</span>${r.status === 'pending' ? `<button type="button" class="link small" data-req-cancel="${id}">Annuler</button>` : ''}`}</li>`;
 const logisticsHtml = id => {
   if (id !== LOGI_CHAR) return '';
   const all = Object.entries(REQUESTS).sort((a, b) => b[1].at - a[1].at), logi = isLogi();
-  const mineChars = C.filter(c => c.player === me), pending = all.filter(([, r]) => r.status === 'pending'), done = all.filter(([, r]) => r.status === 'done');
+  const mineChars = C.filter(c => c.player === me), open = all.filter(([, r]) => ['pending', 'preparing'].includes(r.status)), closed = all.filter(([, r]) => ['done', 'refused'].includes(r.status));
   const pick = reqView.char && mineChars.some(c => c.id === reqView.char) ? reqView.char : mineChars[0]?.id;
   return `<section class="logi"><h2>${icon('box')}Logistique</h2>
     <p class="reserved">${esc(nameOf(LOGI_CHAR))} est ${C.find(c => c.id === LOGI_CHAR)?.gender === 'f' ? 'la responsable' : 'le responsable'} de la logistique de l'Iloh. Une demande de matériel lui est transmise aussitôt.</p>
@@ -1199,17 +1280,23 @@ const logisticsHtml = id => {
       <input type="text" id="req-note" maxlength="300" placeholder="Précisions (facultatif)">
       <button type="button" class="btn" id="req-send">Envoyer la demande</button>
       ${reqView.msg ? `<p class="reserved" aria-live="polite">${esc(reqView.msg)}</p>` : ''}</div>` : ''}
-    ${logi ? `<h3>Demandes en cours${pending.length ? ` <span class="badge">${pending.length}</span>` : ''}</h3>
-      ${pending.length ? `<ul class="req-list">${pending.map(x => reqLine(x, true)).join('')}</ul>` : '<p class="reserved">Aucune demande en attente.</p>'}
-      ${done.length ? `<details class="req-done"><summary>Demandes livrées (${done.length})</summary><ul class="req-list">${done.slice(0, 30).map(x => reqLine(x, true)).join('')}</ul></details>` : ''}
+    ${logi ? `<h3>Demandes en cours${open.length ? ` <span class="badge">${open.length}</span>` : ''}</h3>
+      ${open.length ? `<ul class="req-list">${open.map(x => reqLine(x, true)).join('')}</ul>` : '<p class="reserved">Aucune demande en attente.</p>'}
+      ${closed.length ? `<details class="req-done"><summary>Demandes traitées (${closed.length})</summary><ul class="req-list">${closed.slice(0, 30).map(x => reqLine(x, true)).join('')}</ul></details>` : ''}
       <p class="reserved">Cette liste n'est visible que de toi.</p>`
     : (m => m.length ? `<h3>Mes demandes</h3><ul class="req-list">${m.slice(0, 20).map(x => reqLine(x, false)).join('')}</ul>` : '')(all.filter(([, r]) => r.from === me))}
   </section>`;
 };
 document.addEventListener('change', e => { if (e.target.id === 'req-char') reqView.char = e.target.value; });
 document.addEventListener('click', e => {
-  const ok = e.target.closest('[data-req-ok]'), cancel = e.target.closest('[data-req-cancel]');
-  if (ok) { validateRequest(ok.dataset.reqOk); reqView.msg = ''; return renderChar(current); }
+  const q = sel => e.target.closest(sel);
+  const ok = q('[data-req-ok]'), cancel = q('[data-req-cancel]'), prep = q('[data-req-prep]'), no = q('[data-req-no]'), prepOk = q('[data-req-prep-ok]'), noOk = q('[data-req-no-ok]');
+  if (ok) { validateRequest(ok.dataset.reqOk); reqView.msg = ''; reqView.step = null; return renderChar(current); }
+  if (prep) { reqView.step = { id: prep.dataset.reqPrep, kind: 'prep' }; return renderChar(current); }
+  if (no) { reqView.step = { id: no.dataset.reqNo, kind: 'no' }; return renderChar(current); }
+  if (q('[data-req-step-no]')) { reqView.step = null; return renderChar(current); }
+  if (prepOk) { prepareRequest(prepOk.dataset.reqPrepOk, document.getElementById('req-eta')?.value || null); reqView.step = null; return renderChar(current); }
+  if (noOk) { refuseRequest(noOk.dataset.reqNoOk, document.getElementById('req-reason')?.value.trim() || ''); reqView.step = null; return renderChar(current); }
   if (cancel) { cancelRequest(cancel.dataset.reqCancel); return renderChar(current); }
   if (e.target.closest('#req-send')) {
     const f = document.getElementById('req-item'), item = f.value.trim(); if (!item) return f.focus();
@@ -1219,6 +1306,128 @@ document.addEventListener('click', e => {
   }
 });
 document.addEventListener('keydown', e => { if ((e.target.id === 'req-item' || e.target.id === 'req-note') && e.key === 'Enter') { e.preventDefault(); document.getElementById('req-send')?.click(); } });
+
+// ---------- Historique chargé à la demande (liens, recherche) ----------
+const histDate = k => { const [y, m, d] = k.split('-').map(Number); return new Date(y, m - 1, d); };
+// Charge les mois [de, à] (Date au 1er du mois) pour tout le groupe, puis réaffiche la page.
+const loadMonths = async (from, n) => {
+  if (!window.RP_SYNC) return;
+  const todo = [];
+  for (let i = 0; i < n; i++) { const d = new Date(from.getFullYear(), from.getMonth() + i, 1); if (!RP_SYNC.hasMonth(d.getFullYear(), d.getMonth())) todo.push(RP_SYNC.loadMonth(d.getFullYear(), d.getMonth())); }
+  if (todo.length) await Promise.all(todo);
+  return todo.length;
+};
+// Journées d'un personnage (historique + aujourd'hui) : [Date, entrée].
+const daysOf = id => { const today = keyOf(rpDay);
+  const h = Object.entries((typeof HISTORY === 'undefined' ? {} : HISTORY)[id] || {}).filter(([k]) => k !== today).map(([k, e]) => [histDate(k), e]);
+  if (state[id]?.done || state[id]?.checked?.size) h.push([rpDay, state[id]]);
+  return h; };
+
+// ---------- Liens entre personnages : activités communes notées (withActs) ----------
+const LINK_PERIODS = [{ id: 'mois', label: 'Ce mois-ci', months: 1 }, { id: '3mois', label: '3 derniers mois', months: 3 }, { id: 'annee', label: 'Cette année', months: null }];
+const linksView = { period: 'mois', loading: false };
+const periodStart = p => p.months ? new Date(rpDay.getFullYear(), rpDay.getMonth() - p.months + 1, 1) : new Date(rpDay.getFullYear(), 0, 1);
+const linksCount = start => {
+  const pairs = {};   // « a+b » → jours (chaque duo compte une fois par jour)
+  for (const c of C) for (const [d, e] of daysOf(c.id)) {
+    if (d < start || d > rpDay) continue;
+    const k = keyOf(d);
+    for (const [l, ids] of Object.entries(e.withActs || {})) {
+      if (!(e.checked?.has?.(l) || e.checked?.includes?.(l))) continue;
+      for (const o of ids) if (isChar(o) && o !== c.id) ((pairs[[c.id, o].sort().join('+')] ||= new Set())).add(k);
+    }
+  }
+  return Object.entries(pairs).map(([p, s]) => ({ a: p.split('+')[0], b: p.split('+')[1], n: s.size })).sort((x, y) => y.n - x.n || nameOf(x.a).localeCompare(nameOf(y.a), 'fr'));
+};
+const pColor = id => PLAYERS.find(p => p.id === playerOf(id))?.color || 'var(--dim)';
+const linksSvg = L => {
+  const ids = [...new Set(L.flatMap(x => [x.a, x.b]))].sort((a, b) => playerOf(a).localeCompare(playerOf(b)) || nameOf(a).localeCompare(nameOf(b), 'fr'));
+  if (ids.length < 2) return '';
+  const R = 130, cx = 180, cy = 165, max = Math.max(...L.map(x => x.n)), pos = {};
+  ids.forEach((id, i) => { const a = -Math.PI / 2 + i * 2 * Math.PI / ids.length; pos[id] = [cx + R * Math.cos(a), cy + R * Math.sin(a), a]; });
+  return `<svg class="links-net" viewBox="0 0 360 330" role="img" aria-label="Réseau des personnages liés par des activités communes">
+    ${L.map(x => `<line x1="${pos[x.a][0].toFixed(1)}" y1="${pos[x.a][1].toFixed(1)}" x2="${pos[x.b][0].toFixed(1)}" y2="${pos[x.b][1].toFixed(1)}" stroke-width="${(1 + 5 * x.n / max).toFixed(1)}" stroke-opacity="${(.35 + .55 * x.n / max).toFixed(2)}"><title>${esc(nameOf(x.a))} et ${esc(nameOf(x.b))} : ${x.n} jour${x.n > 1 ? 's' : ''}</title></line>`).join('')}
+    ${ids.map(id => { const [x, y, a] = pos[id], right = Math.cos(a) >= 0;
+      return `<g><circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="6" fill="${pColor(id)}"/><text x="${(x + (right ? 10 : -10)).toFixed(1)}" y="${(y + 4).toFixed(1)}" text-anchor="${right ? 'start' : 'end'}">${esc(nameOf(id))}</text></g>`; }).join('')}
+  </svg>`;
+};
+function renderLinks() {
+  root.className = 't-khurdan';
+  const p = LINK_PERIODS.find(x => x.id === linksView.period), start = periodStart(p), L = linksCount(start), max = L[0]?.n || 1;
+  const per = C.map(c => ({ c, with: L.filter(x => x.a === c.id || x.b === c.id).map(x => ({ o: x.a === c.id ? x.b : x.a, n: x.n })) })).filter(x => x.with.length);
+  document.getElementById('view').innerHTML = `
+    <p class="ev-back"><button type="button" class="link" data-go="home">‹ Accueil</button></p>
+    <header><p class="kicker">${APP_NAME}</p><h1>Les liens de l'Iloh</h1><p class="date">Qui passe ses journées avec qui, d'après les activités communes notées.</p></header>
+    <div class="place-list" role="group" aria-label="Période">${LINK_PERIODS.map(x => `<button type="button" data-links-period="${x.id}" aria-pressed="${x.id === p.id}">${x.label}</button>`).join('')}</div>
+    ${linksView.loading ? '<p class="reserved">Chargement de l\'historique…</p>' : ''}
+    ${L.length ? `<section><h2>${icon('users')}Les duos</h2><ol class="duos">${L.slice(0, 12).map(x => `<li><span class="duo-names"><i class="yc-dot" style="background:${pColor(x.a)}"></i>${esc(nameOf(x.a))} <span class="dim">&amp;</span> <i class="yc-dot" style="background:${pColor(x.b)}"></i>${esc(nameOf(x.b))}</span>
+        <span class="duo-bar"><i style="width:${Math.round(100 * x.n / max)}%"></i></span><b>${x.n} jour${x.n > 1 ? 's' : ''}</b></li>`).join('')}</ol></section>
+      <section><h2>${icon('map')}Le réseau</h2>${linksSvg(L)}</section>
+      <section><h2>Le plus souvent avec…</h2><ul class="per-char">${per.map(x => `<li><button type="button" class="link" data-go="${x.c.id}"><i class="yc-dot" style="background:${pColor(x.c.id)}"></i>${esc(x.c.name)}</button> :
+        ${x.with.slice(0, 3).map(w => `${esc(nameOf(w.o))} <small>(${w.n})</small>`).join(', ')}</li>`).join('')}</ul></section>`
+    : linksView.loading ? '' : '<p class="reserved">Aucune activité commune notée sur cette période. Sous une activité cochée, « Avec d\'autres personnages ? » permet d\'en noter.</p>'}`;
+}
+const openLinks = async period => {
+  linksView.period = period || linksView.period;
+  const p = LINK_PERIODS.find(x => x.id === linksView.period), start = periodStart(p);
+  const n = (rpDay.getFullYear() - start.getFullYear()) * 12 + rpDay.getMonth() - start.getMonth() + 1;
+  linksView.loading = !!window.RP_SYNC && Array.from({ length: n }, (_, i) => new Date(start.getFullYear(), start.getMonth() + i, 1)).some(d => !RP_SYNC.hasMonth(d.getFullYear(), d.getMonth()));
+  if (current === 'liens') renderLinks(); else go('liens');
+  if (linksView.loading) { await loadMonths(start, n).catch(console.error); linksView.loading = false; if (current === 'liens') renderLinks(); }
+};
+
+// ---------- Recherche dans l'historique ----------
+const SEARCH_MONTHS = 18;   // profondeur chargée pour la recherche
+const searchView = { q: '', who: '', loading: false, loaded: false };
+const norm = t => String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+// Texte d'une journée pour la recherche : mood, activités (précisions, personnages présents), lieux, faits, infos, états.
+const entryText = e => {
+  const acts = [...(e.checked || [])].map(l => l + (e.details?.[l] ? ' : ' + e.details[l] : '') + (w => w.length ? ' avec ' + andList(w.map(nameOf)) : '')((e.withActs?.[l] || []).filter(isChar)));
+  return [e.mood, ...acts, ...[...(e.places || [])], e.faits, e.infos, ...Object.values(e.stateNotes || {}), e.trip?.to ? legLabel(e.trip.to) : ''].filter(Boolean).join(' · ');
+};
+const snippet = (text, q) => { const i = norm(text).indexOf(norm(q)); if (i < 0) return esc(text.slice(0, 140));
+  const a = Math.max(0, i - 60), b = Math.min(text.length, i + q.length + 80);
+  return (a ? '…' : '') + esc(text.slice(a, i)) + '<mark>' + esc(text.slice(i, i + q.length)) + '</mark>' + esc(text.slice(i + q.length, b)) + (b < text.length ? '…' : ''); };
+const searchResults = () => {
+  const q = searchView.q.trim(); if (q.length < 2) return [];
+  const out = [];
+  for (const c of C.filter(x => !searchView.who || x.id === searchView.who)) for (const [d, e] of daysOf(c.id)) {
+    const t = entryText(e); if (norm(t).includes(norm(q))) out.push({ c, d, t });
+  }
+  return out.sort((a, b) => b.d - a.d).slice(0, 80);
+};
+const searchListHtml = () => { const q = searchView.q.trim(), R = searchResults();
+  return q.length < 2 ? '<p class="reserved">Saisis au moins deux lettres.</p>'
+    : `<p class="reserved">${R.length ? `${R.length}${R.length === 80 ? ' (ou plus)' : ''} journée${R.length > 1 ? 's' : ''} trouvée${R.length > 1 ? 's' : ''}` : 'Aucune journée trouvée.'}${searchView.loading ? ' · chargement de l\'historique…' : ''}</p>
+    <ul class="search-res">${R.map(r => `<li><button type="button" class="search-hit" data-search-open="${r.c.id}:${keyOf(r.d)}">
+      <span class="sr-head"><i class="yc-dot" style="background:${pColor(r.c.id)}"></i><b>${esc(r.c.name)}</b> <small>${fmtDay(r.d)}</small></span><span class="sr-text">${snippet(r.t, q)}</span></button></li>`).join('')}</ul>`; };
+function renderSearch() {
+  root.className = 't-khurdan';
+  document.getElementById('view').innerHTML = `
+    <p class="ev-back"><button type="button" class="link" data-go="home">‹ Accueil</button></p>
+    <header><p class="kicker">${APP_NAME}</p><h1>Rechercher</h1><p class="date">Dans les journées racontées : mood, activités, lieux, faits notoires…</p></header>
+    <div class="search-form"><input type="search" id="search-q" value="${esc(searchView.q)}" placeholder="Ex. : massage, mammouth, Buyan…" enterkeyhint="search" autocomplete="off">
+      <select id="search-who" aria-label="Personnage"><option value="">Tous les personnages</option>${[...C].sort((a, b) => a.name.localeCompare(b.name, 'fr')).map(c => `<option value="${c.id}" ${searchView.who === c.id ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select></div>
+    <div id="search-out">${searchListHtml()}</div>`;
+}
+const openSearch = async () => {
+  go('search'); document.getElementById('search-q')?.focus();
+  if (searchView.loaded || !window.RP_SYNC) return;
+  searchView.loading = true; document.getElementById('search-out') && (document.getElementById('search-out').innerHTML = searchListHtml());
+  await loadMonths(new Date(rpDay.getFullYear(), rpDay.getMonth() - SEARCH_MONTHS + 1, 1), SEARCH_MONTHS).catch(console.error);
+  searchView.loading = false; searchView.loaded = true;
+  const o = document.getElementById('search-out'); if (o && current === 'search') o.innerHTML = searchListHtml();
+};
+document.addEventListener('input', e => { if (e.target.id === 'search-q') { searchView.q = e.target.value; const o = document.getElementById('search-out'); if (o) o.innerHTML = searchListHtml(); } });
+document.addEventListener('change', e => { if (e.target.id === 'search-who') { searchView.who = e.target.value; const o = document.getElementById('search-out'); if (o) o.innerHTML = searchListHtml(); } });
+document.addEventListener('click', e => {
+  const lp = e.target.closest('[data-links-period]'), so = e.target.closest('[data-search-open]'), nav = e.target.closest('[data-open-page]');
+  if (nav) return nav.dataset.openPage === 'liens' ? openLinks() : openSearch();
+  if (lp) return openLinks(lp.dataset.linksPeriod);
+  if (so) { const [id, k] = so.dataset.searchOpen.split(':'), d = histDate(k), s = state[id];
+    if (sameDay(d, rpDay)) { s.view = 'day'; return go(id); }
+    s.view = 'history'; s.cal = { y: d.getFullYear(), m: d.getMonth() }; s.calSel = d; go(id); }
+});
 
 // ---------- Événements du groupe : annoncés par un joueur, une nouvelle (et une notification) pour tous les autres ----------
 const EVENT_TYPES = [
@@ -1249,8 +1458,41 @@ const addGroupEvent = (type, text, until, date) => {
 };
 const removeGroupEvent = id => { delete GROUP_EVENTS[id]; window.RP_SYNC?.saveEvent(id, null); dropNews(PLAYERS.map(p => 'event:' + id + ':' + p.id)); };
 const fmtIso = iso => { const [y, m, d] = iso.split('-').map(Number); return fmtDay(new Date(y, m - 1, d)); };
+const isoDate = iso => { const [y, m, d] = iso.split('-').map(Number); return new Date(y, m - 1, d); };
+// Inscriptions : e.going = { personnage: joueur } (écrit champ par champ : deux inscriptions simultanées ne s'écrasent pas).
+const goingOf = e => Object.keys(e?.going || {}).filter(isChar).sort((a, b) => nameOf(a).localeCompare(nameOf(b), 'fr'));
+const evFinished = e => !!e.until && e.until < isoDay(rpDay);   // sans date de fin : inscriptions ouvertes tant qu'il est annoncé
+const setGoing = (evId, cid, on) => { const e = GROUP_EVENTS[evId]; if (!e) return; e.going ||= {};
+  if (on) e.going[cid] = me; else delete e.going[cid]; window.RP_SYNC?.setGoing?.(evId, cid, on ? me : null); };
+const goingHtml = (id, e) => { const g = goingOf(e), mine = C.filter(c => c.player === me);
+  return `<div class="ev-going">${g.length ? `<p class="ev-who">${icon('users')}<span>${g.length} participant${g.length > 1 ? 's' : ''} : ${g.map(cid => `<i class="yc-dot" style="background:${PLAYERS.find(p => p.id === playerOf(cid))?.color}"></i>${esc(nameOf(cid))}`).join(', ')}</span></p>` : ''}
+    ${evFinished(e) || !mine.length ? '' : `<div class="ev-join"><span>Je participe avec :</span><div class="place-list subs" role="group" aria-label="Participer avec">${mine.map(c => `<button type="button" data-ev-go="${id}:${c.id}" aria-pressed="${!!e.going?.[c.id]}">${esc(c.name)}</button>`).join('')}</div></div>`}</div>`; };
+// Le jour J : l'événement auquel un personnage participe peut être ajouté à sa fiche (avec les autres participants).
+const evActLabel = e => e.text.length <= 60 ? e.text : evType(e.type).label;
+const evActsOf = id => Object.entries(GROUP_EVENTS).filter(([, e]) => e && e.going?.[id] && evOn(e, isoDay(rpDay))).map(([evId, e]) => ({ evId, e, act: evActLabel(e) }));
+const addEvAct = (id, evId) => {
+  const e = GROUP_EVENTS[evId], s = state[id], c = C.find(x => x.id === id); if (!e) return;
+  const l = evActLabel(e);
+  if (!allActs(c).includes(l) && !s.specials.includes(l)) s.specials.push(l);
+  s.checked.add(l);
+  goingOf(e).filter(o => o !== id).forEach(o => setWith(id, l, o, true, true));   // les autres participants, sans nouvelle
+  saveComplement(id);
+};
+// Anniversaires des personnages et grands jours khurdans (transhumances, Naadam, Mois Blanc) : affichés au calendrier.
+const calSpecials = d => { const k = C.find(c => c.groups.includes('Khurdans'));
+  return [...(k ? khurdanDays(k, d) : []).map(t => ({ ico: 'star', t })),
+    ...C.filter(c => BIRTHDAYS[c.id] && bdayOn(BIRTHDAYS[c.id], d)).map(c => ({ ico: 'cake', t: 'Anniversaire ' + deName(c.name), cid: c.id }))]; };
+const calSpecialsHtml = d => calSpecials(d).map(x => `<p class="cal-sp">${icon(x.ico)}<span>${x.cid ? `<button type="button" class="link" data-go="${x.cid}">${esc(x.t)}</button>` : esc(x.t)}</span></p>`).join('');
+// Le jour d'un anniversaire, le joueur du personnage prévient les autres (une seule fois : une nouvelle déjà créée n'est pas réécrite).
+document.addEventListener('click', e => { const b = e.target.closest('[data-ev-act]'); if (!b || !isChar(current)) return; addEvAct(current, b.dataset.evAct); renderChar(current); });
+let bdayNewsDone = false;
+const birthdayNews = () => {
+  if (bdayNewsDone || !me || !window.RP_SYNC?.newsOnce) return; bdayNewsDone = true;
+  C.filter(c => c.player === me && BIRTHDAYS[c.id] && bdayOn(BIRTHDAYS[c.id], rpDay)).forEach(c =>
+    PLAYERS.filter(p => p.id !== me).forEach(p => RP_SYNC.newsOnce('bday:' + isoDay(rpDay) + ':' + c.id + ':' + p.id, { to: p.id, text: `C'est l'anniversaire ${deName(c.name)} !`, charId: c.id })));
+};
 const evCardHtml = ([id, e]) => `<div class="g-event">${icon(evType(e.type).icon)}<div><b>${esc(evType(e.type).label)}</b><span>${esc(e.text)}</span>
-      <small>${evWhen(e).replace(/^./, c => c.toUpperCase())} · annoncé par ${esc(PLAYER_NAME[e.by] || '?')}</small></div>
+      <small>${evWhen(e).replace(/^./, c => c.toUpperCase())} · annoncé par ${esc(PLAYER_NAME[e.by] || '?')}</small>${goingHtml(id, e)}</div>
       ${e.by === me || isAdminMe() ? evView.del === id ? `<span class="g-del"><button type="button" class="link small danger" data-ev-del-ok="${id}">Retirer l'annonce</button> <button type="button" class="link small" data-ev-del-no>Annuler</button></span>`
         : `<button type="button" class="link small ico-btn" data-ev-del="${id}" title="Retirer l'annonce" aria-label="Retirer l'annonce">${icon('trash')}</button>` : ''}</div>`;
 const evFormHtml = date => `<details class="ev-new"${evView.open ? ' open' : ''}><summary>${icon('plus')}Annoncer un événement sur l'Iloh</summary>
@@ -1265,8 +1507,9 @@ const evFormHtml = date => `<details class="ev-new"${evView.open ? ' open' : ''}
 const groupEventsHtml = () => {
   const list = activeEvents();
   return `<section class="group-events"><h2>${icon('flag')}Événements sur l'Iloh<button type="button" class="link ico-btn ev-cal-btn" data-go="events" title="Calendrier des événements" aria-label="Calendrier des événements">${icon('calendar')}</button></h2>
+    ${calSpecialsHtml(rpDay)}
     ${list.map(evCardHtml).join('')}
-    ${list.length ? '' : '<p class="reserved">Aucun événement en cours.</p>'}
+    ${list.length || calSpecials(rpDay).length ? '' : '<p class="reserved">Aucun événement en cours.</p>'}
     ${evFormHtml(isoDay(rpDay))}</section>`;
 };
 // Page « Calendrier des événements » : un mois, les jours avec un événement marqués ; le jour choisi en dessous.
@@ -1287,12 +1530,14 @@ function renderEvents() {
       <div class="cal" role="grid">
         ${['L', 'M', 'M', 'J', 'V', 'S', 'D'].map(d => `<span class="cal-dow">${d}</span>`).join('')}
         ${'<span></span>'.repeat(lead)}
-        ${Array.from({ length: n }, (_, i) => new Date(y, m, i + 1)).map(d => { const iso = isoDay(d), L = on(iso);
-          return `<button type="button" class="cal-day ${L.length ? 'filled ev-day' : ''} ${sameDay(d, rpDay) ? 'today' : ''} ${sel === iso ? 'sel' : ''}" data-ev-day="${iso}">
-            <span class="n">${d.getDate()}</span>${L.length ? icon(evType(L[0][1].type).icon) : ''}${L.length > 1 ? `<i class="ev-count">${L.length}</i>` : ''}</button>`; }).join('')}
+        ${Array.from({ length: n }, (_, i) => new Date(y, m, i + 1)).map(d => { const iso = isoDay(d), L = on(iso), sp = calSpecials(d), k = L.length + sp.length;
+          return `<button type="button" class="cal-day ${L.length ? 'filled ev-day' : sp.length ? 'sp-day' : ''} ${sameDay(d, rpDay) ? 'today' : ''} ${sel === iso ? 'sel' : ''}" data-ev-day="${iso}">
+            <span class="n">${d.getDate()}</span>${L.length ? icon(evType(L[0][1].type).icon) : sp.length ? icon(sp[0].ico) : ''}${k > 1 ? `<i class="ev-count">${k}</i>` : ''}</button>`; }).join('')}
       </div>
+      <p class="reserved cal-legend">${icon('star')} grands jours khurdans · ${icon('cake')} anniversaires · les autres icônes : événements annoncés</p>
       ${sel ? `<div class="day-detail"><h3>${fmtIso(sel)}</h3>
-        ${selList.length ? selList.map(evCardHtml).join('') : '<p class="reserved">Aucun événement ce jour-là.</p>'}</div>` : ''}
+        ${calSpecialsHtml(isoDate(sel))}
+        ${selList.length ? selList.map(evCardHtml).join('') : calSpecials(isoDate(sel)).length ? '' : '<p class="reserved">Aucun événement ce jour-là.</p>'}</div>` : ''}
       ${evFormHtml(sel && sel >= isoDay(rpDay) ? sel : isoDay(rpDay))}
     </section>`;
 }
@@ -1318,6 +1563,8 @@ document.addEventListener('toggle', e => { if (e.target.classList?.contains('ev-
 document.addEventListener('click', e => {
   const t = e.target.closest('[data-ev-type]'), add = e.target.closest('#ev-add'), del = e.target.closest('[data-ev-del]'), ok = e.target.closest('[data-ev-del-ok]');
   if (t) { evView.type = t.dataset.evType; document.querySelectorAll('[data-ev-type]').forEach(b => b.setAttribute('aria-pressed', b === t)); return; }
+  const go = e.target.closest('[data-ev-go]');
+  if (go) { const [evId, cid] = go.dataset.evGo.split(':'); setGoing(evId, cid, go.getAttribute('aria-pressed') !== 'true'); return evRefresh(); }
   const day = e.target.closest('[data-ev-day]'), mo = e.target.closest('[data-ev-month]');
   if (day) { evCal.sel = day.dataset.evDay; evView.del = null; return evRefresh(); }
   if (mo) { const d = new Date(evCal.y, evCal.m + +mo.dataset.evMonth, 1); Object.assign(evCal, { y: d.getFullYear(), m: d.getMonth() }); return evRefresh(); }
@@ -2708,6 +2955,7 @@ document.addEventListener('change', e => { if (e.target.id !== 'fx-toggle') retu
 const fxToggleHtml = () => `<label class="check-inline fx-toggle"><input type="checkbox" id="fx-toggle" ${fxWanted() ? 'checked' : ''} ${fxReduced() ? 'disabled' : ''}> Animation de la météo${fxReduced() ? ' <small>(coupée : l\'appareil demande moins d\'animations)</small>' : ''}</label>`;
 
 function renderHome() {
+  setTimeout(birthdayNews, 0);
   root.className = 't-khurdan';
   const visible = C.filter(shown);
   document.getElementById('view').innerHTML = `
@@ -2715,7 +2963,9 @@ function renderHome() {
     <div class="whoami" role="group" aria-label="Aperçu : je suis">Aperçu, connecté en tant que
       ${Object.entries(PLAYER_NAME).map(([k, n]) => `<button type="button" data-me="${k}" aria-pressed="${me === k}">${n}</button>`).join('')}</div>
     <header><p class="kicker">${APP_NAME}</p><h1>Aujourd'hui</h1><p class="date">${today}<br>${eorzeaDate}</p>
-      <p class="home-links"><button type="button" class="chip-link" data-go="iloh">${icon('map')}Carte de l'Iloh</button></p>${(f => f ? `<p class="fest home-fest">${icon('star')}En Eorzea : ${f.name}</p>` : '')(festivalOn(rpDay))}</header>
+      <p class="home-links"><button type="button" class="chip-link" data-go="iloh">${icon('map')}Carte de l'Iloh</button>
+        <button type="button" class="chip-link" data-open-page="liens">${icon('users')}Les liens</button>
+        <button type="button" class="chip-link" data-open-page="search">${icon('search')}Rechercher</button></p>${(f => f ? `<p class="fest home-fest">${icon('star')}En Eorzea : ${f.name}</p>` : '')(festivalOn(rpDay))}</header>
     ${((unread, day) => `<section class="news"><h2>${icon('bell')}Nouvelles${unread.length ? ` <span class="badge">${unread.length}</span>` : ''}</h2>
       ${unread.length ? `<ul>${unread.slice(0, 8).map(n => `<li class="unread ${newsKind(n)}">${newsLink(n, esc(n.text))}</li>`).join('')}</ul>
       <button type="button" class="link ico-btn" id="news-read" title="Tout marquer comme lu" aria-label="Tout marquer comme lu">${icon('checks')}</button>` : '<p class="reserved">Rien de nouveau pour l\'instant.</p>'}
@@ -3280,7 +3530,7 @@ function renderCharNow(id) {
   document.getElementById('done-'+id).addEventListener('click', () => { s.done = true; s.doneAt ??= Date.now(); renderNav(); renderChar(id); });
 }
 
-function go(id) { resetSpacer(); lastPage = null; current = id; renderNav(); if (id !== 'home') fxOff(); id === 'home' ? renderHome() : id === 'events' ? renderEvents() : id === 'iloh' ? renderIloh() : renderChar(id); window.scrollTo({ top:0 }); }
+function go(id) { resetSpacer(); lastPage = null; current = id; renderNav(); if (id !== 'home') fxOff(); id === 'home' ? renderHome() : id === 'events' ? renderEvents() : id === 'iloh' ? renderIloh() : id === 'liens' ? renderLinks() : id === 'search' ? renderSearch() : renderChar(id); window.scrollTo({ top:0 }); }
 document.addEventListener('click', e => { const b = e.target.closest('[data-go]'); if (b) go(b.dataset.go); });
 document.addEventListener('click', async e => {
   const b = e.target.closest('[data-wrap-open]'); if (!b) return;
@@ -3303,7 +3553,7 @@ document.querySelectorAll('.nav-filter button').forEach(b => b.addEventListener(
   const row = b.dataset.f ? '[data-f]' : '[data-g]';
   if (b.dataset.f) filter = b.dataset.f; else groupFilter = b.dataset.g;
   document.querySelectorAll('.nav-filter button' + row).forEach(x => x.setAttribute('aria-pressed', x === b));
-  if (!['home', 'events', 'iloh'].includes(current) && !C.some(c => c.id === current && shown(c))) current = 'home';
+  if (!['home', 'events', 'iloh', 'liens', 'search'].includes(current) && !C.some(c => c.id === current && shown(c))) current = 'home';
   go(current);
 }));
 initPlaces();

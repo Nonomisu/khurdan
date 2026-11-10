@@ -91,6 +91,31 @@ function watchSubs() {
   }, e => { log('écoute des appareils interrompue :', e.message); setTimeout(watchSubs, 30000); });
 }
 
+// ---------- Rappel la veille d'un événement de l'Iloh, pour les joueurs inscrits (à partir de 18 h) ----------
+const EV_LABEL = { info: "Information importante pour l'Iloh", chasse: 'Grand événement de chasse', fete: 'Fête ou rassemblement', autre: 'Annonce au groupe' };
+const pad = n => String(n).padStart(2, '0');
+const isoOf = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+async function remindEvents(now = new Date()) {
+  if (now.getHours() < +(process.env.REMIND_HOUR || 18)) return 0;
+  const t = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1), tomorrow = isoOf(t);
+  const evs = (await db.doc('shared/events').get()).data() || {};
+  let n = 0;
+  for (const [id, e] of Object.entries(evs)) {
+    if (!e || e.date !== tomorrow) continue;
+    const players = [...new Set(Object.values(e.going || {}).filter(p => typeof p === 'string'))];
+    for (const p of players) {
+      const key = `event:${id}:rappel:${p}`, ref = db.doc('news/' + key);
+      if ((await ref.get()).exists) continue;   // déjà rappelé
+      await ref.set({ from: 'iloh', to: p, text: `Demain : « ${e.text} » (${EV_LABEL[e.type] || 'événement'}). Tu y participes.`, charId: null, key, read: false, createdAt: FieldValue.serverTimestamp() });
+      n++;
+    }
+  }
+  if (n) log(`rappel de la veille : ${n} joueur(s)`);
+  return n;
+}
+setInterval(() => remindEvents().catch(e => log('erreur rappel', e.message)), +(process.env.REMIND_EVERY_MS || 10 * 60e3));
+module.exports = { remindEvents };
+
 log('Service des notifications Iloh Khurdan démarré.');
 watchNews();
 watchSubs();
