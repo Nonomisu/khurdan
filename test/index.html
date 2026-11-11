@@ -332,6 +332,43 @@ html, body, #view { overflow-anchor: none; }
 .g-event span { overflow-wrap: anywhere; }
 .g-event small { color: var(--dim); font-size: .8rem; }
 .g-del { display: flex; flex-direction: column; align-items: flex-end; gap: .2rem; }
+/* Projets de l'Iloh : carte, barre d'avancement (repères d'étapes), formulaire. */
+.proj-card { display: grid; gap: .35rem; padding: .8rem .9rem; border: 1px solid var(--gold); border-radius: 8px; background: color-mix(in srgb, var(--gold) 7%, var(--surface)); text-align: left; min-width: 0; }
+.proj-card.done { border-color: #6fbf73; }
+.proj-top { display: flex; align-items: flex-start; gap: .5rem; }
+.proj-top b { flex: 1; min-width: 0; font: 500 .95rem/1.25 var(--display); letter-spacing: .06em; color: var(--gold); overflow-wrap: anywhere; }
+.proj-top .link { flex: none; }
+.proj-desc { margin: 0; overflow-wrap: anywhere; }
+.proj-bar { position: relative; height: .7rem; border-radius: 999px; background: color-mix(in srgb, var(--text) 10%, transparent); overflow: hidden; }
+.proj-bar > i { position: absolute; inset: 0 auto 0 0; border-radius: 999px; background: linear-gradient(90deg, var(--accent), var(--gold)); }
+.proj-card.done .proj-bar > i, .proj-mini.done i { background: #6fbf73; }
+.proj-bar > em { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--bg); opacity: .8; }
+.proj-num, .proj-acts { margin: 0; font-size: .85rem; color: var(--dim); overflow-wrap: anywhere; }
+.proj-acts .ico { width: .95rem; height: .95rem; vertical-align: -2px; margin-right: .3rem; }
+.proj-steps { margin: 0; padding-left: 1.2rem; font-size: .88rem; display: grid; gap: .1rem; }
+.proj-steps li { color: var(--dim); }
+.proj-steps li.ok { color: var(--text); }
+.proj-steps small { color: var(--dim); }
+.proj-card > small { color: var(--dim); font-size: .8rem; }
+.proj-confirm { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; font-size: .88rem; }
+.proj-form textarea { min-height: 4.2rem; resize: vertical; }
+.proj-chosen { display: flex; flex-wrap: wrap; gap: .3rem; }
+.proj-chosen span { display: inline-flex; align-items: center; gap: .2rem; padding: .15rem .3rem .15rem .65rem; border: 1px solid var(--gold); border-radius: 999px; font-size: .85rem; max-width: 100%; overflow-wrap: anywhere; }
+.proj-goal { display: flex; align-items: center; gap: .5rem; font-size: .9rem; color: var(--dim); }
+.proj-goal input { width: 5.5rem; }
+.proj-mini { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .15rem .6rem; align-items: center; text-align: left; background: none; border: 0; padding: .2rem 0; color: inherit; font: inherit; cursor: pointer; width: 100%; }
+.proj-mini span { overflow-wrap: anywhere; }
+.proj-mini small { color: var(--dim); }
+.proj-mini .proj-bar { grid-column: 1 / -1; height: .45rem; }
+.proj-item .joined .link { font-size: inherit; }
+.proj-fiche { text-align: left; margin: .2rem 0 .6rem; padding: .6rem .8rem; border: 1px dashed var(--rule); border-radius: 6px; }
+.proj-fiche > summary { display: flex; align-items: center; gap: .4rem; cursor: pointer; color: var(--dim); list-style: none; font-size: .9rem; }
+.proj-fiche > summary::-webkit-details-marker { display: none; }
+.proj-fiche > summary .ico { width: 1rem; height: 1rem; }
+.proj-item { display: grid; gap: .35rem; margin-top: .7rem; }
+.proj-item p { margin: 0; overflow-wrap: anywhere; }
+.proj-item .place-list { margin: 0; }
+.proj-item .joined { color: var(--dim); font-size: .88rem; }
 .ev-new summary { display: flex; align-items: center; gap: .4rem; cursor: pointer; color: var(--dim); list-style: none; }
 .ev-new summary::-webkit-details-marker { display: none; }
 .ev-new summary .ico { width: 1rem; height: 1rem; }
@@ -685,6 +722,6 @@ button.link.danger { color: #e0a24d; }
 <div class="sync-state" id="sync-state" aria-live="polite"></div>
 </div>
 
-<script src="app.js?v=94ccce203d" charset="utf-8"></script>
-<script type="module" src="sync.js?v=3961e5f54d"></script>
+<script src="app.js?v=6d78cb0fbc" charset="utf-8"></script>
+<script type="module" src="sync.js?v=63e777bd62"></script>
 

@@ -1,0 +1,117 @@
+// Projets de l'Iloh : création, participation depuis les fiches, étapes, fin, modification et suppression.
+// Usage : python3 -m http.server 8765 (à la racine du dépôt), puis node dev/tests/projets.js [largeur]
+const { chromium } = require('playwright'); const fs = require('fs'); const path = require('path');
+const MOCK = path.join(__dirname, 'mockfb');
+const W = +(process.argv[2] || 420);
+const ok = (cond, label) => { console.log((cond ? '  ok  ' : '  ÉCHEC ') + label); if (!cond) process.exitCode = 1; };
+(async () => {
+  const b = await chromium.launch();
+  const ctx = await b.newContext({ viewport: { width: W, height: 900 } });
+  await ctx.route('https://www.gstatic.com/firebasejs/**', r => r.fulfill({ body: fs.readFileSync(path.join(MOCK, r.request().url().split('/').pop())), contentType: 'application/javascript' }));
+  await ctx.route('**fonts.googleapis.com**', r => r.fulfill({ body: '', contentType: 'text/css' }));
+  await ctx.route('**fonts.gstatic.com**', r => r.fulfill({ body: '' }));
+  await ctx.route('https://discord.com/api/webhooks/**', r => r.fulfill({ status: 200, contentType: 'application/json', body: '{"id":"m"}' }));
+  const errs = [];
+  const seed = { 'access/nono@test.fr': { player: 'nono', role: 'admin' }, 'access/jynette@test.fr': { player: 'jynette', role: 'joueur' },
+    'access/eden@test.fr': { player: 'eden', role: 'joueur' }, 'access/idriss@test.fr': { player: 'idriss', role: 'joueur' } };
+  const open = async (name, email, first = false) => {
+    const p = await ctx.newPage();
+    p.on('pageerror', e => errs.push(name + ': ' + e.message));
+    p.on('console', m => { if (m.type() === 'error') errs.push(name + ' console: ' + m.text()); });
+    await p.addInitScript(([n, e, s]) => { window.name = n; window.MOCK_EMAIL = e; if (s && !localStorage.getItem('mockdb')) localStorage.setItem('mockdb', JSON.stringify(s)); }, [name, email, first ? seed : null]);
+    await p.goto('http://localhost:8765/'); await p.waitForTimeout(400);
+    if (await p.isVisible('#login-btn')) await p.click('#login-btn');
+    await p.waitForTimeout(1200);
+    await p.waitForFunction(() => !document.getElementById('mirror-update'), null, { timeout: 60000 }); await p.waitForTimeout(300);
+    return p;
+  };
+  const db = p => p.evaluate(() => JSON.parse(localStorage.getItem('mockdb')));
+  const click = (p, sel) => p.evaluate(s => document.querySelector(s).click(), sel);
+  const noJump = async (p, sel, label) => { const el = p.locator(sel).first(); await el.scrollIntoViewIfNeeded(); await p.waitForTimeout(150);
+    const y0 = (await el.boundingBox())?.y; await el.click(); await p.waitForTimeout(400);
+    const y1 = (await p.locator(sel).first().boundingBox().catch(() => null))?.y; ok(y1 === undefined || Math.abs(y1 - y0) < 4, label + ' (sans saut de page)'); };
+  const wide = p => p.evaluate(() => document.documentElement.scrollWidth <= innerWidth);
+
+  const nono = await open('nono', 'nono@test.fr', true);
+  const jyn = await open('jynette', 'jynette@test.fr'), eden = await open('eden', 'eden@test.fr');
+  await nono.close();
+
+  console.log('Création (Jynette)');
+  ok(await jyn.locator('.home-links [data-go="projets"]').count() === 1, 'accueil : bouton « Projets »');
+  ok((await jyn.textContent('.home-proj')).includes('Aucun projet en cours'), 'accueil : aucun projet');
+  await click(jyn, '.home-links [data-go="projets"]'); await jyn.waitForTimeout(300);
+  ok((await jyn.textContent('#view h1')).includes("Projets de l'Iloh"), 'page « Projets de l\'Iloh »');
+  await click(jyn, '.proj-new summary'); await jyn.waitForTimeout(150);
+  await jyn.fill('#proj-title', 'Construire la nouvelle yourte');
+  await jyn.fill('#proj-desc', 'Pour accueillir les invités du Naadam.');
+  await click(jyn, '#proj-save'); await jyn.waitForTimeout(200);
+  ok((await jyn.textContent('#proj-err')).includes('au moins une activité'), 'il faut au moins une activité liée');
+  await jyn.fill('#proj-act', 'Couper du bois'); await jyn.press('#proj-act', 'Enter'); await jyn.waitForTimeout(200);
+  ok(await jyn.inputValue('#proj-title') === 'Construire la nouvelle yourte', 'le titre tapé reste après l\'ajout d\'une activité');
+  await jyn.fill('#proj-act', 'Tanner les peaux'); await click(jyn, '#proj-act-add'); await jyn.waitForTimeout(200);
+  await jyn.fill('#proj-act', 'Danse'); await click(jyn, '#proj-act-add'); await jyn.waitForTimeout(200);
+  await click(jyn, '[data-proj-act-del="2"]'); await jyn.waitForTimeout(200);
+  ok(JSON.stringify(await jyn.evaluate(() => projView.acts)) === '["Couper du bois","Tanner les peaux"]', 'activités liées : ajout et retrait');
+  await jyn.fill('#proj-goal', '3'); await jyn.fill('#proj-steps', 'Matériaux\nCharpente\nFeutre posé');
+  await click(jyn, '#proj-save'); await jyn.waitForTimeout(1200);
+  let d = await db(jyn); const [pid, P] = Object.entries(d['shared/projects'] || {})[0] || [];
+  ok(P?.title === 'Construire la nouvelle yourte' && P.goal === 3 && P.by === 'jynette' && P.steps.length === 3 && !P.done, 'projet enregistré (shared/projects)');
+  ok(d[`news/proj:${pid}:new:eden`]?.text === 'Jynette lance un projet pour l\'Iloh : « Construire la nouvelle yourte ».' && d[`news/proj:${pid}:new:nono`] && !d[`news/proj:${pid}:new:jynette`], 'nouvelle pour les autres joueurs');
+  ok((await jyn.textContent('.proj-card')).includes('0 / 3 participations · 0 %'), 'carte : 0 / 3');
+  ok(await jyn.locator(`[data-proj-edit="${pid}"]`).count() === 1 && await jyn.locator(`[data-proj-del="${pid}"]`).count() === 0, 'l\'auteure peut modifier, pas supprimer');
+  ok(await wide(jyn), 'page des projets : pas de débordement horizontal');
+
+  console.log('Participation (Eden, Buyan)');
+  await eden.reload(); await eden.waitForTimeout(1500);
+  await eden.evaluate(() => go('home')); await eden.waitForTimeout(300);
+  ok(await eden.evaluate(() => [...document.querySelectorAll('.news li')].some(l => l.classList.contains('k-with') && l.textContent.includes('lance un projet'))), 'Eden : nouvelle verte');
+  ok((await eden.textContent('.home-proj')).includes('Construire la nouvelle yourte'), 'accueil : projet en cours avec sa barre');
+  ok(await eden.locator(`[data-proj-edit]`).count() === 0, 'Eden ne peut pas modifier le projet d\'une autre');
+  await eden.evaluate(() => go('buyan')); await eden.waitForTimeout(300);
+  ok(await eden.locator('.proj-fiche').count() === 1, 'fiche de Buyan : bloc « Projets de l\'Iloh »');
+  await click(eden, '.proj-fiche summary'); await eden.waitForTimeout(150);
+  await noJump(eden, '[data-proj-act="Tanner les peaux"]', 'participation avec « Tanner les peaux »');
+  ok(await eden.evaluate(() => state.buyan.checked.has('Tanner les peaux') && state.buyan.specials.includes('Tanner les peaux')), 'activité ajoutée et cochée sur la fiche');
+  ok((await eden.textContent('.proj-fiche')).includes('Buyan a fait avancer le projet aujourd\'hui'), 'participation affichée');
+  await eden.waitForTimeout(800); d = await db(eden);
+  const iso = await eden.evaluate(() => isoDay(rpDay));
+  ok(d['shared/projects'][pid].contrib[`buyan:${iso}`]?.l === 'Tanner les peaux', 'participation enregistrée champ par champ');
+  ok(d[`news/proj:${pid}:etape0:jynette`]?.text === 'Projet « Construire la nouvelle yourte » : étape franchie, « Matériaux » (1/3).', 'étape 1 franchie : nouvelle');
+  await click(eden, `[data-proj-undo="${pid}"]`); await eden.waitForTimeout(800);
+  d = await db(eden); ok(!d['shared/projects'][pid].contrib[`buyan:${iso}`], 'participation annulée');
+  await click(eden, '[data-proj-act="Tanner les peaux"]'); await eden.waitForTimeout(800);
+  ok(await eden.locator('[data-proj-act]').count() === 0, 'une seule participation par jour et par personnage');
+
+  console.log('Participation (Jynette, Shiruun) puis fin (Nono, Tamachag recopié)');
+  await jyn.reload(); await jyn.waitForTimeout(1500);
+  await jyn.evaluate(() => { projFicheOpen = true; go('shiruun'); }); await jyn.waitForTimeout(300);
+  await click(jyn, '[data-proj-act="Couper du bois"]'); await jyn.waitForTimeout(800);
+  d = await db(jyn); ok(Object.keys(d['shared/projects'][pid].contrib).length === 2 && d[`news/proj:${pid}:etape1:eden`], '2/3 : étape 2 franchie');
+  const nono2 = await open('nono', 'nono@test.fr');
+  await nono2.evaluate(() => { projFicheOpen = true; go('tamachag'); }); await nono2.waitForTimeout(300);
+  ok(await nono2.locator('.proj-fiche').count() === 1, 'fiche recopiée (Tamachag) : bloc des projets pour son joueur');
+  await click(nono2, '[data-proj-act="Couper du bois"]'); await nono2.waitForTimeout(1000);
+  d = await db(nono2); const Pd = d['shared/projects'][pid];
+  ok(Pd.done > 0, 'objectif atteint : projet terminé');
+  ok(d[`news/proj:${pid}:fin:jynette`]?.text === 'Projet « Construire la nouvelle yourte » terminé grâce à Buyan, Shiruun et Tamachag !', 'nouvelle de fin avec les participants');
+  ok(!d[`news/proj:${pid}:etape2:jynette`], 'pas de nouvelle d\'étape en double avec la fin');
+  ok(await nono2.evaluate(() => state.tamachag.checked.has('Couper du bois')), 'activité ajoutée en complément Iloh sur la fiche de Tamachag');
+  await nono2.evaluate(() => go('projets')); await nono2.waitForTimeout(300);
+  ok((await nono2.textContent('#proj-done-fold')).includes('Projets terminés (1)'), 'rangé dans « Projets terminés »');
+  ok(await nono2.locator('.home-proj').count() === 0 && await nono2.evaluate(() => projList(false).length === 0), 'plus en cours');
+
+  console.log('Modification et suppression (admin)');
+  await click(nono2, '#proj-done-fold summary'); await nono2.waitForTimeout(150);
+  await click(nono2, `[data-proj-edit="${pid}"]`); await nono2.waitForTimeout(300);
+  ok(await nono2.inputValue('#proj-title') === 'Construire la nouvelle yourte' && await nono2.inputValue('#proj-goal') === '3', 'formulaire prérempli');
+  await nono2.fill('#proj-goal', '5'); await nono2.fill('#proj-title', 'Construire deux yourtes');
+  await click(nono2, '#proj-save'); await nono2.waitForTimeout(1000);
+  d = await db(nono2); ok(d['shared/projects'][pid].goal === 5 && d['shared/projects'][pid].title === 'Construire deux yourtes' && !d['shared/projects'][pid].done && Object.keys(d['shared/projects'][pid].contrib).length === 3, 'objectif relevé : projet rouvert, participations gardées');
+  ok((await nono2.textContent('.proj-card')).includes('3 / 5 participations · 60 %'), 'carte : 3 / 5');
+  await click(nono2, `[data-proj-del="${pid}"]`); await nono2.waitForTimeout(200);
+  await click(nono2, `[data-proj-del-ok="${pid}"]`); await nono2.waitForTimeout(1000);
+  d = await db(nono2); ok(!d['shared/projects'][pid], 'projet supprimé par l\'admin');
+  ok(await wide(nono2), 'pas de débordement horizontal');
+  console.log('erreurs :', errs.length ? errs : 'aucune'); if (errs.length) process.exitCode = 1;
+  await b.close();
+})();

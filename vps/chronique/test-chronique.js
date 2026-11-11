@@ -28,6 +28,9 @@ Object.assign(st, {
   'couples/taiga-tamachag/months/2026-11': { '3': { nights: { tamachag: { hot: true, with: 'taiga' } } } },
   'shared/events': { a: { type: 'fete', text: 'Naadam d\'automne', date: '2026-11-07', going: { tamachag: 'nono', buyan: 'eden' } }, b: { type: 'info', text: 'Ancien', date: '2026-10-01' } },
   'shared/iloh': { guests: { 53: ['davaajav'] } },
+  'shared/projects': { p1: { title: 'Construire la nouvelle yourte', goal: 10, done: null, contrib: { 'buyan:2026-11-03': { c: 'buyan' }, 'shiruun:2026-11-04': { c: 'shiruun' }, 'buyan:2026-10-20': { c: 'buyan' } } },
+    p2: { title: 'Préparer le Naadam', goal: 2, done: new Date(2026, 10, 6, 12).getTime(), contrib: { 'a:2026-11-05': {}, 'b:2026-11-06': {} } },
+    p3: { title: 'Ancien projet', goal: 3, done: null, contrib: { 'buyan:2026-10-01': {} } } },
   'requests/r1': { status: 'done', doneAt: new Date(2026, 10, 5, 12).getTime(), item: 'Yourte' },
   'requests/r2': { status: 'pending', item: 'Arc' },
   'shared/discord': { webhook: 'https://discord.test/hook' },
@@ -47,6 +50,8 @@ Object.assign(st, {
   await Ch.send(week, c);
   ok(posts.length === 1 && posts[0].url.startsWith('https://discord.test/hook') && posts[0].body.embeds[0].title === c.title, 'envoyée sur le salon Discord commun');
   ok(st['shared/chronique']?.week === '2026-S45' && writes.every(p => p === 'shared/chronique'), 'semaine notée ; aucune autre écriture');
+  ok(/🛠️ \*\*Projets\*\* : « Construire la nouvelle yourte » 3\/10 \(\+2 cette semaine\) ; « Préparer le Naadam » terminé\./.test(c.text), 'projets : avancement de la semaine et projet terminé');
+  ok(!c.text.includes('Ancien projet'), 'projet sans participation cette semaine : absent');
   const long = 'A cuisiner.. Beaucoup... Beaucoup trop. Et a porter de quoi manger ceux qui forme les protection magique.';
   st['days/shiruun/months/2026-11']['4'] = { done: true, checked: { $set: [long] }, withActs: { [long]: ['buyan', 'tamachag'] } };
   const c2 = Ch.compose(week, await Ch.gather(week));

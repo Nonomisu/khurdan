@@ -58,6 +58,8 @@ async function pushNews(id) {
     const ev = (await db.doc('shared/events').get()).data()?.[n.key.split(':')[1]];
     url = `${APP}?evenements=${encodeURIComponent(ev?.date || '')}`;
   }
+  // Projet de l'Iloh : la notification ouvre la page des projets.
+  if (String(n.key || '').startsWith('proj:')) url = `${APP}?projets`;
   const sent = await sendTo(n.to, { title: 'Iloh Khurdan', body: n.text, tag: 'news-' + id, url });
   log(`nouvelle pour ${n.to} : ${sent} appareil(s)`);
 }

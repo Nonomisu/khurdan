@@ -74,6 +74,9 @@ st['news/vieille'] = { from: 'nono', to: 'eden', text: 'Vieille', charId: 'tengi
   write('news/n4', { from: 'nono', to: 'eden', text: 'Fête ou rassemblement : Naadam', charId: null, key: 'event:ev1:eden', read: false, createdAt: TS });
   await sleep(200);
   ok(sent.at(-1).body.includes('Naadam') && sent.at(-1).url.endsWith('?evenements=2026-11-09'), 'événement : la notification ouvre le calendrier sur son jour');
+  write('news/n4b', { from: 'nono', to: 'eden', text: 'Projet « Yourte » terminé', charId: null, key: 'proj:p1:fin:eden', read: false, createdAt: TS });
+  await sleep(200);
+  ok(sent.at(-1).body.includes('Yourte') && sent.at(-1).url.endsWith('?projets'), 'projet : la notification ouvre la page des projets');
 
   const before = sent.length;
   write('pushSubs/lou/subs/c', { endpoint: 'https://push/lou-pc', keys: {} });

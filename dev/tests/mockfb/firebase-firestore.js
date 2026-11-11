@@ -21,7 +21,7 @@ const docsOf = q => Object.keys(store).filter(p => p.startsWith(q.path + '/') &&
 export const getDoc = async r => snapDoc(r.path);
 export const runTransaction = async (db, fn) => fn({ get: getDoc, set: (r, d, o) => { setDoc(r, d, o); }, update: (r, d) => { updateDoc(r, d); } });
 export const getDocs = async q => { const docs = docsOf(q); return { docs, forEach: f => docs.forEach(f) }; };
-const deepMerge = (a, b) => { const o = { ...(a || {}) }; for (const [k, v] of Object.entries(b)) o[k] = v && typeof v === 'object' && !Array.isArray(v) && o[k] && typeof o[k] === 'object' && !Array.isArray(o[k]) ? deepMerge(o[k], v) : v; return o; };
+const deepMerge = (a, b) => { const o = { ...(a || {}) }; for (const [k, v] of Object.entries(b)) if (v && v.__del) delete o[k]; else o[k] = v && typeof v === 'object' && !Array.isArray(v) && o[k] && typeof o[k] === 'object' && !Array.isArray(o[k]) ? deepMerge(o[k], v) : v; return o; };
 window.MOCK_WRITES = [];
 export const setDoc = async (r, d, opt) => { window.MOCK_WRITES.push(['set', r.path, d]); store[r.path] = opt?.merge ? deepMerge(store[r.path], d) : JSON.parse(JSON.stringify(d)); save(); };
 export const updateDoc = async (r, ...args) => {

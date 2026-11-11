@@ -119,7 +119,7 @@ const rerender = () => {
   if (isTyping(document.activeElement)) { typingDirty = true; return; }
   // Jamais entre l'appui et le relâchement : la fiche serait remplacée sous le pointeur et le clic tomberait à côté.
   if (pointerDown) { typingDirty = true; return; }
-  typingDirty = false; renderNav(); current === 'home' ? renderHome() : current === 'events' ? renderEvents() : current === 'iloh' ? renderIloh() : current === 'liens' ? renderLinks() : current === 'search' ? null : renderChar(current);
+  typingDirty = false; renderNav(); current === 'home' ? renderHome() : current === 'events' ? renderEvents() : current === 'iloh' ? renderIloh() : current === 'liens' ? renderLinks() : current === 'search' ? null : current === 'projets' ? renderProjects() : renderChar(current);
 };
 document.addEventListener('focusout', () => setTimeout(() => { if (typingDirty && !pointerDown) rerender(); }, 0));
 
@@ -170,6 +170,7 @@ window.RP_APP = {
   },
   applyRequests: list => { Object.keys(REQUESTS).forEach(k => delete REQUESTS[k]); list.forEach(({ id, ...r }) => { REQUESTS[id] = r; }); },
   applyIloh: d => { if (d?.guests) { Object.keys(ILOH_GUESTS).forEach(k => delete ILOH_GUESTS[k]); Object.assign(ILOH_GUESTS, d.guests); } },
+  applyProjects: d => { Object.keys(PROJECTS).forEach(k => delete PROJECTS[k]); Object.assign(PROJECTS, d || {}); },
   applyEvents: d => { Object.keys(GROUP_EVENTS).forEach(k => delete GROUP_EVENTS[k]); Object.assign(GROUP_EVENTS, d || {}); },
   applyNews: list => {
     list.forEach(n => {

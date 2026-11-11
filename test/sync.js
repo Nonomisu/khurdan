@@ -48,6 +48,8 @@ const subRef = async endpoint => doc(db, 'pushSubs', me, 'subs', (await sha256(e
 const wrapsRef = y => doc(db, 'shared', 'wraps-' + y);
 const recapsRef = () => doc(db, 'shared', 'recaps-' + A.iso);
 const evRef = doc(db, 'shared', 'events');
+// Projets de l'Iloh : un seul document, une entrée par projet.
+const prRef = doc(db, 'shared', 'projects');
 const ilohRef = doc(db, 'shared', 'iloh');   // carte de l'Iloh : invités des yourtes (guests)   // événements du groupe : un champ par événement
 const newsRef = key => doc(db, 'news', String(key).replace(/\//g, '_'));
 
@@ -121,6 +123,10 @@ window.RP_SYNC = {
   // Nouvelle créée une seule fois (même clé depuis plusieurs appareils) : si elle existe déjà, l'écriture est refusée, sans erreur affichée.
   newsOnce: (key, n) => noWrites ? Promise.resolve() : setDoc(newsRef(key), { ...n, key, read: false, from: me, createdAt: serverTimestamp() }).catch(() => {}),
   saveIloh: d => noWrites ? Promise.resolve() : setDoc(ilohRef, d, { merge: true }).catch(report),
+  // Projets : création ou suppression d'un projet entier ; modification et participations champ par champ (rien ne s'écrase).
+  saveProject: (id, p) => noWrites ? Promise.resolve() : setDoc(prRef, { [id]: p === null ? deleteField() : p }, { merge: true }).catch(report),
+  saveProjectFields: (id, f) => noWrites ? Promise.resolve() : updateDoc(prRef, ...Object.entries(f).flatMap(([k, v]) => [new FieldPath(id, k), v])).catch(report),
+  setContrib: (id, k, c) => noWrites ? Promise.resolve() : updateDoc(prRef, new FieldPath(id, 'contrib', k), c || deleteField()).catch(report),
   saveEvent: (id, e) => noWrites ? Promise.resolve() : setDoc(evRef, { [id]: e === null ? deleteField() : e }, { merge: true }).catch(report),
   setWebhook: url => setDoc(doc(db, 'shared', 'discord'), { webhook: url }, { merge: true }),
   // Toute l'année (pour le wrap) : douze mois, tous personnages.
@@ -208,10 +214,10 @@ async function loadMonth(ym) {
 
 async function boot() {
   A.setMe(me);
-  const [g, d, cs, ns, dc, ev, il] = await Promise.all([
+  const [g, d, cs, ns, dc, ev, il, pr] = await Promise.all([
     getDoc(gRef), getDoc(dRef), getDocs(collection(db, 'characters')),
     viewAs ? { docs: [] } : getDocs(query(collection(db, 'news'), where('to', '==', me))),   // aperçu : nouvelles d'un autre joueur illisibles pour l'admin
-    getDoc(doc(db, 'shared', 'discord')), getDoc(evRef), getDoc(ilohRef),
+    getDoc(doc(db, 'shared', 'discord')), getDoc(evRef), getDoc(ilohRef), getDoc(prRef),
   ]);
   if (window.RP_DISCORD) window.RP_DISCORD.webhook = dc.data()?.webhook || null;
   if (!g.exists() && !noWrites) await setDoc(gRef, {});
@@ -233,6 +239,7 @@ async function boot() {
   Object.entries(coupleStates).forEach(([cid, d]) => A.applyCoupleState(cid, d));
   A.hydrate({ global: g.data() || {}, day: d.data() || {}, chars, news: ns.docs.map(x => x.data()) });
   A.applyEvents(ev.data() || {});
+  A.applyProjects(pr.data() || {});
   A.applyIloh(il.data() || {});
   await loadMonth(prevYm(A.ym));
   await loadMonth(A.ym);
@@ -309,6 +316,7 @@ function listen() {
   if (!viewAs) onSnapshot(A.playerOf('khokkutsai') === me ? collection(db, 'requests') : query(collection(db, 'requests'), where('from', '==', me)),
     s => { A.applyRequests(s.docs.map(x => ({ id: x.id, ...x.data() }))); A.rerender(); }, e => console.warn('Demandes de matériel illisibles :', e.message));
   onSnapshot(ilohRef, s => { if (s.metadata.hasPendingWrites) return; A.applyIloh(s.data() || {}); A.rerender(); });
+  onSnapshot(prRef, s => { if (s.metadata.hasPendingWrites) return; A.applyProjects(s.data() || {}); A.rerender(); });
   onSnapshot(evRef, s => { if (s.metadata.hasPendingWrites) return; A.applyEvents(s.data() || {}); A.rerender(); });
   if (!viewAs) onSnapshot(query(collection(db, 'news'), where('to', '==', me)), s => {
     if (s.metadata.hasPendingWrites) return;

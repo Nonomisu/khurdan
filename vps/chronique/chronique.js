@@ -57,8 +57,8 @@ async function gather(week) {
       entries.push({ id, d, done: !!e?.done, checked, withActs });
     }
   }
-  const [ev, il, rq] = await Promise.all([db.doc('shared/events').get(), db.doc('shared/iloh').get(), db.collection('requests').get()]);
-  return { entries, events: ev.data() || {}, guests: il.data()?.guests || { 53: ['davaajav'] }, requests: rq.docs.map(x => x.data()) };
+  const [ev, il, rq, pr] = await Promise.all([db.doc('shared/events').get(), db.doc('shared/iloh').get(), db.collection('requests').get(), db.doc('shared/projects').get()]);
+  return { entries, events: ev.data() || {}, guests: il.data()?.guests || { 53: ['davaajav'] }, requests: rq.docs.map(x => x.data()), projects: pr.data() || {} };
 }
 
 function compose(week, g) {
@@ -99,6 +99,12 @@ function compose(week, g) {
   // Logistique
   const delivered = g.requests.filter(r => r.status === 'done' && r.doneAt && isoIn(isoOf(new Date(r.doneAt)))).length;
   if (delivered) out.push(`📦 **Logistique** : ${delivered} commande${delivered > 1 ? 's' : ''} livrée${delivered > 1 ? 's' : ''} par ${nameOf('khokkutsai')}.`);
+  // Projets de l'Iloh : ceux qui ont avancé cette semaine (participations datées « personnage:AAAA-MM-JJ »), et ceux terminés.
+  const projs = Object.values(g.projects || {}).filter(p => p && p.title && p.goal).map(p => {
+    const keys = Object.keys(p.contrib || {}), wk = keys.filter(k => isoIn(k.split(':').pop())).length;
+    return { p, n: keys.length, wk, ended: !!p.done && isoIn(isoOf(new Date(p.done))) };
+  }).filter(x => x.wk || x.ended);
+  if (projs.length) out.push(`🛠️ **Projets** : ${projs.map(x => x.ended ? `« ${short(x.p.title)} » terminé` : `« ${short(x.p.title)} » ${Math.min(x.n, x.p.goal)}/${x.p.goal} (+${x.wk} cette semaine)`).join(' ; ')}.`);
   // Yourtes des invités
   const YNAMES = { 45: 'Baras', 49: 'Hainag', 53: 'Mammouth' };
   const guests = Object.entries(g.guests).flatMap(([n, ids]) => (ids || []).filter(nameOf).map(id => `${nameOf(id)} (${YNAMES[n] || 'n° ' + n})`));

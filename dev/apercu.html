@@ -318,6 +318,43 @@ html, body, #view { overflow-anchor: none; }
 .g-event span { overflow-wrap: anywhere; }
 .g-event small { color: var(--dim); font-size: .8rem; }
 .g-del { display: flex; flex-direction: column; align-items: flex-end; gap: .2rem; }
+/* Projets de l'Iloh : carte, barre d'avancement (repères d'étapes), formulaire. */
+.proj-card { display: grid; gap: .35rem; padding: .8rem .9rem; border: 1px solid var(--gold); border-radius: 8px; background: color-mix(in srgb, var(--gold) 7%, var(--surface)); text-align: left; min-width: 0; }
+.proj-card.done { border-color: #6fbf73; }
+.proj-top { display: flex; align-items: flex-start; gap: .5rem; }
+.proj-top b { flex: 1; min-width: 0; font: 500 .95rem/1.25 var(--display); letter-spacing: .06em; color: var(--gold); overflow-wrap: anywhere; }
+.proj-top .link { flex: none; }
+.proj-desc { margin: 0; overflow-wrap: anywhere; }
+.proj-bar { position: relative; height: .7rem; border-radius: 999px; background: color-mix(in srgb, var(--text) 10%, transparent); overflow: hidden; }
+.proj-bar > i { position: absolute; inset: 0 auto 0 0; border-radius: 999px; background: linear-gradient(90deg, var(--accent), var(--gold)); }
+.proj-card.done .proj-bar > i, .proj-mini.done i { background: #6fbf73; }
+.proj-bar > em { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--bg); opacity: .8; }
+.proj-num, .proj-acts { margin: 0; font-size: .85rem; color: var(--dim); overflow-wrap: anywhere; }
+.proj-acts .ico { width: .95rem; height: .95rem; vertical-align: -2px; margin-right: .3rem; }
+.proj-steps { margin: 0; padding-left: 1.2rem; font-size: .88rem; display: grid; gap: .1rem; }
+.proj-steps li { color: var(--dim); }
+.proj-steps li.ok { color: var(--text); }
+.proj-steps small { color: var(--dim); }
+.proj-card > small { color: var(--dim); font-size: .8rem; }
+.proj-confirm { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; font-size: .88rem; }
+.proj-form textarea { min-height: 4.2rem; resize: vertical; }
+.proj-chosen { display: flex; flex-wrap: wrap; gap: .3rem; }
+.proj-chosen span { display: inline-flex; align-items: center; gap: .2rem; padding: .15rem .3rem .15rem .65rem; border: 1px solid var(--gold); border-radius: 999px; font-size: .85rem; max-width: 100%; overflow-wrap: anywhere; }
+.proj-goal { display: flex; align-items: center; gap: .5rem; font-size: .9rem; color: var(--dim); }
+.proj-goal input { width: 5.5rem; }
+.proj-mini { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .15rem .6rem; align-items: center; text-align: left; background: none; border: 0; padding: .2rem 0; color: inherit; font: inherit; cursor: pointer; width: 100%; }
+.proj-mini span { overflow-wrap: anywhere; }
+.proj-mini small { color: var(--dim); }
+.proj-mini .proj-bar { grid-column: 1 / -1; height: .45rem; }
+.proj-item .joined .link { font-size: inherit; }
+.proj-fiche { text-align: left; margin: .2rem 0 .6rem; padding: .6rem .8rem; border: 1px dashed var(--rule); border-radius: 6px; }
+.proj-fiche > summary { display: flex; align-items: center; gap: .4rem; cursor: pointer; color: var(--dim); list-style: none; font-size: .9rem; }
+.proj-fiche > summary::-webkit-details-marker { display: none; }
+.proj-fiche > summary .ico { width: 1rem; height: 1rem; }
+.proj-item { display: grid; gap: .35rem; margin-top: .7rem; }
+.proj-item p { margin: 0; overflow-wrap: anywhere; }
+.proj-item .place-list { margin: 0; }
+.proj-item .joined { color: var(--dim); font-size: .88rem; }
 .ev-new summary { display: flex; align-items: center; gap: .4rem; cursor: pointer; color: var(--dim); list-style: none; }
 .ev-new summary::-webkit-details-marker { display: none; }
 .ev-new summary .ico { width: 1rem; height: 1rem; }
@@ -1547,10 +1584,11 @@ const openEventsOn = iso => {
   Object.assign(evCal, { y, m: m - 1, sel: d }); evView.del = null; go('events');
 };
 // Type de nouvelle (couleur) : nuit chaude, grossesse possible ou vie intime → rose ; personnage mentionné dans une activité commune → vert.
-const newsKind = n => /^(night|risk|intime):/.test(n.key || '') ? 'k-hot' : /^with:/.test(n.key || '') ? 'k-with' : 'k-other';
+const newsKind = n => /^(night|risk|intime):/.test(n.key || '') ? 'k-hot' : /^(with|proj):/.test(n.key || '') ? 'k-with' : 'k-other';
 // Nouvelle cliquable : la fiche du personnage, ou le calendrier pour un événement de l'Iloh.
 const newsLink = (n, inner) => n.charId ? `<button type="button" class="link" data-go="${n.charId}">${inner}</button>`
-  : n.key?.startsWith('event:') ? `<button type="button" class="link" data-ev-open="${esc(n.key.split(':')[1])}">${inner}</button>` : `<span>${inner}</span>`;
+  : n.key?.startsWith('event:') ? `<button type="button" class="link" data-ev-open="${esc(n.key.split(':')[1])}">${inner}</button>`
+  : n.key?.startsWith('proj:') ? `<button type="button" class="link" data-proj-open="${esc(n.key.split(':')[1])}">${inner}</button>` : `<span>${inner}</span>`;
 document.addEventListener('click', e => { const b = e.target.closest('[data-ev-open]'); if (!b) return;
   const ev = GROUP_EVENTS[b.dataset.evOpen]; openEventsOn(ev ? evStart(ev) : null); });
 const evRefresh = () => {
@@ -1580,6 +1618,147 @@ document.addEventListener('click', e => {
 });
 document.addEventListener('change', e => { if (e.target.id === 'ev-date') { const u = document.getElementById('ev-until'); if (u) u.min = e.target.value; } });
 document.addEventListener('keydown', e => { if (e.target.id === 'ev-text' && e.key === 'Enter') { e.preventDefault(); document.getElementById('ev-add')?.click(); } });
+// ---------- Projets de l'Iloh : objectifs communs, une barre qui avance avec les activités liées ----------
+// shared/projects : { id: { title, desc, by (joueur), at, goal, acts: [activités liées], steps: [étapes], done (date) ou null,
+//   contrib: { 'personnage:AAAA-MM-JJ': { c, l (activité), p (joueur) } } } } — une participation par personnage et par jour.
+// Chacun lance un projet ou y participe ; seuls son auteur et l'admin le modifient, seul l'admin le supprime.
+const PROJECTS = {};
+const projView = { open: false, edit: null, del: null, acts: [], showDone: false };
+let projFicheOpen = false;
+const projCount = p => Object.keys(p?.contrib || {}).length;
+const projPct = p => Math.min(100, Math.round(projCount(p) / Math.max(1, p.goal) * 100));
+// Étapes réparties sur l'objectif : la dernière tombe sur l'objectif lui-même.
+const projSteps = p => (p.steps || []).map((name, i, a) => ({ name, at: Math.max(1, Math.round(p.goal * (i + 1) / a.length)) }));
+const projList = done => Object.entries(PROJECTS).filter(([, p]) => p && !!p.done === done)
+  .sort((a, b) => done ? b[1].done - a[1].done : a[1].at - b[1].at);
+const canEditProj = p => p.by === me || isAdminMe();
+const projWho = p => [...new Set(Object.values(p.contrib || {}).map(x => x.c))].filter(isChar).sort((a, b) => nameOf(a).localeCompare(nameOf(b), 'fr'));
+const contribKey = cid => cid + ':' + isoDay(rpDay);
+const projId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+// Nouvelle à tous les autres joueurs, une seule fois par clé (même si deux appareils franchissent l'étape en même temps).
+const projNews = (pid, kind, text) => PLAYERS.filter(p => p.id !== me).forEach(p => {
+  const key = 'proj:' + pid + ':' + kind + ':' + p.id, n = { to: p.id, text, charId: null };
+  if (window.RP_SYNC?.newsOnce) RP_SYNC.newsOnce(key, n); else if (!NEWS.some(x => x.key === key)) NEWS.unshift({ ...n, key, read: false, at: Date.now() });
+});
+const projBarHtml = p => `<div class="proj-bar" role="progressbar" aria-label="Avancement" aria-valuemin="0" aria-valuemax="${p.goal}" aria-valuenow="${Math.min(projCount(p), p.goal)}"><i style="width:${projPct(p)}%"></i>${projSteps(p).slice(0, -1).map(x => `<em style="left:${x.at / p.goal * 100}%"></em>`).join('')}</div>`;
+const saveProj = (pid, fields) => { Object.assign(PROJECTS[pid], fields); window.RP_SYNC?.saveProjectFields?.(pid, fields); };
+// Participation d'un personnage aujourd'hui (l = activité, null pour annuler) ; étapes et fin de projet annoncées à tous.
+const setContrib = (pid, cid, l) => {
+  const p = PROJECTS[pid]; if (!p || (p.done && l)) return;
+  const k = contribKey(cid), before = projCount(p); p.contrib ||= {};
+  if (l) p.contrib[k] = { c: cid, l, p: me }; else delete p.contrib[k];
+  window.RP_SYNC?.setContrib?.(pid, k, l ? p.contrib[k] : null);
+  const n = projCount(p); if (n <= before) return;
+  projSteps(p).forEach((x, i) => { if (before < x.at && n >= x.at && x.at < p.goal) projNews(pid, 'etape' + i, `Projet « ${p.title} » : étape franchie, « ${x.name} » (${n}/${p.goal}).`); });
+  if (before < p.goal && n >= p.goal) { saveProj(pid, { done: Date.now() });
+    projNews(pid, 'fin', `Projet « ${p.title} » terminé grâce à ${andList(projWho(p).map(nameOf))} !`); }
+};
+// Depuis la fiche : l'activité liée est cochée (ajoutée en activité spéciale si besoin), puis la participation est comptée.
+const doProjAct = (id, pid, l) => {
+  const s = state[id], c = C.find(x => x.id === id);
+  if (!allActs(c).includes(l) && !s.specials.includes(l)) s.specials.push(l);
+  s.checked.add(l); saveComplement(id); setContrib(pid, id, l);
+};
+const projFicheHtml = id => {
+  const L = projList(false).filter(([, p]) => p.acts?.length); if (!L.length) return '';
+  const s = state[id];
+  return `<details class="proj-fiche"${projFicheOpen ? ' open' : ''}><summary>${icon('target')}Projets de l'Iloh (${L.length})</summary>
+    ${L.map(([pid, p]) => { const c = p.contrib?.[contribKey(id)];
+      return `<div class="proj-item"><p><b>${esc(p.title)}</b> <small>· ${Math.min(projCount(p), p.goal)}/${p.goal}</small></p>${projBarHtml(p)}
+        ${c ? `<p class="joined">✓ ${esc(nameOf(id))} a fait avancer le projet aujourd'hui (${esc(c.l)}). <button type="button" class="link small" data-proj-undo="${pid}">Annuler</button></p>`
+          : `<div class="place-list subs" role="group" aria-label="Activité qui fait avancer le projet">${p.acts.map(l => `<button type="button" data-proj-do="${pid}" data-proj-act="${esc(l)}">${icon(s.checked.has(l) ? 'check' : 'plus')}${esc(l)}</button>`).join('')}</div>`}</div>`; }).join('')}
+    <p class="reserved">Une participation par personnage et par jour ; l'activité est ajoutée à la fiche si besoin.</p></details>`;
+};
+const projCardHtml = ([pid, p]) => { const n = projCount(p), steps = projSteps(p), who = projWho(p);
+  return `<div class="proj-card${p.done ? ' done' : ''}" id="proj-${pid}"><div class="proj-top"><b>${esc(p.title)}</b>
+      ${canEditProj(p) ? `<button type="button" class="link small ico-btn" data-proj-edit="${pid}" title="Modifier le projet" aria-label="Modifier le projet">${icon('pencil')}</button>` : ''}
+      ${isAdminMe() ? `<button type="button" class="link small ico-btn" data-proj-del="${pid}" title="Supprimer le projet" aria-label="Supprimer le projet">${icon('trash')}</button>` : ''}</div>
+    ${p.desc ? `<p class="proj-desc">${esc(p.desc)}</p>` : ''}
+    ${projBarHtml(p)}
+    <p class="proj-num">${Math.min(n, p.goal)} / ${p.goal} participation${p.goal > 1 ? 's' : ''} · ${projPct(p)} %${p.done ? ' · terminé' : ''}</p>
+    ${steps.length ? `<ol class="proj-steps">${steps.map(x => `<li class="${n >= x.at ? 'ok' : ''}">${n >= x.at ? '✓ ' : ''}${esc(x.name)} <small>(${x.at})</small></li>`).join('')}</ol>` : ''}
+    ${p.acts?.length ? `<p class="proj-acts">${icon('target')}Activités liées : ${p.acts.map(esc).join(', ')}</p>` : ''}
+    ${who.length ? `<p class="ev-who">${icon('users')}<span>${who.map(cid => `<i class="yc-dot" style="background:${PLAYERS.find(x => x.id === playerOf(cid))?.color}"></i>${esc(nameOf(cid))}`).join(', ')}</span></p>` : ''}
+    <small>Lancé par ${esc(PLAYER_NAME[p.by] || '?')} le ${fmtDay(new Date(p.at))}${p.done ? ` · terminé le ${fmtDay(new Date(p.done))}` : ''}</small>
+    ${projView.del === pid ? `<div class="proj-confirm"><span>Supprimer ce projet et ses participations ?</span><button type="button" class="link small danger" data-proj-del-ok="${pid}">Supprimer</button><button type="button" class="link small" data-proj-del-no>Annuler</button></div>` : ''}</div>`; };
+const projActChoices = () => [...new Set(C.flatMap(c => allActs(c)))].filter(l => !(typeof isPrivateAct === 'function' && isPrivateAct(l))).sort((a, b) => a.localeCompare(b, 'fr'));
+const projFormHtml = () => { const p = projView.edit ? PROJECTS[projView.edit] : null;
+  return `<details class="ev-new proj-new"${projView.open || p ? ' open' : ''}><summary>${icon(p ? 'pencil' : 'plus')}${p ? 'Modifier le projet' : 'Lancer un projet pour l\'Iloh'}</summary>
+    <div class="ev-form proj-form">
+      <input type="text" id="proj-title" maxlength="80" placeholder="Ex. : Construire la nouvelle yourte" value="${esc(p?.title || '')}">
+      <textarea id="proj-desc" maxlength="400" placeholder="Description (facultatif)">${esc(p?.desc || '')}</textarea>
+      <label class="ev-until"><span>Activités liées (au moins une)</span></label>
+      <div class="special-row"><input type="text" id="proj-act" list="proj-act-list" maxlength="60" placeholder="Ex. : Couper du bois" enterkeyhint="done"><button type="button" class="btn" id="proj-act-add">Ajouter</button></div>
+      <datalist id="proj-act-list">${projActChoices().map(l => `<option value="${esc(l)}">`).join('')}</datalist>
+      <div class="proj-chosen">${projView.acts.map((l, i) => `<span>${esc(l)}<button type="button" class="link small" data-proj-act-del="${i}" aria-label="Retirer ${esc(l)}">×</button></span>`).join('')}</div>
+      <label class="proj-goal"><span>Objectif :</span><input type="number" id="proj-goal" min="1" max="500" step="1" value="${p?.goal || 20}"><span>participations</span></label>
+      <label class="ev-until"><span>Étapes (facultatif, une par ligne, réparties sur l'objectif)</span><textarea id="proj-steps" maxlength="600" placeholder="Rassembler les matériaux&#10;Monter la charpente&#10;Poser le feutre">${esc((p?.steps || []).join('\n'))}</textarea></label>
+      <p class="proj-err reserved" id="proj-err" hidden></p>
+      <div class="proj-confirm"><button type="button" class="btn" id="proj-save">${p ? 'Enregistrer' : 'Lancer le projet'}</button>${p ? '<button type="button" class="link small" id="proj-cancel">Annuler</button>' : ''}</div>
+      ${p ? '' : '<p class="reserved">Tous les autres joueurs recevront une nouvelle et une notification.</p>'}
+    </div></details>`; };
+// Encart de l'accueil : les projets en cours, chacun avec sa barre.
+const homeProjectsHtml = () => { const L = projList(false);
+  return `<section class="group-events home-proj"><h2>${icon('target')}Projets de l'Iloh<button type="button" class="link ico-btn ev-cal-btn" data-go="projets" title="Tous les projets" aria-label="Tous les projets">${icon('search')}</button></h2>
+    ${L.length ? L.map(([pid, p]) => `<button type="button" class="proj-mini" data-proj-open="${pid}"><span>${esc(p.title)}</span><small>${Math.min(projCount(p), p.goal)}/${p.goal}</small>${projBarHtml(p)}</button>`).join('')
+      : `<p class="reserved">Aucun projet en cours. <button type="button" class="link" data-go="projets">Lancer un projet</button></p>`}</section>`; };
+function renderProjects() {
+  root.className = 't-khurdan';
+  const on = projList(false), off = projList(true);
+  document.getElementById('view').innerHTML = `
+    <p class="ev-back"><button type="button" class="link" data-go="home">‹ Accueil</button></p>
+    <header><p class="kicker">${APP_NAME}</p><h1>Projets de l'Iloh</h1></header>
+    <section>
+      <p class="reserved">Des objectifs pour tout l'Iloh : chaque personnage les fait avancer depuis sa fiche, avec une activité liée (une participation par jour).</p>
+      ${on.length ? on.map(projCardHtml).join('') : '<p class="reserved">Aucun projet en cours.</p>'}
+      ${projFormHtml()}
+      ${off.length ? `<details class="ev-new"${projView.showDone ? ' open' : ''} id="proj-done-fold"><summary>${icon('check')}Projets terminés (${off.length})</summary><div class="ev-form">${off.map(projCardHtml).join('')}</div></details>` : ''}
+    </section>`;
+}
+const projRefresh = () => { const y = window.scrollY, h = fullH();
+  current === 'projets' ? renderProjects() : current === 'home' ? renderHome() : isChar(current) ? renderChar(current) : null;
+  holdHeight(h); window.scrollTo({ top: y }); holdPlace(null, y); };
+document.addEventListener('toggle', e => { if (e.target.classList?.contains('proj-new')) projView.open = e.target.open;
+  if (e.target.classList?.contains('proj-fiche')) projFicheOpen = e.target.open; if (e.target.id === 'proj-done-fold') projView.showDone = e.target.open; }, true);
+const projAddAct = () => { const f = document.getElementById('proj-act'), v = f?.value.trim().replace(/\s+/g, ' ');
+  if (!v) return f?.focus(); if (!projView.acts.includes(v) && projView.acts.length < 12) projView.acts.push(v);
+  keepProjForm(); projRefresh(); restoreProjForm(); document.getElementById('proj-act')?.focus(); };
+// Les champs du formulaire survivent au réaffichage (ajout ou retrait d'une activité liée).
+const projDraft = {};
+const keepProjForm = () => ['proj-title', 'proj-desc', 'proj-goal', 'proj-steps'].forEach(k => { const el = document.getElementById(k); if (el) projDraft[k] = el.value; });
+const restoreProjForm = () => Object.entries(projDraft).forEach(([k, v]) => { const el = document.getElementById(k); if (el) el.value = v; });
+document.addEventListener('click', e => {
+  const t = e.target;
+  const open = t.closest('[data-proj-open]'); if (open) { projView.del = null; go('projets'); return document.getElementById('proj-' + open.dataset.projOpen)?.scrollIntoView({ block: 'center' }); }
+  const pdo = t.closest('[data-proj-do]'); if (pdo && isChar(current)) { doProjAct(current, pdo.dataset.projDo, pdo.dataset.projAct); return renderChar(current); }
+  const und = t.closest('[data-proj-undo]'); if (und && isChar(current)) { setContrib(und.dataset.projUndo, current, null); return renderChar(current); }
+  if (t.closest('#proj-act-add')) return projAddAct();
+  const ad = t.closest('[data-proj-act-del]'); if (ad) { projView.acts.splice(+ad.dataset.projActDel, 1); keepProjForm(); projRefresh(); return restoreProjForm(); }
+  const ed = t.closest('[data-proj-edit]'); if (ed) { const p = PROJECTS[ed.dataset.projEdit]; projView.edit = ed.dataset.projEdit; projView.acts = [...(p.acts || [])]; Object.keys(projDraft).forEach(k => delete projDraft[k]);
+    renderProjects(); return document.querySelector('.proj-new')?.scrollIntoView({ block: 'start' }); }
+  if (t.closest('#proj-cancel')) { projView.edit = null; projView.acts = []; Object.keys(projDraft).forEach(k => delete projDraft[k]); return projRefresh(); }
+  const del = t.closest('[data-proj-del]'); if (del) { projView.del = del.dataset.projDel; return projRefresh(); }
+  if (t.closest('[data-proj-del-no]')) { projView.del = null; return projRefresh(); }
+  const ok = t.closest('[data-proj-del-ok]'); if (ok && isAdminMe()) { const pid = ok.dataset.projDelOk; delete PROJECTS[pid]; window.RP_SYNC?.saveProject?.(pid, null);
+    dropNews(PLAYERS.flatMap(p => ['new', 'fin'].map(k => 'proj:' + pid + ':' + k + ':' + p.id))); projView.del = null; return projRefresh(); }
+  if (t.closest('#proj-save')) {
+    const title = document.getElementById('proj-title').value.trim(), desc = document.getElementById('proj-desc').value.trim();
+    const pend = document.getElementById('proj-act').value.trim(); if (pend && !projView.acts.includes(pend)) projView.acts.push(pend);
+    const goal = Math.max(1, Math.min(500, Math.round(+document.getElementById('proj-goal').value) || 20));
+    const steps = document.getElementById('proj-steps').value.split('\n').map(x => x.trim()).filter(Boolean).slice(0, 10);
+    const err = document.getElementById('proj-err');
+    if (!title || !projView.acts.length) { err.hidden = false; err.textContent = !title ? 'Donne un nom au projet.' : 'Ajoute au moins une activité liée.'; return; }
+    const fields = { title, desc, acts: [...projView.acts], goal, steps };
+    if (projView.edit) { const pid = projView.edit, p = PROJECTS[pid];
+      if (p && canEditProj(p)) { const n = projCount(p); fields.done = n >= goal ? (p.done || Date.now()) : null; saveProj(pid, fields); } }
+    else { const pid = projId(), p = { ...fields, by: me, at: Date.now(), done: null, contrib: {} };
+      PROJECTS[pid] = p; window.RP_SYNC?.saveProject?.(pid, p);
+      projNews(pid, 'new', `${PLAYER_NAME[me] || 'Un joueur'} lance un projet pour l'Iloh : « ${title} ».`); }
+    Object.assign(projView, { open: false, edit: null, acts: [] }); Object.keys(projDraft).forEach(k => delete projDraft[k]); projRefresh();
+  }
+});
+document.addEventListener('keydown', e => { if (e.target.id === 'proj-act' && e.key === 'Enter') { e.preventDefault(); projAddAct(); } });
+
 const MS_NEWS = {
   'Rencontre':   (a, b) => `${a} et ${b} se sont rencontrés !`,
   'Fiançailles': (a, b) => `${a} et ${b} sont fiancés !`,
@@ -2965,6 +3144,7 @@ function renderHome() {
     <header><p class="kicker">${APP_NAME}</p><h1>Aujourd'hui</h1><p class="date">${today}<br>${eorzeaDate}</p>
       <p class="home-links"><button type="button" class="chip-link" data-go="iloh">${icon('map')}Carte de l'Iloh</button>
         <button type="button" class="chip-link" data-open-page="liens">${icon('users')}Les liens</button>
+        <button type="button" class="chip-link" data-go="projets">${icon('target')}Projets</button>
         <button type="button" class="chip-link" data-open-page="search">${icon('search')}Rechercher</button></p>${(f => f ? `<p class="fest home-fest">${icon('star')}En Eorzea : ${f.name}</p>` : '')(festivalOn(rpDay))}</header>
     ${((unread, day) => `<section class="news"><h2>${icon('bell')}Nouvelles${unread.length ? ` <span class="badge">${unread.length}</span>` : ''}</h2>
       ${unread.length ? `<ul>${unread.slice(0, 8).map(n => `<li class="unread ${newsKind(n)}">${newsLink(n, esc(n.text))}</li>`).join('')}</ul>
@@ -2973,6 +3153,7 @@ function renderHome() {
         ${day.length ? `<ul>${day.map(n => `<li class="${n.read ? '' : 'unread'} ${newsKind(n)}">${newsLink(n, `<small>${newsHour(n)}</small> ${esc(n.text)}`)}</li>`).join('')}</ul>` : '<p class="reserved">Aucune nouvelle depuis 5 h ce matin.</p>'}</details>
       </section>`)(myNews().filter(n => !n.read), newsOfToday())}
     ${groupEventsHtml()}
+    ${homeProjectsHtml()}
     ${wrapBanner(`<div class="wrap-open">${C.filter(c => c.player === me).map(c => `<button type="button" class="btn" data-wrap-open="${c.id}">${c.name}</button>`).join('')}</div>`)}
     <div class="grid">
       ${visible.map(c => { const t = THEMES[c.theme]; const s = state[c.id];
@@ -3145,6 +3326,7 @@ function renderCharNow(id) {
     document.getElementById('view').innerHTML = `
     ${tabsHtml(id)}
     ${sharedActsHtml(id, canComplete(id))}
+    ${canComplete(id) ? projFicheHtml(id) : ''}
     ${complementHtml(id)}
     ${logisticsHtml(id)}
     ${readOnly ? `<p class="readonly-note">${icon('eye')}${isMirror(id) ? `Fiche tenue par ${PLAYER_NAME[c.player]} dans Journée RP, recopiée ici : lecture seule.` : `Fiche de ${PLAYER_NAME[c.player]} : lecture seule.`}</p>` : `<p class="preview-note">Aperçu de la journée validée. C'est ce résumé qui sert de base au récap Discord et à l'encart « Aujourd'hui » de la fiche.</p>`}
@@ -3215,6 +3397,7 @@ function renderCharNow(id) {
     ${prevNightBlock(id)}
     <div class="chrono-part"><h3 class="chrono-h">Activités</h3>
       ${sharedActsHtml(id, true)}
+      ${projFicheHtml(id)}
       ${cats.length ? '' : `<p class="reserved">Liste d'activités à définir. En attendant, utilise le champ « Activité spéciale » et coche « L'ajouter aussi à la liste ».</p>`}
       ${!s.manageActs && cats.length > 1 ? `<div class="fold-all"><button type="button" class="link small ico-btn" data-fold-all="1" title="Tout replier" aria-label="Tout replier">${icon('foldall')}</button><button type="button" class="link small ico-btn" data-fold-all="0" title="Tout déplier" aria-label="Tout déplier">${icon('unfoldall')}</button></div>` : ''}
       ${cats.map(k => !s.manageActs ? (list => `<details class="cat fold" data-fold="${k}" ${isFolded(id, k) ? '' : 'open'}>
@@ -3530,7 +3713,7 @@ function renderCharNow(id) {
   document.getElementById('done-'+id).addEventListener('click', () => { s.done = true; s.doneAt ??= Date.now(); renderNav(); renderChar(id); });
 }
 
-function go(id) { resetSpacer(); lastPage = null; current = id; renderNav(); if (id !== 'home') fxOff(); id === 'home' ? renderHome() : id === 'events' ? renderEvents() : id === 'iloh' ? renderIloh() : id === 'liens' ? renderLinks() : id === 'search' ? renderSearch() : renderChar(id); window.scrollTo({ top:0 }); }
+function go(id) { resetSpacer(); lastPage = null; current = id; renderNav(); if (id !== 'home') fxOff(); id === 'home' ? renderHome() : id === 'events' ? renderEvents() : id === 'iloh' ? renderIloh() : id === 'liens' ? renderLinks() : id === 'search' ? renderSearch() : id === 'projets' ? renderProjects() : renderChar(id); window.scrollTo({ top:0 }); }
 document.addEventListener('click', e => { const b = e.target.closest('[data-go]'); if (b) go(b.dataset.go); });
 document.addEventListener('click', async e => {
   const b = e.target.closest('[data-wrap-open]'); if (!b) return;
@@ -3553,7 +3736,7 @@ document.querySelectorAll('.nav-filter button').forEach(b => b.addEventListener(
   const row = b.dataset.f ? '[data-f]' : '[data-g]';
   if (b.dataset.f) filter = b.dataset.f; else groupFilter = b.dataset.g;
   document.querySelectorAll('.nav-filter button' + row).forEach(x => x.setAttribute('aria-pressed', x === b));
-  if (!['home', 'events', 'iloh', 'liens', 'search'].includes(current) && !C.some(c => c.id === current && shown(c))) current = 'home';
+  if (!['home', 'events', 'iloh', 'liens', 'search', 'projets'].includes(current) && !C.some(c => c.id === current && shown(c))) current = 'home';
   go(current);
 }));
 initPlaces();
