@@ -17,14 +17,15 @@ const ym = `${day.getFullYear()}-${pad(day.getMonth() + 1)}`, k = String(day.get
 const hhmm = t => t ? new Date(t).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '—';
 (async () => {
   console.log(`Journée du ${day.toLocaleDateString('fr-FR')} (lecture seule)\n`);
-  console.log('Personnage      | Journée RP          | Iloh Khurdan | Discord');
-  console.log('----------------|---------------------|--------------|--------');
+  console.log('Personnage      | Journée RP          | Iloh Khurdan | Discord | Rouverte (« Modifier la journée »)');
+  console.log('----------------|---------------------|--------------|---------|-----------------------------------');
   for (const id of T.MIRROR) {
     const [a, b] = await Promise.all([src.doc(`days/${id}/months/${ym}`).get(), dst.doc(`days/${id}/months/${ym}`).get()]);
     const e = a.data()?.[k], f = b.data()?.[k];
     const jrp = !e ? 'vide' : e.done ? `validée (${hhmm(e.doneAt)})` : (e.doneAt ? `EN COURS (validée à ${hhmm(e.doneAt)})` : 'en cours');
     const iloh = !f ? 'vide' : f.done ? 'validée' : 'en cours';
-    console.log(`${id.padEnd(15)} | ${jrp.padEnd(19)} | ${iloh.padEnd(12)} | ${e?.discordMsg ? 'envoyée' : '—'}`);
+    const re = Array.isArray(e?.reopens) && e.reopens.length ? e.reopens.map(hhmm).join(', ') : '—';
+    console.log(`${id.padEnd(15)} | ${jrp.padEnd(19)} | ${iloh.padEnd(12)} | ${(e?.discordMsg ? 'envoyée' : '—').padEnd(7)} | ${re}`);
   }
   process.exit(0);
 })().catch(e => { console.error(e.message || e); process.exit(1); });
