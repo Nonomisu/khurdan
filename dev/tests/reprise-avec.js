@@ -36,6 +36,11 @@ const ok = (c, l) => { console.log((c ? '  ok  ' : '  ÉCHEC ') + l); if (!c) pr
   await jyn.evaluate(() => document.querySelector('[data-jp-who="taivan"]').click()); await jyn.waitForTimeout(200);
   await jyn.evaluate(() => document.querySelector('[data-join-from="cheyenne"]').click()); await jyn.waitForTimeout(1500);
   ok(await jyn.evaluate(() => JSON.stringify(state.taiga.withActs?.Cuisine) === '["cheyenne","shiruun","henbilee"]'), 'Taiga : avec Cheyenne, Shiruun et Henbilee (sans Taivan)');
+  // Une reprise ne refait pas de proposition aux autres personnages
+  await jyn.waitForTimeout(800);
+  const nk = await jyn.evaluate(() => Object.values(JSON.parse(localStorage.getItem('mockdb'))).filter(v => v?.key?.startsWith?.('with:')).map(v => v.key));
+  ok(!nk.some(k => k.includes(':taiga:henbilee:')) && !nk.some(k => k.includes(':shiruun:henbilee:')), 'reprises : pas de nouvelle pour les autres personnages mentionnés');
+  ok(await jyn.evaluate(() => sharedActsOf('henbilee').length === 1 && sharedActsOf('henbilee')[0].from === 'cheyenne'), 'une seule proposition (celle de l\'auteur) sur la fiche des autres');
   // Boutons flèches
   await jyn.evaluate(() => scrollTo(0, 0)); await jyn.waitForTimeout(300);
   const long = await jyn.evaluate(() => document.documentElement.scrollHeight - innerHeight > 300);

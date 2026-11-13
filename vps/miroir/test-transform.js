@@ -53,5 +53,9 @@ ok(T.isPrivateAct('Instant coquin') && T.isPrivateAct('Sexe avec Taiga') && T.is
 ok(!JSON.stringify(T.publicEntry({ checked: { $set: ['Pêche', 'Instant coquin'] }, withActs: { 'Instant coquin': ['taiga'] } })).includes('coquin'), 'activité marquée intime retirée de la journée');
 ok(!('privWith' in T.publicEntry({ mood: 'x', privWith: { 'Instant coquin': ['khubunjin'] } })), 'partenaires d\'une activité intime jamais recopiés');
 T.setPrivate(null);
+{ const pub = T.publicEntry({ done: true, checked: { $set: ['Cuisine', 'Pêche'] }, withActs: { Cuisine: [T.ILOH_ONLY[0], T.MIRROR[0]], Pêche: [T.ILOH_ONLY[0]] }, withFrom: { Cuisine: T.MIRROR[0], 'Instant coquin': 'x' } });
+  ok(JSON.stringify(pub.withFrom) === JSON.stringify({ Cuisine: T.MIRROR[0] }), 'reprises : seulement pour les activités communes gardées');
+  const n = T.withNews(T.MIRROR[1], new Date(2026, 10, 13), pub);
+  ok(!Object.keys(n).some(k => k.endsWith(':Cuisine')), 'une reprise ne refait pas de proposition (pas de nouvelle)'); }
 console.log(fails ? `${fails} échec(s)` : 'Tout est bon.');
 process.exitCode = fails ? 1 : 0;
