@@ -70,6 +70,7 @@ const C = [
   { id:'javkhaanhun', name:'Javkhaanhun', surname:K, groups:['Khurdans'], theme:'khurdan', player:'jynette', gender:'f', mirror:true, acts:{ metier:[...HUNT] } },
   { id:'shiruun', name:'Shiruun', surname:K, groups:['Khurdans'], theme:'khurdan', player:'jynette', gender:'m', acts:{ metier:[...HUNT] } },
   { id:'djokhodthai', name:'Djokhodthai', surname:K, groups:['Khurdans'], theme:'khurdan', player:'jynette', gender:'m', acts:{ metier:[...HUNT] } },
+  { id:'sheyen', name:'Sheyen', groups:['Khurdans'], theme:'khurdan', player:'jynette', gender:'f', acts:{ metier:[...HUNT] } },
 
   // Eden
   { id:'buyan', name:'Buyan', surname:K, groups:['Khurdans'], theme:'khurdan', player:'eden', gender:'f', acts:{ metier:[...HUNT] } },
