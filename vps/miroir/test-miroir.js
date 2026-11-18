@@ -86,7 +86,7 @@ process.exit = code => {
   ok(JSON.stringify(Object.fromEntries(Object.entries(S).filter(([k]) => !k.startsWith('iloh/')))) === before, 'Journée RP : journées, fiches et réglages jamais modifiés');
   ok(Object.keys(S).filter(k => k.startsWith('iloh/')).sort().join() === `iloh/_noms/months/liste,iloh/tamachag/months/${ym}`, 'retour : seulement iloh/…, seulement pour les personnages recopiés (et la liste des noms)');
   const noms = S['iloh/_noms/months/liste']?.chars || {};
-  ok(noms.shiruun?.name === 'Shiruun' && noms.buyan?.name === 'Buyan' && !noms.tamachag && !noms.taiga && Object.keys(noms).length === 11 && noms.sheyen?.name === 'Sheyen', 'noms des 11 personnages propres à Iloh déposés dans Journée RP (dont Sheyen)');
+  ok(noms.shiruun?.name === 'Shiruun' && noms.buyan?.name === 'Buyan' && !noms.tamachag && !noms.taiga && Object.keys(noms).length === 12 && noms.sheyen?.name === 'Sheyen' && noms.qaikagan?.name === 'Qaikagan', 'noms des 12 personnages propres à Iloh déposés dans Journée RP (dont Sheyen et Qaikagan)');
   const N = Object.entries(D).filter(([k]) => k.startsWith('news/'));
   ok(N.length === 2 && D[`news/with:${rp.getFullYear()}-${rp.getMonth() + 1}-${rp.getDate()}:tamachag:shiruun:Course de chevaux`]?.to === 'jynette', 'nouvelle dans Iloh pour Shiruun (joueuse : Jynette)');
   ok(N.some(([, n]) => n.charId === 'buyan' && n.to === 'eden' && n.text === 'Tamachag a noté « Course de chevaux » avec Buyan.'), 'nouvelle pour Buyan : « Tamachag a noté « Course de chevaux » avec Buyan. »');

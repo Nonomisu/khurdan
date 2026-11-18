@@ -90,6 +90,7 @@ const C = [
     metier:['Fouilles sur un site','Exploration et repérage','Étude et catalogage des trouvailles','Recherches en archives, déchiffrage','Rencontre avec un client ou un marchand'],
     liens:['Temps avec Ushuaia','Retrouvailles avec Walha','Nouvelles de Tamachag et Taiga'] } },
   { id:'tsewang', name:'Tsewang', surname:'Khangkar', groups:['Invités'], theme:'khurdan', player:'jynette', gender:'m', acts:{ metier:[...HUNT] } },
+  { id:'qaikagan', name:'Qaikagan', surname:'Himaa', groups:['Invités'], theme:'khurdan', player:'jynette', gender:'m', acts:{ metier:[...HUNT] } },
 ];
 
 // Tranches horaires approximatives ; la journée RP commence à l'aube (5 h).

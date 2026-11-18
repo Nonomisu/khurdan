@@ -14,7 +14,7 @@ const coupleOf = id => COUPLES.find(k => k.chars.includes(id)) || null;
 let NOMS = {};
 try { NOMS = require('./noms.json').chars || {}; } catch { /* fichier absent : liste par défaut */ }
 const ILOH = Object.keys(NOMS).length ? [...new Set([...MIRROR, ...Object.keys(NOMS)])]
-  : [...MIRROR, 'shiruun', 'djokhodthai', 'buyan', 'cheyenne', 'taivan', 'altan', 'henbilee', 'boroo', 'reaksa', 'tsewang', 'sheyen'];
+  : [...MIRROR, 'shiruun', 'djokhodthai', 'buyan', 'cheyenne', 'taivan', 'altan', 'henbilee', 'boroo', 'reaksa', 'tsewang', 'sheyen', 'qaikagan'];
 // Personnages propres à Iloh (sans fiche dans Journée RP) : leurs noms sont déposés dans Journée RP (iloh/_noms/months/liste)
 // pour que les Khurdans puissent les noter sur une activité commune.
 const ILOH_ONLY = ILOH.filter(x => !MIRROR.includes(x));

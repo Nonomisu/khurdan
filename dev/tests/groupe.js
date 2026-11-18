@@ -63,13 +63,13 @@ const ok = (cond, label) => { console.log((cond ? '  ok  ' : '  ÉCHEC ') + labe
   const nono = await open('nono', 'nono@test.fr', true);
   ok(await nono.isHidden('#login'), 'connexion réussie');
   ok((await nono.textContent('.session')).includes('Nono'), 'session : Nono');
-  ok(await nono.locator('.grid .card').count() === 21, '21 cartes sur l\'accueil');
+  ok(await nono.locator('.grid .card').count() === 22, '22 cartes sur l\'accueil');
   ok((await nono.textContent('#view header .kicker')).includes('Iloh Khurdan'), 'nom de l\'appli sur l\'accueil');
   ok(await nono.locator('#nav-players button').count() === 6, 'filtre par joueur : Tous + 5 joueurs (Sheyla n\'a plus de personnage)');
   ok(await nono.locator('#nav-groups button').count() === 3, 'filtre par groupe : Tous, Khurdans, Invités');
   ok(await nono.evaluate(() => document.documentElement.className) === 't-khurdan', 'thème khurdan sur l\'accueil');
   let d = await db(nono);
-  ok(Object.keys(d).filter(k => k.startsWith('characters/')).length === 21, 'fiches des 21 personnages créées par l\'admin');
+  ok(Object.keys(d).filter(k => k.startsWith('characters/')).length === 22, 'fiches des 22 personnages créées par l\'admin');
   ok(d['characters/buyan']?.player === 'eden' && d['characters/tsewang']?.player === 'jynette', 'joueurs des fiches repris de la config');
   ok(await nono.locator('.discord-set').count() === 1, 'réglage Discord visible pour l\'admin');
   const mir = () => posts.filter(t => t.titles?.length && t.method === 'POST');
