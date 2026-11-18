@@ -1868,12 +1868,12 @@ const mailFormHtml = () => { const v = mailView, mine = C.filter(c => c.player =
       <input type="text" id="mail-name" maxlength="60" list="mail-names" placeholder="Ton nom">
       <datalist id="mail-names">${mine.map(c => `<option value="${esc(c.name)}">`).join('')}</datalist>
       ${v.kind === 'public' ? `<label class="check-inline"><input type="checkbox" id="mail-anon"${v.anon ? ' checked' : ''}> Volonté d'anonymat sur l'annonce</label>` : ''}
-      <fieldset><legend>Comment Javkhaanhun l'a-t-il reçu ?</legend>
+      <fieldset><legend>Comment Javkhaanhun l'a-t-elle reçu ?</legend>
         <label><input type="radio" name="mail-mode" value="ecrit" ${v.mode === 'ecrit' ? 'checked' : ''}> À l'écrit (un mot dans la boîte)</label>
         <label><input type="radio" name="mail-mode" value="oral" ${v.mode === 'oral' ? 'checked' : ''}> À l'oral (de vive voix)</label></fieldset>
       <p class="proj-err reserved" id="mail-err" hidden></p>
       <div class="mail-actions"><button type="button" class="btn" id="mail-send">Déposer</button></div>
-      <p class="reserved">Javkhaanhun lit chaque message${v.kind === 'public' ? ' et sait toujours qui l\'a déposé, même anonyme' : ' et le transmet lui-même à la corne'}.</p>
+      <p class="reserved">Javkhaanhun lit chaque message${v.kind === 'public' ? ' et sait toujours qui l\'a déposé, même anonyme' : ' et le transmet elle-même à la corne'}.</p>
     </div></details>`; };
 const mailTags = m => `<div class="mail-tags"><span class="on">${m.kind === 'horn' ? `${icon('horn')}Corne de ${esc(isChar(m.to) ? nameOf(m.to) : '?')}` : `${icon('pin')}Panneau`}</span>
     <span>${m.mode === 'oral' ? 'À l\'oral' : 'À l\'écrit'}</span>${m.anon ? '<span>Anonymat demandé</span>' : ''}<span>${MAIL_STATUS[m.status] || ''}</span></div>`;
