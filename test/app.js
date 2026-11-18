@@ -1129,7 +1129,7 @@ const mailFormHtml = () => { const v = mailView, mine = C.filter(c => c.player =
       <fieldset><legend>Pour qui ?</legend>
         <label><input type="radio" name="mail-kind" value="public" ${v.kind === 'public' ? 'checked' : ''}> Le panneau d'affichage (public)</label>
         <label><input type="radio" name="mail-kind" value="horn" ${v.kind === 'horn' ? 'checked' : ''}> La corne de quelqu'un (privé)</label></fieldset>
-      ${v.kind === 'horn' ? `<select id="mail-to" aria-label="Destinataire"><option value="">À la corne de…</option>${C.filter(c => !mine.includes(c)).sort((a, b) => a.name.localeCompare(b.name, 'fr')).map(c => `<option value="${c.id}"${mailView.to === c.id ? ' selected' : ''}>${esc(c.name)}</option>`).join('')}</select>` : ''}
+      ${v.kind === 'horn' ? `<select id="mail-to" aria-label="Destinataire"><option value="">À la corne de…</option>${[...C].sort((a, b) => a.name.localeCompare(b.name, 'fr')).map(c => `<option value="${c.id}"${mailView.to === c.id ? ' selected' : ''}>${esc(c.name)}</option>`).join('')}</select>` : ''}
       <textarea id="mail-text" maxlength="1500" placeholder="${v.kind === 'horn' ? 'Le message à transmettre' : 'L\'annonce à afficher'}"></textarea>
       <input type="text" id="mail-name" maxlength="60" list="mail-names" placeholder="Ton nom">
       <datalist id="mail-names">${mine.map(c => `<option value="${esc(c.name)}">`).join('')}</datalist>

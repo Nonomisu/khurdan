@@ -37,6 +37,7 @@ const ok = (c, l) => { console.log((c ? '  ok  ' : '  ÉCHEC ') + l); if (!c) pr
   await click(eden, '.mail-new summary'); await eden.waitForTimeout(150);
   await eden.check('input[name="mail-kind"][value="horn"]'); await eden.waitForTimeout(200);
   ok(await eden.locator('#mail-anon').count() === 0 && await eden.locator('#mail-to').count() === 1, 'corne : destinataire, pas d\'anonymat');
+  ok(await eden.evaluate(() => [...document.querySelectorAll('#mail-to option')].some(o => o.value === 'buyan')), 'ses propres personnages sont proposés comme destinataires');
   await eden.selectOption('#mail-to', 'tamachag'); await eden.fill('#mail-text', 'Rendez-vous près des chevaux.\nViens seul.'); await eden.fill('#mail-name', 'Buyan');
   await click(eden, '#mail-send'); await eden.waitForTimeout(1000);
   ok(await eden.locator('.mail-item').count() === 2 && (await eden.textContent('#view')).includes('Tes messages déposés'), 'Eden voit ses deux messages déposés');
