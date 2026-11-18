@@ -1603,7 +1603,7 @@ const evCardHtml = ([id, e]) => `<div class="g-event">${icon(evType(e.type).icon
       <small>${evWhen(e).replace(/^./, c => c.toUpperCase())} · annoncé par ${esc(PLAYER_NAME[e.by] || '?')}</small>${goingHtml(id, e)}</div>
       ${e.by === me || isAdminMe() ? evView.del === id ? `<span class="g-del"><button type="button" class="link small danger" data-ev-del-ok="${id}">Retirer l'annonce</button> <button type="button" class="link small" data-ev-del-no>Annuler</button></span>`
         : `<button type="button" class="link small ico-btn" data-ev-del="${id}" title="Retirer l'annonce" aria-label="Retirer l'annonce">${icon('trash')}</button>` : ''}</div>`;
-const evFormHtml = date => `<details class="ev-new"${evView.open ? ' open' : ''}><summary>${icon('plus')}Annoncer un événement sur l'Iloh</summary>
+const evFormHtml = date => `<details class="ev-new ev-announce"${evView.open ? ' open' : ''}><summary>${icon('plus')}Annoncer un événement sur l'Iloh</summary>
       <div class="ev-form">
         <div class="place-list" role="group" aria-label="Type d'événement">${EVENT_TYPES.map(t => `<button type="button" data-ev-type="${t.id}" aria-pressed="${evView.type === t.id}">${icon(t.icon)}${esc(t.label)}</button>`).join('')}</div>
         <input type="text" id="ev-text" maxlength="200" placeholder="Ex. : Couvre-feu à partir de ce soir" enterkeyhint="send">
@@ -1669,7 +1669,8 @@ const evRefresh = () => {
   current === 'events' ? renderEvents() : renderHome();
   holdHeight(h); window.scrollTo({ top: y }); holdPlace(null, y);
 };
-document.addEventListener('toggle', e => { if (e.target.classList?.contains('ev-new')) evView.open = e.target.open; }, true);
+// Seul le formulaire des événements (les projets et la boîte aux lettres ont leur propre réglage).
+document.addEventListener('toggle', e => { if (e.target.classList?.contains('ev-announce')) evView.open = e.target.open; }, true);
 document.addEventListener('click', e => {
   const t = e.target.closest('[data-ev-type]'), add = e.target.closest('#ev-add'), del = e.target.closest('[data-ev-del]'), ok = e.target.closest('[data-ev-del-ok]');
   if (t) { evView.type = t.dataset.evType; document.querySelectorAll('[data-ev-type]').forEach(b => b.setAttribute('aria-pressed', b === t)); return; }
@@ -1907,7 +1908,7 @@ function renderBoard() {
     </section>`;
 }
 const boardRefresh = () => { if (current !== 'tableau' && current !== 'home') return; const y = window.scrollY, h = fullH();
-  current === 'tableau' ? renderBoard() : renderHome(); holdHeight(h); window.scrollTo({ top: y }); holdPlace(null, y); };
+  if (current === 'tableau') renderBoard(); else renderHome(); holdHeight(h); window.scrollTo({ top: y }); holdPlace(null, y); };
 // Le tableau sur Discord : un seul message, mis à jour à chaque changement (par le joueur de Javkhaanhun).
 let boardTimer = 0;
 const boardToDiscord = () => { if (!isPostmaster()) return; clearTimeout(boardTimer); boardTimer = setTimeout(() => window.RP_DISCORD?.postBoard?.(boardNotes()), 1500); };
