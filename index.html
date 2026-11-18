@@ -332,6 +332,44 @@ html, body, #view { overflow-anchor: none; }
 .g-event small { color: var(--dim); font-size: .8rem; }
 .g-del { display: flex; flex-direction: column; align-items: flex-end; gap: .2rem; }
 /* Projets de l'Iloh : carte, barre d'avancement (repères d'étapes), formulaire. */
+/* Boîte aux lettres et tableau de l'iloh (tenu par Javkhaanhun) : panneau de bois, notes épinglées. */
+.home-mail { display: flex; align-items: center; gap: .9rem; width: 100%; padding: .9rem 1rem; margin: 0 0 1.2rem; text-align: left; cursor: pointer;
+  border: 1px solid var(--gold); border-radius: 10px; color: var(--text); font: inherit;
+  background: linear-gradient(135deg, color-mix(in srgb, #6b4a2b 45%, var(--surface)), color-mix(in srgb, #3e2a18 35%, var(--surface))); }
+.home-mail .mail-ico { flex: none; display: grid; place-items: center; width: 3rem; height: 3rem; border-radius: 50%; border: 1px solid var(--gold); color: var(--gold); background: rgba(0,0,0,.18); }
+.home-mail .mail-ico .ico { width: 1.6rem; height: 1.6rem; }
+.home-mail b { display: block; font: 500 .95rem/1.25 var(--display); letter-spacing: .06em; color: var(--gold); }
+.home-mail small { color: var(--dim); }
+.home-mail .mail-badge { margin-left: auto; flex: none; min-width: 1.6rem; padding: .1rem .45rem; border-radius: 999px; background: var(--accent); color: var(--bg); font-size: .8rem; text-align: center; }
+.board { position: relative; padding: 1.6rem 1.2rem 1.8rem; margin: 0 0 1.4rem; border-radius: 4px;
+  background: #2e2119 url('tableau-bois.webp') center / 100% 100% no-repeat; filter: drop-shadow(0 6px 10px rgba(0,0,0,.45)); }
+.board-h { margin: 0 0 .9rem; text-align: center; font: 500 1rem/1.2 var(--display); letter-spacing: .12em; color: #f3e3c0; text-shadow: 0 1px 2px rgba(0,0,0,.6); }
+.board-notes { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr)); gap: 1.1rem; align-items: start; }
+.board-empty { text-align: center; color: #f3e3c0; opacity: .8; margin: .5rem 0; }
+.note { position: relative; padding: 1.15rem .9rem .7rem; background: #f1e3bf; color: #2b2015; border-radius: 2px; text-align: left;
+  box-shadow: 0 3px 6px rgba(0,0,0,.35); font-size: .95rem; line-height: 1.45; min-width: 0; }
+.note::before { content: ''; position: absolute; top: .35rem; left: 50%; width: .7rem; height: .7rem; margin-left: -.35rem; border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #e08a6a, #9c3b24); box-shadow: 0 1px 2px rgba(0,0,0,.5); }
+.note.t1 { transform: rotate(-1.2deg); } .note.t2 { transform: rotate(.9deg); background: #ead9b0; } .note.t3 { transform: rotate(-.5deg); background: #f4e8cc; }
+.note-text { white-space: pre-wrap; overflow-wrap: anywhere; margin: 0; }
+.note-sign { margin: .55rem 0 0; font-style: italic; text-align: right; color: #5a4632; font-size: .85rem; }
+.note-tools { display: flex; justify-content: flex-end; gap: .4rem; margin-top: .4rem; }
+.note-tools .link { color: #5a4632; font-size: .8rem; }
+.mail-form fieldset { border: 0; padding: 0; margin: 0 0 .3rem; display: flex; flex-wrap: wrap; gap: .4rem 1rem; }
+.mail-form legend { font-size: .85rem; color: var(--dim); margin-bottom: .25rem; }
+.mail-form fieldset label { display: inline-flex; align-items: center; gap: .35rem; }
+.mail-form textarea, .mail-edit textarea { min-height: 6.5rem; resize: vertical; white-space: pre-wrap; }
+.mail-list { display: grid; gap: .7rem; margin: .6rem 0 1.2rem; }
+.mail-item { display: grid; gap: .3rem; padding: .7rem .85rem; border: 1px solid var(--rule); border-radius: 8px; background: var(--surface); text-align: left; min-width: 0; }
+.mail-item.new { border-color: var(--gold); }
+.mail-tags { display: flex; flex-wrap: wrap; gap: .3rem; font-size: .78rem; }
+.mail-tags span { padding: .05rem .5rem; border-radius: 999px; border: 1px solid var(--rule); color: var(--dim); }
+.mail-tags .on { border-color: var(--gold); color: var(--gold); }
+.mail-text { white-space: pre-wrap; overflow-wrap: anywhere; margin: 0; }
+.mail-meta { font-size: .82rem; color: var(--dim); margin: 0; overflow-wrap: anywhere; }
+.mail-actions { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
+.mail-edit { display: grid; gap: .4rem; margin-top: .3rem; }
+.horn-list .mail-item { border-color: var(--accent); }
 .proj-card { display: grid; gap: .35rem; padding: .8rem .9rem; border: 1px solid var(--gold); border-radius: 8px; background: color-mix(in srgb, var(--gold) 7%, var(--surface)); text-align: left; min-width: 0; }
 .proj-card.done { border-color: #6fbf73; }
 .proj-top { display: flex; align-items: flex-start; gap: .5rem; }
@@ -737,6 +775,6 @@ button.link.danger { color: #e0a24d; }
 <div class="sync-state" id="sync-state" aria-live="polite"></div>
 </div>
 
-<script src="app.js?v=136b41b773" charset="utf-8"></script>
-<script type="module" src="sync.js?v=d09b0dbce6"></script>
+<script src="app.js?v=34b9229c61" charset="utf-8"></script>
+<script type="module" src="sync.js?v=a13b297984"></script>
 

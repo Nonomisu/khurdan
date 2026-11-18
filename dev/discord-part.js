@@ -107,6 +107,7 @@ const openFromLink = () => {
     const q = new URLSearchParams(location.search), id = q.get('fiche'), jour = q.get('jour');
     // Notification d'un événement : ?evenements=AAAA-MM-JJ ouvre le calendrier des événements sur ce jour.
     // Notification d'un projet : ?projets ouvre la page des projets.
+    if (q.has('tableau')) { go('tableau'); history.replaceState(null, '', location.pathname + location.hash); return true; }
     if (q.has('projets')) { go('projets'); history.replaceState(null, '', location.pathname + location.hash); return true; }
     if (q.has('evenements')) { openEventsOn(q.get('evenements')); history.replaceState(null, '', location.pathname + location.hash); return true; }
     if (!id || !C.some(c => c.id === id)) return false;
@@ -275,5 +276,21 @@ const updateMirrors = async () => {
 };
 let mirrorTimer = null;
 window.RP_DISCORD.updateMirrors = updateMirrors;
+// Tableau de l'iloh : un seul message sur le salon commun, mis à jour (PATCH) à chaque changement ; une note par champ.
+window.RP_DISCORD.postBoard = async notes => {
+  const hook = hookFor(); if (!hook) return;
+  const cut = (t, n) => t.length > n ? t.slice(0, n - 1) + '…' : t;
+  const fields = notes.slice(0, 25).map(([, n]) => ({ name: cut(`📌 ${n.sign || 'Anonyme'} · ${new Date(n.at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}`, 250), value: cut(n.text, 1000) }));
+  const body = JSON.stringify({ embeds: [{ title: '🪧 Tableau de l\'iloh — tenu par Javkhaanhun', color: 0xc9a35a,
+    description: notes.length ? '' : 'Aucune annonce pour le moment.', fields }] });
+  const prev = BOARD.discordMsg, opt = { method: prev ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' }, body };
+  try {
+    let res = await fetch(prev ? `${hook}/messages/${prev}` : `${hook}?wait=true`, opt);
+    if (prev && res.status === 404) res = await fetch(`${hook}?wait=true`, { ...opt, method: 'POST' });
+    if (!res.ok) return;
+    const j = await res.json().catch(() => null);
+    if (j?.id && j.id !== prev) { BOARD.discordMsg = j.id; window.RP_SYNC?.setBoardMsg?.(j.id); }
+  } catch (e) { console.warn('Tableau Discord :', e.message || e); }
+};
 window.RP_DISCORD.sendMirrors = () => { clearTimeout(mirrorTimer); mirrorTimer = setTimeout(updateMirrors, 1500); };
 setInterval(() => window.RP_DISCORD.sendMirrors(), 120e3);   // reprise si un envoi a été remis (saisie en cours, échec)

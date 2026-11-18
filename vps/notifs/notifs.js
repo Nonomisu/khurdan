@@ -60,6 +60,8 @@ async function pushNews(id) {
   }
   // Projet de l'Iloh : la notification ouvre la page des projets.
   if (String(n.key || '').startsWith('proj:')) url = `${APP}?projets`;
+  // Boîte aux lettres, tableau de l'iloh, message à la corne : la notification ouvre le tableau.
+  if (/^(mail|board|horn):/.test(String(n.key || ''))) url = `${APP}?tableau`;
   const sent = await sendTo(n.to, { title: 'Iloh Khurdan', body: n.text, tag: 'news-' + id, url });
   log(`nouvelle pour ${n.to} : ${sent} appareil(s)`);
 }

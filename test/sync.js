@@ -50,6 +50,8 @@ const recapsRef = () => doc(db, 'shared', 'recaps-' + A.iso);
 const evRef = doc(db, 'shared', 'events');
 // Projets de l'Iloh : un seul document, une entrée par projet.
 const prRef = doc(db, 'shared', 'projects');
+// Tableau de l'iloh (public) ; la boîte aux lettres (privée) est la collection « mailbox ».
+const boardRef = doc(db, 'shared', 'board');
 const ilohRef = doc(db, 'shared', 'iloh');   // carte de l'Iloh : invités des yourtes (guests)   // événements du groupe : un champ par événement
 const newsRef = key => doc(db, 'news', String(key).replace(/\//g, '_'));
 
@@ -124,6 +126,11 @@ window.RP_SYNC = {
   newsOnce: (key, n) => noWrites ? Promise.resolve() : setDoc(newsRef(key), { ...n, key, read: false, from: me, createdAt: serverTimestamp() }).catch(() => {}),
   saveIloh: d => noWrites ? Promise.resolve() : setDoc(ilohRef, d, { merge: true }).catch(report),
   // Projets : création ou suppression d'un projet entier ; modification et participations champ par champ (rien ne s'écrase).
+  saveMail: (id, m) => noWrites ? Promise.resolve() : setDoc(doc(db, 'mailbox', id), m).catch(report),
+  updateMail: (id, patch) => noWrites ? Promise.resolve() : updateDoc(doc(db, 'mailbox', id), patch).catch(report),
+  deleteMail: id => noWrites ? Promise.resolve() : deleteDoc(doc(db, 'mailbox', id)).catch(report),
+  saveBoardNote: (id, n) => noWrites ? Promise.resolve() : setDoc(boardRef, { notes: { [id]: n === null ? deleteField() : n } }, { merge: true }).catch(report),
+  setBoardMsg: id => noWrites ? Promise.resolve() : setDoc(boardRef, { discordMsg: id }, { merge: true }).catch(report),
   saveProject: (id, p) => noWrites ? Promise.resolve() : setDoc(prRef, { [id]: p === null ? deleteField() : p }, { merge: true }).catch(report),
   saveProjectFields: (id, f) => noWrites ? Promise.resolve() : updateDoc(prRef, ...Object.entries(f).flatMap(([k, v]) => [new FieldPath(id, k), v])).catch(report),
   setContrib: (id, k, c) => noWrites ? Promise.resolve() : updateDoc(prRef, new FieldPath(id, 'contrib', k), c || deleteField()).catch(report),
@@ -316,6 +323,10 @@ function listen() {
   if (!viewAs) onSnapshot(A.playerOf('khokkutsai') === me ? collection(db, 'requests') : query(collection(db, 'requests'), where('from', '==', me)),
     s => { A.applyRequests(s.docs.map(x => ({ id: x.id, ...x.data() }))); A.rerender(); }, e => console.warn('Demandes de matériel illisibles :', e.message));
   onSnapshot(ilohRef, s => { if (s.metadata.hasPendingWrites) return; A.applyIloh(s.data() || {}); A.rerender(); });
+  onSnapshot(boardRef, s => { if (s.metadata.hasPendingWrites) return; A.applyBoard(s.data() || {}); A.rerender(); });
+  // Boîte aux lettres : toute la boîte pour le joueur de Javkhaanhun, ses propres messages pour les autres.
+  if (!viewAs) onSnapshot(A.playerOf('javkhaanhun') === me ? collection(db, 'mailbox') : query(collection(db, 'mailbox'), where('from', '==', me)),
+    s => { A.applyMail(s.docs.map(x => ({ id: x.id, ...x.data() }))); A.rerender(); }, e => console.warn('Boîte aux lettres illisible :', e.message));
   onSnapshot(prRef, s => { if (s.metadata.hasPendingWrites) return; A.applyProjects(s.data() || {}); A.rerender(); });
   onSnapshot(evRef, s => { if (s.metadata.hasPendingWrites) return; A.applyEvents(s.data() || {}); A.rerender(); });
   if (!viewAs) onSnapshot(query(collection(db, 'news'), where('to', '==', me)), s => {

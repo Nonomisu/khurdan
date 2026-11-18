@@ -104,6 +104,9 @@ const SLOTS = [
 ];
 // Petites icônes au trait, dessinées dans la couleur du thème.
 const ICONS = {
+  mailbox: '<path d="M4 11a4 4 0 0 1 8 0v9H4z"/><path d="M8 7h8a4 4 0 0 1 4 4v9h-8"/><path d="M8 20v2M16 7V3h3v2h-3"/><path d="M6.5 12.5h3"/>',
+  pin:   '<path d="M9 3h6l-1 6 3 3v2H7v-2l3-3z"/><path d="M12 14v7"/>',
+  horn:  '<path d="M3 9c4 0 9-2 13-5v16c-4-3-9-5-13-5z"/><path d="M3 9v6M7 15l1 5h2l-1-5"/><path d="M19 9.5c1 1 1 4 0 5"/>',
   aube:  '<path d="M3 18h18"/><path d="M7 18a5 5 0 0 1 10 0"/><path d="M12 6v3M5.6 9.6l2 2M18.4 9.6l-2 2"/>',
   matin: '<circle cx="12" cy="13" r="3.5"/><path d="M12 5v2.5M12 18.5V21M4 13h2.5M17.5 13H20M6.3 7.3l1.8 1.8M15.9 16.9l1.8 1.8M17.7 7.3l-1.8 1.8M8.1 16.9l-1.8 1.8"/>',
   midi:  '<circle cx="12" cy="12" r="4.5"/><path d="M12 2.5v2.5M12 19v2.5M2.5 12H5M19 12h2.5M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M18.7 5.3l-1.8 1.8M7.1 16.9l-1.8 1.8"/>',
@@ -922,7 +925,8 @@ const newsKind = n => /^(night|risk|intime):/.test(n.key || '') ? 'k-hot' : /^(w
 // Nouvelle cliquable : la fiche du personnage, ou le calendrier pour un événement de l'Iloh.
 const newsLink = (n, inner) => n.charId ? `<button type="button" class="link" data-go="${n.charId}">${inner}</button>`
   : n.key?.startsWith('event:') ? `<button type="button" class="link" data-ev-open="${esc(n.key.split(':')[1])}">${inner}</button>`
-  : n.key?.startsWith('proj:') ? `<button type="button" class="link" data-proj-open="${esc(n.key.split(':')[1])}">${inner}</button>` : `<span>${inner}</span>`;
+  : n.key?.startsWith('proj:') ? `<button type="button" class="link" data-proj-open="${esc(n.key.split(':')[1])}">${inner}</button>`
+  : /^(mail|board|horn):/.test(n.key || '') ? `<button type="button" class="link" data-go="tableau">${inner}</button>` : `<span>${inner}</span>`;
 document.addEventListener('click', e => { const b = e.target.closest('[data-ev-open]'); if (!b) return;
   const ev = GROUP_EVENTS[b.dataset.evOpen]; openEventsOn(ev ? evStart(ev) : null); });
 const evRefresh = () => {
@@ -1092,6 +1096,133 @@ document.addEventListener('click', e => {
   }
 });
 document.addEventListener('keydown', e => { if (e.target.id === 'proj-act' && e.key === 'Enter') { e.preventDefault(); projAddAct(); } });
+
+// ---------- Boîte aux lettres et tableau de l'iloh, tenus par Javkhaanhun ----------
+// mailbox/{id} = { from (joueur), kind: 'public' | 'horn', text, name, anon, mode: 'ecrit' | 'oral', to (personnage, corne), at,
+//   status: 'new' | 'posted' | 'forwarded' | 'archived' } — privé : lu par le joueur de Javkhaanhun et par son auteur.
+// shared/board = { notes: { id: { text, sign, at } }, discordMsg } — le tableau public, rempli par le joueur de Javkhaanhun.
+const POSTMASTER = 'javkhaanhun';
+const MAIL = {}, BOARD = { notes: {} };   // remplis par sync.js
+const mailView = { open: false, kind: 'public', mode: 'ecrit', anon: false, to: '', edit: null, noteEdit: null, newNote: false, del: null };
+const isPostmaster = () => playerOf(POSTMASTER) === me;
+const mailId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+const boardNotes = () => Object.entries(BOARD.notes || {}).filter(([, n]) => n?.text).sort((a, b) => b[1].at - a[1].at);
+const mailList = () => Object.entries(MAIL).sort((a, b) => b[1].at - a[1].at);
+const mailNew = () => mailList().filter(([, m]) => m.status === 'new').length;
+const MAIL_STATUS = { new: 'En attente', posted: 'Affiché sur le tableau', forwarded: 'Transmis à la corne', archived: 'Classé' };
+const noteTilt = id => 't' + (1 + [...id].reduce((a, ch) => a + ch.charCodeAt(0), 0) % 3);
+const mailAt = t => fmtDay(new Date(t));
+const noteHtml = ([id, n]) => `<article class="note ${noteTilt(id)}" id="note-${id}"><p class="note-text">${esc(n.text)}</p>
+    <p class="note-sign">— ${esc(n.sign || 'Anonyme')}, ${mailAt(n.at)}</p>
+    ${isPostmaster() ? `<div class="note-tools"><button type="button" class="link" data-note-edit="${id}">Modifier</button><button type="button" class="link" data-note-del="${id}">Retirer</button></div>` : ''}</article>`;
+const noteEditorHtml = (key, text, sign, label) => `<div class="mail-edit" data-note-form="${key}">
+    <textarea data-note-text maxlength="1500" aria-label="Texte de la note">${esc(text)}</textarea>
+    <input type="text" data-note-sign maxlength="60" placeholder="Signature (ou « Anonyme »)" value="${esc(sign)}" aria-label="Signature">
+    <div class="mail-actions"><button type="button" class="btn" data-note-save="${key}">${label}</button><button type="button" class="link small" data-note-cancel>Annuler</button></div></div>`;
+const homeMailHtml = () => { const n = boardNotes().length, nw = isPostmaster() ? mailNew() : 0;
+  return `<button type="button" class="home-mail" data-go="tableau"><span class="mail-ico">${icon('mailbox')}</span>
+    <span><b>Boîte aux lettres de Javkhaanhun</b><small>Déposer un message · Tableau de l'iloh${n ? ` (${n} note${n > 1 ? 's' : ''})` : ''}</small></span>
+    ${nw ? `<span class="mail-badge" aria-label="${nw} nouveau(x) message(s)">${nw}</span>` : ''}</button>`; };
+const mailFormHtml = () => { const v = mailView, mine = C.filter(c => c.player === me);
+  return `<details class="ev-new mail-new"${v.open ? ' open' : ''}><summary>${icon('mailbox')}Déposer un message dans la boîte aux lettres</summary>
+    <div class="ev-form mail-form">
+      <fieldset><legend>Pour qui ?</legend>
+        <label><input type="radio" name="mail-kind" value="public" ${v.kind === 'public' ? 'checked' : ''}> Le panneau d'affichage (public)</label>
+        <label><input type="radio" name="mail-kind" value="horn" ${v.kind === 'horn' ? 'checked' : ''}> La corne de quelqu'un (privé)</label></fieldset>
+      ${v.kind === 'horn' ? `<select id="mail-to" aria-label="Destinataire"><option value="">À la corne de…</option>${C.filter(c => !mine.includes(c)).sort((a, b) => a.name.localeCompare(b.name, 'fr')).map(c => `<option value="${c.id}"${mailView.to === c.id ? ' selected' : ''}>${esc(c.name)}</option>`).join('')}</select>` : ''}
+      <textarea id="mail-text" maxlength="1500" placeholder="${v.kind === 'horn' ? 'Le message à transmettre' : 'L\'annonce à afficher'}"></textarea>
+      <input type="text" id="mail-name" maxlength="60" list="mail-names" placeholder="Ton nom">
+      <datalist id="mail-names">${mine.map(c => `<option value="${esc(c.name)}">`).join('')}</datalist>
+      ${v.kind === 'public' ? `<label class="check-inline"><input type="checkbox" id="mail-anon"${v.anon ? ' checked' : ''}> Volonté d'anonymat sur l'annonce</label>` : ''}
+      <fieldset><legend>Comment Javkhaanhun l'a-t-il reçu ?</legend>
+        <label><input type="radio" name="mail-mode" value="ecrit" ${v.mode === 'ecrit' ? 'checked' : ''}> À l'écrit (un mot dans la boîte)</label>
+        <label><input type="radio" name="mail-mode" value="oral" ${v.mode === 'oral' ? 'checked' : ''}> À l'oral (de vive voix)</label></fieldset>
+      <p class="proj-err reserved" id="mail-err" hidden></p>
+      <div class="mail-actions"><button type="button" class="btn" id="mail-send">Déposer</button></div>
+      <p class="reserved">Javkhaanhun lit chaque message${v.kind === 'public' ? ' et sait toujours qui l\'a déposé, même anonyme' : ' et le transmet lui-même à la corne'}.</p>
+    </div></details>`; };
+const mailTags = m => `<div class="mail-tags"><span class="on">${m.kind === 'horn' ? `${icon('horn')}Corne de ${esc(isChar(m.to) ? nameOf(m.to) : '?')}` : `${icon('pin')}Panneau`}</span>
+    <span>${m.mode === 'oral' ? 'À l\'oral' : 'À l\'écrit'}</span>${m.anon ? '<span>Anonymat demandé</span>' : ''}<span>${MAIL_STATUS[m.status] || ''}</span></div>`;
+const mailItemHtml = ([id, m]) => { const pm = isPostmaster(), ed = mailView.edit === id;
+  return `<div class="mail-item${m.status === 'new' ? ' new' : ''}" id="mail-${id}">${mailTags(m)}
+    <p class="mail-text">${esc(m.text)}</p>
+    <p class="mail-meta">${esc(m.name || '?')}${pm ? ` · ${esc(PLAYER_NAME[m.from] || '?')}` : ''} · ${mailAt(m.at)}</p>
+    ${pm && ed ? (m.kind === 'horn' ? `<div class="mail-edit" data-horn-form="${id}"><textarea data-horn-text maxlength="1500" aria-label="Message transmis">${esc(m.text)}</textarea>
+        <div class="mail-actions"><button type="button" class="btn" data-horn-send="${id}">${icon('horn')}Envoyer à la corne de ${esc(nameOf(m.to))}</button><button type="button" class="link small" data-note-cancel>Annuler</button></div></div>`
+      : noteEditorHtml('mail:' + id, m.text, m.anon ? 'Anonyme' : (m.name || ''), 'Épingler au tableau')) : ''}
+    ${pm && !ed ? `<div class="mail-actions">${m.status !== 'posted' && m.status !== 'forwarded' ? `<button type="button" class="btn" data-mail-edit="${id}">${m.kind === 'horn' ? 'Transmettre à la corne' : 'Préparer la note'}</button>` : ''}
+      ${m.status !== 'archived' ? `<button type="button" class="link small" data-mail-arch="${id}">Classer</button>` : ''}
+      ${mailView.del === id ? `<button type="button" class="link small danger" data-mail-del-ok="${id}">Supprimer pour de bon</button><button type="button" class="link small" data-mail-del-no>Non</button>` : `<button type="button" class="link small" data-mail-del="${id}">Supprimer</button>`}</div>` : ''}
+    ${!pm && m.status === 'new' ? `<div class="mail-actions"><button type="button" class="link small" data-mail-del-ok="${id}">Reprendre ce message</button></div>` : ''}</div>`; };
+function renderBoard() {
+  root.className = 't-khurdan';
+  const pm = isPostmaster(), notes = boardNotes(), mails = mailList(), horns = NEWS.filter(n => n.key?.startsWith('horn:'));
+  document.getElementById('view').innerHTML = `
+    <p class="ev-back"><button type="button" class="link" data-go="home">‹ Accueil</button></p>
+    <header><p class="kicker">${APP_NAME} · tenu par Javkhaanhun</p><h1>Le tableau de l'iloh</h1></header>
+    <section>
+      <div class="board"><p class="board-h">Annonces de l'iloh</p>
+        ${notes.length ? `<div class="board-notes">${notes.map(([id, n]) => mailView.noteEdit === id ? `<article class="note t3">${noteEditorHtml('note:' + id, n.text, n.sign, 'Enregistrer')}</article>` : noteHtml([id, n])).join('')}</div>` : '<p class="board-empty">Aucune annonce pour le moment.</p>'}
+      </div>
+      ${pm ? (mailView.newNote ? noteEditorHtml('new', '', 'Javkhaanhun', 'Épingler au tableau') : `<p><button type="button" class="link" id="note-new">${icon('pin')}Écrire une note sur le tableau</button></p>`) : ''}
+      ${horns.length ? `<h2>${icon('horn')}Messages reçus à la corne</h2><div class="mail-list horn-list">${horns.map(n => `<div class="mail-item"><p class="mail-text">${esc(n.text)}</p><p class="mail-meta">${n.at ? mailAt(n.at) : ''}</p></div>`).join('')}</div>` : ''}
+      ${mailFormHtml()}
+      ${pm ? `<h2>${icon('mailbox')}Boîte aux lettres${mailNew() ? ` (${mailNew()} nouveau${mailNew() > 1 ? 'x' : ''})` : ''}</h2>
+        ${mails.length ? `<div class="mail-list">${mails.map(mailItemHtml).join('')}</div>` : '<p class="reserved">La boîte est vide.</p>'}`
+      : mails.length ? `<h2>Tes messages déposés</h2><div class="mail-list">${mails.map(mailItemHtml).join('')}</div>` : ''}
+    </section>`;
+}
+const boardRefresh = () => { if (current !== 'tableau' && current !== 'home') return; const y = window.scrollY, h = fullH();
+  current === 'tableau' ? renderBoard() : renderHome(); holdHeight(h); window.scrollTo({ top: y }); holdPlace(null, y); };
+// Le tableau sur Discord : un seul message, mis à jour à chaque changement (par le joueur de Javkhaanhun).
+let boardTimer = 0;
+const boardToDiscord = () => { if (!isPostmaster()) return; clearTimeout(boardTimer); boardTimer = setTimeout(() => window.RP_DISCORD?.postBoard?.(boardNotes()), 1500); };
+const saveNote = (id, n) => { if (n) BOARD.notes[id] = n; else delete BOARD.notes[id]; window.RP_SYNC?.saveBoardNote?.(id, n); boardToDiscord(); };
+const noteNews = (id, text) => PLAYERS.filter(p => p.id !== me).forEach(p => window.RP_SYNC?.newsOnce?.('board:' + id + ':' + p.id,
+  { to: p.id, text: `Nouvelle annonce sur le tableau de l'iloh : « ${text.replace(/\s+/g, ' ').slice(0, 80)}${text.length > 80 ? '…' : ''} »`, charId: null }));
+document.addEventListener('toggle', e => { if (e.target.classList?.contains('mail-new')) mailView.open = e.target.open; }, true);
+document.addEventListener('change', e => { const t = e.target;
+  if (t.id === 'mail-anon') mailView.anon = t.checked;
+  if (t.id === 'mail-to') mailView.to = t.value;
+  if (t.name === 'mail-kind' || t.name === 'mail-mode') { const keep = ['mail-text', 'mail-name'].map(k => document.getElementById(k)?.value || '');
+    mailView[t.name === 'mail-kind' ? 'kind' : 'mode'] = t.value; boardRefresh();
+    ['mail-text', 'mail-name'].forEach((k, i) => { const el = document.getElementById(k); if (el) el.value = keep.at(i); }); } });
+document.addEventListener('click', e => { const t = e.target;
+  if (t.closest('#mail-send')) {
+    const v = mailView, text = document.getElementById('mail-text').value.trim(), name = document.getElementById('mail-name').value.trim(), to = document.getElementById('mail-to')?.value || null;
+    const err = document.getElementById('mail-err');
+    const pb = !text ? 'Écris ton message.' : !name ? 'Indique ton nom.' : v.kind === 'horn' && !isChar(to) ? 'Choisis à la corne de qui.' : '';
+    if (pb) { err.hidden = false; err.textContent = pb; return; }
+    const id = mailId(), m = { from: me, kind: v.kind, text, name, anon: v.kind === 'public' && !!document.getElementById('mail-anon')?.checked, mode: v.mode, to: v.kind === 'horn' ? to : null, at: Date.now(), status: 'new' };
+    MAIL[id] = m; window.RP_SYNC?.saveMail?.(id, m);
+    const pmP = playerOf(POSTMASTER); if (pmP && pmP !== me) window.RP_SYNC?.newsOnce?.('mail:' + id, { to: pmP, text: `Nouveau message dans la boîte aux lettres (${v.kind === 'horn' ? 'corne de ' + nameOf(to) : 'panneau'}).`, charId: null });
+    Object.assign(mailView, { open: false, anon: false, to: '' }); return boardRefresh();
+  }
+  if (t.closest('#note-new')) { mailView.newNote = true; return boardRefresh(); }
+  const ed = t.closest('[data-mail-edit]'); if (ed) { mailView.edit = ed.dataset.mailEdit; boardRefresh(); return document.querySelector(`#mail-${ed.dataset.mailEdit} textarea`)?.focus(); }
+  const ne = t.closest('[data-note-edit]'); if (ne) { mailView.noteEdit = ne.dataset.noteEdit; return boardRefresh(); }
+  if (t.closest('[data-note-cancel]')) { Object.assign(mailView, { edit: null, noteEdit: null, newNote: false }); return boardRefresh(); }
+  const sv = t.closest('[data-note-save]'); if (sv && isPostmaster()) {
+    const f = sv.closest('[data-note-form]'), text = f.querySelector('[data-note-text]').value.replace(/\s+$/, ''), sign = f.querySelector('[data-note-sign]').value.trim() || 'Anonyme';
+    if (!text.trim()) return f.querySelector('[data-note-text]').focus();
+    const key = sv.dataset.noteSave;
+    if (key.startsWith('note:')) { const id = key.slice(5); saveNote(id, { ...BOARD.notes[id], text, sign }); }
+    else { const id = mailId(); saveNote(id, { text, sign, at: Date.now() }); noteNews(id, text);
+      if (key.startsWith('mail:')) { const mid = key.slice(5); MAIL[mid].status = 'posted'; window.RP_SYNC?.updateMail?.(mid, { status: 'posted' }); } }
+    Object.assign(mailView, { edit: null, noteEdit: null, newNote: false }); return boardRefresh();
+  }
+  const nd = t.closest('[data-note-del]'); if (nd && isPostmaster()) { saveNote(nd.dataset.noteDel, null); return boardRefresh(); }
+  const hs = t.closest('[data-horn-send]'); if (hs && isPostmaster()) {
+    const id = hs.dataset.hornSend, m = MAIL[id], text = hs.closest('[data-horn-form]').querySelector('[data-horn-text]').value.replace(/\s+$/, '');
+    if (!text.trim()) return; const tp = playerOf(m.to);
+    if (tp && tp !== me) window.RP_SYNC?.newsOnce?.('horn:' + id, { to: tp, text: `Message à la corne de ${nameOf(m.to)} : « ${text} »`, charId: m.to });
+    m.status = 'forwarded'; window.RP_SYNC?.updateMail?.(id, { status: 'forwarded' }); mailView.edit = null; return boardRefresh();
+  }
+  const ar = t.closest('[data-mail-arch]'); if (ar && isPostmaster()) { MAIL[ar.dataset.mailArch].status = 'archived'; window.RP_SYNC?.updateMail?.(ar.dataset.mailArch, { status: 'archived' }); return boardRefresh(); }
+  const dl = t.closest('[data-mail-del]'); if (dl) { mailView.del = dl.dataset.mailDel; return boardRefresh(); }
+  if (t.closest('[data-mail-del-no]')) { mailView.del = null; return boardRefresh(); }
+  const dk = t.closest('[data-mail-del-ok]'); if (dk) { const id = dk.dataset.mailDelOk; delete MAIL[id]; window.RP_SYNC?.deleteMail?.(id); dropNews(['mail:' + id]); mailView.del = null; return boardRefresh(); }
+});
 
 const MS_NEWS = {
   'Rencontre':   (a, b) => `${a} et ${b} se sont rencontrés !`,
@@ -2495,6 +2626,7 @@ function renderHome() {
       <p class="home-links"><button type="button" class="chip-link" data-go="iloh">${icon('map')}Carte de l'Iloh</button>
         <button type="button" class="chip-link" data-open-page="liens">${icon('users')}Les liens</button>
         <button type="button" class="chip-link" data-go="projets">${icon('target')}Projets</button>
+        <button type="button" class="chip-link" data-go="tableau">${icon('pin')}Tableau</button>
         <button type="button" class="chip-link" data-open-page="search">${icon('search')}Rechercher</button></p>${(f => f ? `<p class="fest home-fest">${icon('star')}En Eorzea : ${f.name}</p>` : '')(festivalOn(rpDay))}</header>
     ${((unread, day) => `<section class="news"><h2>${icon('bell')}Nouvelles${unread.length ? ` <span class="badge">${unread.length}</span>` : ''}</h2>
       ${unread.length ? `<ul>${unread.slice(0, 8).map(n => `<li class="unread ${newsKind(n)}">${newsLink(n, esc(n.text))}</li>`).join('')}</ul>
@@ -2503,6 +2635,7 @@ function renderHome() {
         ${day.length ? `<ul>${day.map(n => `<li class="${n.read ? '' : 'unread'} ${newsKind(n)}">${newsLink(n, `<small>${newsHour(n)}</small> ${esc(n.text)}`)}</li>`).join('')}</ul>` : '<p class="reserved">Aucune nouvelle depuis 5 h ce matin.</p>'}</details>
       </section>`)(myNews().filter(n => !n.read), newsOfToday())}
     ${groupEventsHtml()}
+    ${homeMailHtml()}
     ${homeProjectsHtml()}
     ${wrapBanner(`<div class="wrap-open">${C.filter(c => c.player === me).map(c => `<button type="button" class="btn" data-wrap-open="${c.id}">${c.name}</button>`).join('')}</div>`)}
     <div class="grid">
@@ -3065,7 +3198,7 @@ function renderCharNow(id) {
   document.getElementById('done-'+id).addEventListener('click', () => { s.done = true; s.doneAt ??= Date.now(); renderNav(); renderChar(id); window.RP_SYNC?.saveNow(); window.RP_DISCORD?.send(id); });
 }
 
-function go(id) { resetSpacer(); lastPage = null; current = id; renderNav(); if (id !== 'home') fxOff(); id === 'home' ? renderHome() : id === 'events' ? renderEvents() : id === 'iloh' ? renderIloh() : id === 'liens' ? renderLinks() : id === 'search' ? renderSearch() : id === 'projets' ? renderProjects() : renderChar(id); window.scrollTo({ top:0 }); }
+function go(id) { resetSpacer(); lastPage = null; current = id; renderNav(); if (id !== 'home') fxOff(); id === 'home' ? renderHome() : id === 'events' ? renderEvents() : id === 'iloh' ? renderIloh() : id === 'liens' ? renderLinks() : id === 'search' ? renderSearch() : id === 'projets' ? renderProjects() : id === 'tableau' ? renderBoard() : renderChar(id); window.scrollTo({ top:0 }); }
 document.addEventListener('click', e => { const b = e.target.closest('[data-go]'); if (b) go(b.dataset.go); });
 document.addEventListener('click', async e => {
   const b = e.target.closest('[data-wrap-open]'); if (!b) return;
@@ -3088,7 +3221,7 @@ document.querySelectorAll('.nav-filter button').forEach(b => b.addEventListener(
   const row = b.dataset.f ? '[data-f]' : '[data-g]';
   if (b.dataset.f) filter = b.dataset.f; else groupFilter = b.dataset.g;
   document.querySelectorAll('.nav-filter button' + row).forEach(x => x.setAttribute('aria-pressed', x === b));
-  if (!['home', 'events', 'iloh', 'liens', 'search', 'projets'].includes(current) && !C.some(c => c.id === current && shown(c))) current = 'home';
+  if (!['home', 'events', 'iloh', 'liens', 'search', 'projets', 'tableau'].includes(current) && !C.some(c => c.id === current && shown(c))) current = 'home';
   go(current);
 }));
 initPlaces();
@@ -3213,7 +3346,7 @@ const rerender = () => {
   if (isTyping(document.activeElement)) { typingDirty = true; return; }
   // Jamais entre l'appui et le relâchement : la fiche serait remplacée sous le pointeur et le clic tomberait à côté.
   if (pointerDown) { typingDirty = true; return; }
-  typingDirty = false; renderNav(); current === 'home' ? renderHome() : current === 'events' ? renderEvents() : current === 'iloh' ? renderIloh() : current === 'liens' ? renderLinks() : current === 'search' ? null : current === 'projets' ? renderProjects() : renderChar(current);
+  typingDirty = false; renderNav(); current === 'home' ? renderHome() : current === 'events' ? renderEvents() : current === 'iloh' ? renderIloh() : current === 'liens' ? renderLinks() : current === 'search' ? null : current === 'projets' ? renderProjects() : current === 'tableau' ? renderBoard() : renderChar(current);
 };
 document.addEventListener('focusout', () => setTimeout(() => { if (typingDirty && !pointerDown) rerender(); }, 0));
 
@@ -3265,6 +3398,8 @@ window.RP_APP = {
   },
   applyRequests: list => { Object.keys(REQUESTS).forEach(k => delete REQUESTS[k]); list.forEach(({ id, ...r }) => { REQUESTS[id] = r; }); },
   applyIloh: d => { if (d?.guests) { Object.keys(ILOH_GUESTS).forEach(k => delete ILOH_GUESTS[k]); Object.assign(ILOH_GUESTS, d.guests); } },
+  applyMail: list => { Object.keys(MAIL).forEach(k => delete MAIL[k]); list.forEach(({ id, ...m }) => { MAIL[id] = m; }); },
+  applyBoard: d => { BOARD.notes = d?.notes || {}; BOARD.discordMsg = d?.discordMsg || null; },
   applyProjects: d => { Object.keys(PROJECTS).forEach(k => delete PROJECTS[k]); Object.assign(PROJECTS, d || {}); },
   applyEvents: d => { Object.keys(GROUP_EVENTS).forEach(k => delete GROUP_EVENTS[k]); Object.assign(GROUP_EVENTS, d || {}); },
   applyNews: list => {
@@ -3397,6 +3532,7 @@ const openFromLink = () => {
     const q = new URLSearchParams(location.search), id = q.get('fiche'), jour = q.get('jour');
     // Notification d'un événement : ?evenements=AAAA-MM-JJ ouvre le calendrier des événements sur ce jour.
     // Notification d'un projet : ?projets ouvre la page des projets.
+    if (q.has('tableau')) { go('tableau'); history.replaceState(null, '', location.pathname + location.hash); return true; }
     if (q.has('projets')) { go('projets'); history.replaceState(null, '', location.pathname + location.hash); return true; }
     if (q.has('evenements')) { openEventsOn(q.get('evenements')); history.replaceState(null, '', location.pathname + location.hash); return true; }
     if (!id || !C.some(c => c.id === id)) return false;
@@ -3565,6 +3701,22 @@ const updateMirrors = async () => {
 };
 let mirrorTimer = null;
 window.RP_DISCORD.updateMirrors = updateMirrors;
+// Tableau de l'iloh : un seul message sur le salon commun, mis à jour (PATCH) à chaque changement ; une note par champ.
+window.RP_DISCORD.postBoard = async notes => {
+  const hook = hookFor(); if (!hook) return;
+  const cut = (t, n) => t.length > n ? t.slice(0, n - 1) + '…' : t;
+  const fields = notes.slice(0, 25).map(([, n]) => ({ name: cut(`📌 ${n.sign || 'Anonyme'} · ${new Date(n.at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}`, 250), value: cut(n.text, 1000) }));
+  const body = JSON.stringify({ embeds: [{ title: '🪧 Tableau de l\'iloh — tenu par Javkhaanhun', color: 0xc9a35a,
+    description: notes.length ? '' : 'Aucune annonce pour le moment.', fields }] });
+  const prev = BOARD.discordMsg, opt = { method: prev ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' }, body };
+  try {
+    let res = await fetch(prev ? `${hook}/messages/${prev}` : `${hook}?wait=true`, opt);
+    if (prev && res.status === 404) res = await fetch(`${hook}?wait=true`, { ...opt, method: 'POST' });
+    if (!res.ok) return;
+    const j = await res.json().catch(() => null);
+    if (j?.id && j.id !== prev) { BOARD.discordMsg = j.id; window.RP_SYNC?.setBoardMsg?.(j.id); }
+  } catch (e) { console.warn('Tableau Discord :', e.message || e); }
+};
 window.RP_DISCORD.sendMirrors = () => { clearTimeout(mirrorTimer); mirrorTimer = setTimeout(updateMirrors, 1500); };
 setInterval(() => window.RP_DISCORD.sendMirrors(), 120e3);   // reprise si un envoi a été remis (saisie en cours, échec)
 
