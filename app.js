@@ -834,7 +834,7 @@ const addGroupEvent = (type, text, until, date, daily) => {
   PLAYERS.filter(p => p.id !== me).forEach(p => NEWS.unshift({ to: p.id, text: txt, charId: null, key: 'event:' + id + ':' + p.id, read: false, at }));
   return id;
 };
-const removeGroupEvent = id => { delete GROUP_EVENTS[id]; window.RP_SYNC?.saveEvent(id, null); dropNews(PLAYERS.map(p => 'event:' + id + ':' + p.id)); };
+const removeGroupEvent = id => { delete GROUP_EVENTS[id]; window.RP_SYNC?.saveEvent(id, null); dropNews([...PLAYERS.map(p => 'event:' + id + ':' + p.id), ...NEWS.map(n => n.key).filter(k => k?.startsWith('evday:' + id + ':'))]); };
 const fmtIso = iso => { const [y, m, d] = iso.split('-').map(Number); return fmtDay(new Date(y, m - 1, d)); };
 const isoDate = iso => { const [y, m, d] = iso.split('-').map(Number); return new Date(y, m - 1, d); };
 // Inscriptions : e.going = { personnage: joueur } (écrit champ par champ : deux inscriptions simultanées ne s'écrasent pas).
