@@ -58,6 +58,8 @@ async function pushNews(id) {
     const ev = (await db.doc('shared/events').get()).data()?.[n.key.split(':')[1]];
     url = `${APP}?evenements=${encodeURIComponent(ev?.date || '')}`;
   }
+  // Shagaï d'Henbilee : la notification ouvre la page du shagaï sur ce tirage.
+  if (String(n.key || '').startsWith('shagai:')) url = `${APP}?shagai=${encodeURIComponent(n.key.split(':')[1])}`;
   // Événement du jour : la notification ouvre sa page (les actions des personnages).
   if (String(n.key || '').startsWith('evday:')) url = `${APP}?evenement=${encodeURIComponent(n.key.split(':')[1])}`;
   // Projet de l'Iloh : la notification ouvre la page des projets.

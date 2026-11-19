@@ -112,6 +112,7 @@ const openFromLink = () => {
     // Notification d'un projet : ?projets ouvre la page des projets.
     if (q.has('tableau')) { go('tableau'); history.replaceState(null, '', location.pathname + location.hash); return true; }
     if (q.has('projets')) { go('projets'); history.replaceState(null, '', location.pathname + location.hash); return true; }
+    if (q.has('shagai')) { shView.focus = q.get('shagai') || null; go('shagai'); history.replaceState(null, '', location.pathname + location.hash); return true; }
     if (q.has('evenement')) { openEvDay(q.get('evenement')); history.replaceState(null, '', location.pathname + location.hash); return true; }
     if (q.has('evenements')) { openEventsOn(q.get('evenements')); history.replaceState(null, '', location.pathname + location.hash); return true; }
     if (!id || !C.some(c => c.id === id)) return false;

@@ -124,6 +124,7 @@ Object.assign(ICONS, {
 ICONS.temp = '<path d="M10 14.5V5a2 2 0 0 1 4 0v9.5a4 4 0 1 1-4 0z"/><path d="M12 9v7.5"/><circle cx="12" cy="17.5" r="1.2"/>';
 ICONS.snow = '<path d="M12 3v18M4.2 7.5l15.6 9M4.2 16.5l15.6-9"/><path d="M9.8 4.6 12 6.4l2.2-1.8M9.8 19.4 12 17.6l2.2 1.8"/>';
 ICONS.ground = '<path d="M3 19c3-2.2 6-2.2 9 0s6 2.2 9 0"/><path d="M12 4v9M8.1 6.2l7.8 4.6M8.1 10.8l7.8-4.6"/>';
+ICONS.dice = '<path d="M7 9c-1.5-3.5 1-6 4-5.5 2 .3 2.6 1.5 4.5 1.4 3-.2 5 2.2 4.4 5-.3 1.4-1 2.2-.9 3.4.2 1.5 1.2 2.4.8 4-.7 2.6-3.7 3.6-6.2 2.8-1.4-.4-2.1-1.2-3.6-1.1-2 .2-3.2 1.4-5.2.5C2.6 18.4 2 16 3.4 14.2c.8-1 1.8-1.4 2-2.6.2-1-.1-1.7 1.6-2.6z"/><circle cx="12" cy="12" r="2.2"/>';
 ICONS.flame = '<path d="M12 2.5c.6 3.6 6 6.2 6 11.5a6 6 0 0 1-12 0c0-2.8 1.4-4.7 2.8-5.9.2 2.1 1.1 3.4 2.4 3.9-.3-3.6.2-6.6.8-9.5z"/><path d="M12 21a2.5 2.5 0 0 1-2.5-2.5c0-1.6 1.3-2.6 2.5-4 1.2 1.4 2.5 2.4 2.5 4A2.5 2.5 0 0 1 12 21z"/>';
 ICONS.lips = '<path style="fill:currentColor;stroke:none" d="M2 12c2.2-3.2 4.6-5 6.6-5 1.4 0 2.4.8 3.4 1.6 1-.8 2-1.6 3.4-1.6 2 0 4.4 1.8 6.6 5-2.6 3.6-6 5.6-10 5.6S4.6 15.6 2 12z"/><path style="stroke:var(--bg)" stroke-width="1.1" d="M4 12.1c2.6.9 5.3 1.1 8 .3 2.7.8 5.4.6 8-.3"/>';
 ICONS.shield = '<path d="M12 3l7 3v5c0 4.6-3 8.2-7 10-4-1.8-7-5.4-7-10V6z"/><path d="M9 12l2 2 4-4"/>';
@@ -931,6 +932,7 @@ const openEventsOn = iso => {
 const newsKind = n => /^(night|risk|intime):/.test(n.key || '') ? 'k-hot' : /^(with|proj|evday):/.test(n.key || '') ? 'k-with' : 'k-other';
 // Nouvelle cliquable : la fiche du personnage, ou le calendrier pour un événement de l'Iloh.
 const newsLink = (n, inner) => n.charId ? `<button type="button" class="link" data-go="${n.charId}">${inner}</button>`
+  : n.key?.startsWith('shagai:') ? `<button type="button" class="link" data-shagai-open="${esc(n.key.split(':')[1])}">${inner}</button>`
   : n.key?.startsWith('evday:') ? `<button type="button" class="link" data-evday-open="${esc(n.key.split(':')[1])}">${inner}</button>`
   : n.key?.startsWith('event:') ? `<button type="button" class="link" data-ev-open="${esc(n.key.split(':')[1])}">${inner}</button>`
   : n.key?.startsWith('proj:') ? `<button type="button" class="link" data-proj-open="${esc(n.key.split(':')[1])}">${inner}</button>`
@@ -1072,6 +1074,225 @@ document.addEventListener('click', e => {
     addEvDayAct(evDay.id, v, evDay.by); evDay.draft = ''; evDay.open = false; evDayRefresh(); }
 });
 document.addEventListener('keydown', e => { if (e.target.id === 'evd-text' && e.key === 'Enter') { e.preventDefault(); document.getElementById('evd-add')?.click(); } });
+// ---------- Shagaï d'Henbilee : demande d'augure, quatre osselets lancés par Henbilee, augure privé ----------
+// shagai/{id} = { by (personnage qui demande), p (son joueur), q (question), at, status: 'asked' | 'accepted' | 'refused' | 'done',
+//   day (AAAA-MM-JJ), acceptedAt, model, vals: [4 nombres de 000 à 999], doneAt, seen (le demandeur a vu le tirage) }.
+// Seuls le joueur d'Henbilee et celui qui demande lisent la demande : rien sur Discord, rien dans les nouvelles des autres.
+// Un seul tirage par demande. Le demandeur le suit en direct sur la page, ou le voit rejoué une fois à son arrivée.
+const SHAMAN = 'henbilee', SHAGAI_ACT = 'Tirage du shagaï';
+const SHAGAI = {};
+const shView = { focus: null, model: 'ivoire', by: null, draft: '', playing: null };
+const shPlayed = new Set();       // tirages déjà animés sur cet appareil (en attendant l'écriture de « seen »)
+let shAnimating = false, shDirty = false;
+const isShaman = () => playerOf(SHAMAN) === me;
+const SH_FACES = {
+  cheval: { name: 'Cheval', plural: 'Chevaux', ranges: [[0, 81], [218, 271], [311, 353], [710, 780]] },
+  rapace: { name: 'Rapace', plural: 'Rapaces', ranges: [[82, 146], [474, 522], [663, 709], [781, 869]] },
+  mouton: { name: 'Mouton', plural: 'Moutons', ranges: [[147, 217], [437, 473], [523, 608], [870, 925]] },
+  chevre: { name: 'Chèvre', plural: 'Chèvres', ranges: [[272, 310], [354, 436], [609, 662], [926, 999]] },
+};
+const SH_ORDER = ['cheval', 'rapace', 'mouton', 'chevre'];
+const shFace = n => SH_ORDER.find(k => SH_FACES[k].ranges.some(([a, b]) => n >= a && n <= b));
+// Augures : clé = nombre de Chevaux, Rapaces, Moutons, Chèvres.
+const SH_AUG = {
+  '4000': ['Meilleure chance', 'bon', 'Ce soir, tous les vents te sont doux.'],
+  '0400': ['Vœux assouvis', 'bon', 'Les esprits ont entendu ton murmure.'],
+  '0040': ['Chance durable', 'bon', 'Cette braise tiendra plus d’une nuit.'],
+  '0004': ['Péril écarté', 'bon', 'La grêle s’est dissipée avant d’atteindre les tentes.'],
+  '3100': ['Départ ou arrivée imminente', 'neutre', 'Les esprits entendent déjà des sabots.'],
+  '3010': ['Absence d’obstacle', 'bon', 'Le souffle de la Mère ouvre les herbes devant toi.'],
+  '3001': ['Accalmie', 'neutre', 'Le vent se couche un moment dans les herbes.'],
+  '1300': ['Bonheur durable', 'bon', 'Cette joie a trouvé où faire son nid.'],
+  '0310': ['Soutien inattendu', 'bon', 'Un feu t’attend là où tu croyais la steppe vide.'],
+  '0301': ['Occasion de courte durée', 'neutre', 'Regarde… les nuages s’écartent un instant.'],
+  '1030': ['Sécurité de votre côté', 'bon', 'La Mère veille sur le feu des tiens.'],
+  '0130': ['Réussite négative', 'neutre', 'La coupe sera pleine. Le goût en sera amer.'],
+  '0031': ['Succès du bon côté', 'bon', 'Les tiens rentreront les paniers pleins.'],
+  '1003': ['Avec la mauvaise langue', 'echec', 'Un mot de travers, et l’herbe sèche prend feu.'],
+  '0103': ['Influence de l’extérieur', 'neutre', 'Le vent qui tourne vient de l’autre versant.'],
+  '0013': ['Échec', 'echec', 'Cette graine dormira encore sous terre.'],
+  '2200': ['Succès', 'bon', 'Le fruit est mûr. La branche se penche.'],
+  '2020': ['Réussite sans difficulté', 'bon', 'Le nœud cèdera entre tes doigts.'],
+  '2002': ['Situation conflictuelle', 'echec', 'Deux vents se lèvent face à face.'],
+  '0220': ['Favorable pour vous, mais malaisé', 'neutre', 'Le col est ouvert. La montée sera longue.'],
+  '0202': ['Absence d’obstacle', 'bon', 'La rivière te laissera passer à pied.'],
+  '0022': ['Accomplissement', 'bon', 'Il ne manque qu’un fil à l’ouvrage.'],
+  '2110': ['Choix à mûrir', 'neutre', 'Deux sentiers luisent sous la même lune.'],
+  '2101': ['Affaire rompue', 'echec', 'Le fil cède à la dernière maille.'],
+  '2011': ['Occasion manquée', 'echec', 'Quand tu lèves les yeux, l’oiseau a déjà pris le vent.'],
+  '1210': ['Réception de rumeurs ou de ragots', 'echec', 'Un murmure passe de feu en feu.'],
+  '1201': ['Empêchement bienfaisant', 'neutre', 'Le gué te retient. Plus loin, l’eau gronde.'],
+  '0211': ['Réussite douteuse', 'neutre', 'Dans la brume, l’autre rive se devine à peine.'],
+  '1120': ['Favorable pour le côté adverse', 'echec', 'Le vent porte leurs chevaux un peu plus loin.'],
+  '1021': ['Détour forcé', 'echec', 'Les pierres ont roulé sur le sentier.'],
+  '0121': ['Réussite médiocre ou insuffisante', 'neutre', 'Il y aura quelques grains au fond du panier.'],
+  '1102': ['Longévité heureuse', 'bon', 'Tu verras fleurir bien d’autres printemps.'],
+  '1012': ['Contretemps passager', 'neutre', 'Un caillou sous la semelle. Le chemin continue.'],
+  '0112': ['Succès pour autrui', 'neutre', 'C’est dans d’autres mains que le fruit tombera.'],
+  '1111': ['Bonne fortune rapide', 'bon', 'La chance a déjà soulevé le pan de ta tente.'],
+};
+const SH_TYPE = { bon: 'Bonne fortune', neutre: 'Neutre ou mitigé', echec: 'Échec ou malchance' };
+const shFaces = d => (d.vals || []).map(shFace);
+const shAugure = d => { const f = shFaces(d), n = SH_ORDER.map(k => f.filter(x => x === k).length);
+  return { faces: f, combo: SH_ORDER.map((k, i) => n[i] ? `${n[i]} ${n[i] > 1 ? SH_FACES[k].plural : SH_FACES[k].name}` : '').filter(Boolean).join(' + '), aug: SH_AUG[n.join('')] }; };
+// Trois modèles d'osselets, sombres pour que le logo lumineux ressorte ; Henbilee choisit à chaque tirage.
+const SH_MODELS = {
+  ivoire: { label: 'Os vieilli', hi: '#8f7f66', mid: '#5f5241', lo: '#2f271e', line: '#1d1813' },
+  ocre:   { label: 'Teinté à l’ocre', hi: '#9a4f35', mid: '#61291b', lo: '#30130c', line: '#1e0b06' },
+  feu:    { label: 'Patiné au feu', hi: '#5e4e3d', mid: '#352b21', lo: '#17120d', line: '#0c0907' },
+};
+const SH_BONE = 'M14 34c-4-12 5-22 18-21 8 0 12 5 20 5s14-7 26-6c14 1 26 9 26 22 0 6-3 10-3 15s4 9 4 15c0 14-13 21-28 20-10-1-14-6-22-6s-13 7-25 6C14 82 5 73 7 61c1-6 5-9 5-14s-1-8 2-13z';
+const shBoneSvg = (i, face, model) => { const m = SH_MODELS[model] || SH_MODELS.ivoire;
+  return `<svg viewBox="0 0 120 100" role="img" aria-label="${face ? SH_FACES[face].name : 'Osselet'}">
+    <defs><radialGradient id="shg${i}" cx="38%" cy="30%" r="80%"><stop offset="0" stop-color="${m.hi}"/><stop offset=".55" stop-color="${m.mid}"/><stop offset="1" stop-color="${m.lo}"/></radialGradient>
+      <clipPath id="shc${i}"><path d="${SH_BONE}"/></clipPath></defs>
+    <path d="${SH_BONE}" fill="url(#shg${i})" stroke="${m.line}" stroke-width="1.6"/>
+    <path d="M24 30c6-5 14-4 18 0M80 22c8-2 16 1 20 6M22 74c5 4 12 4 17 1M86 80c6 1 12-2 15-6" fill="none" stroke="${m.line}" stroke-width="1.2" stroke-linecap="round" opacity=".55"/>
+    ${face ? `<image href="shagai-${face}.webp" x="26" y="16" width="68" height="68" clip-path="url(#shc${i})" preserveAspectRatio="xMidYMid meet"/>` : ''}
+  </svg>`; };
+const shPad = n => String(n).padStart(3, '0');
+const shWho = d => isChar(d.by) ? nameOf(d.by) : '?';
+// ---- Actions ----
+const askShagai = (by, q) => {
+  if (!isChar(by) || by === SHAMAN) return;
+  const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6), at = Date.now();
+  const d = { by, p: me, q: q || '', at, status: 'asked', day: isoDay(rpDay) };
+  SHAGAI[id] = d; window.RP_SYNC?.saveShagai?.(id, d);
+  const sp = playerOf(SHAMAN);
+  if (sp && sp !== me) NEWS.unshift({ to: sp, text: `${nameOf(by)} demande un tirage du shagaï à Henbilee${q ? ` : « ${q} »` : '.'}`, charId: null, key: `shagai:${id}:ask`, read: false, at });
+  return id;
+};
+const shTell = (id, text, tail) => { const d = SHAGAI[id]; if (d && d.p !== me) NEWS.unshift({ to: d.p, text, charId: null, key: `shagai:${id}:${tail}`, read: false, at: Date.now() }); };
+const acceptShagai = id => { const d = SHAGAI[id]; if (!d || d.status !== 'asked' || !isShaman()) return;
+  Object.assign(d, { status: 'accepted', acceptedAt: Date.now(), day: isoDay(rpDay) });
+  window.RP_SYNC?.updateShagai?.(id, { status: 'accepted', acceptedAt: d.acceptedAt, day: d.day });
+  // L'activité du jour sur la fiche d'Henbilee, avec le personnage qui a demandé (sans nouvelle).
+  const s = state[SHAMAN], c = C.find(x => x.id === SHAMAN);
+  if (s && c) { if (!allActs(c).includes(SHAGAI_ACT) && !s.specials.includes(SHAGAI_ACT)) s.specials.push(SHAGAI_ACT);
+    s.checked.add(SHAGAI_ACT); if (isChar(d.by)) setWith(SHAMAN, SHAGAI_ACT, d.by, true, true);
+    isMirror(SHAMAN) ? saveComplement(SHAMAN) : window.RP_SYNC?.save?.(); }
+  shTell(id, `Henbilee accepte de lire les osselets pour ${shWho(d)}. Reste sur la page du shagaï pour suivre le tirage.`, 'ok');
+  shView.focus = id;
+};
+const refuseShagai = id => { const d = SHAGAI[id]; if (!d || d.status !== 'asked' || !isShaman()) return;
+  d.status = 'refused'; window.RP_SYNC?.updateShagai?.(id, { status: 'refused' });
+  shTell(id, `Henbilee ne lira pas les osselets pour ${shWho(d)} aujourd’hui.`, 'no'); };
+const cancelShagai = id => { const d = SHAGAI[id]; if (!d || d.p !== me || d.status !== 'asked') return;
+  delete SHAGAI[id]; window.RP_SYNC?.deleteShagai?.(id); dropNews([`shagai:${id}:ask`]); };
+const throwShagai = id => { const d = SHAGAI[id]; if (!d || d.status !== 'accepted' || !isShaman()) return;
+  const vals = [0, 1, 2, 3].map(() => Math.floor(Math.random() * 1000));   // un nombre de 000 à 999 par osselet
+  Object.assign(d, { status: 'done', vals, model: shView.model, doneAt: Date.now(), seen: d.p === me });
+  window.RP_SYNC?.updateShagai?.(id, { status: 'done', vals, model: d.model, doneAt: d.doneAt, ...(d.p === me ? { seen: true } : {}) });
+  shTell(id, `Henbilee a lancé les osselets pour ${shWho(d)}. Viens découvrir l’augure.`, 'done');
+  shView.focus = id; shView.playing = id;
+};
+// Le demandeur voit le tirage une fois (en direct ou rejoué), puis le résultat reste affiché.
+const shMustPlay = (id, d) => d.status === 'done' && d.p === me && !d.seen && !shPlayed.has(id);
+const shSeen = id => { const d = SHAGAI[id]; if (d && d.p === me && !d.seen) { d.seen = true; window.RP_SYNC?.updateShagai?.(id, { seen: true }); } };
+// ---- Page ----
+const shStatus = d => ({ asked: 'En attente de la réponse d’Henbilee', accepted: 'Accepté : Henbilee va lancer les osselets', refused: 'Refusé par Henbilee', done: 'Augure rendu' })[d.status] || '';
+const shList = () => Object.entries(SHAGAI).filter(([, d]) => d).sort((a, b) => (b[1].doneAt || b[1].at) - (a[1].doneAt || a[1].at));
+const shAugHtml = d => { const { combo, aug } = shAugure(d); if (!aug) return '';
+  return `<div class="sh-aug"><p class="sh-combo">${esc(combo)}</p><h3>${esc(aug[0])}</h3><span class="sh-pill ${aug[1]}">${SH_TYPE[aug[1]]}</span>
+    <blockquote>« ${esc(aug[2])} »<small>Henbilee, pour ${esc(shWho(d))}${d.q ? ` — « ${esc(d.q)} »` : ''}</small></blockquote></div>`; };
+const shStageHtml = id => { const d = SHAGAI[id]; if (!d) return '';
+  const done = d.status === 'done', hide = done && (shView.playing === id || shMustPlay(id, d));   // animé juste après l'affichage
+  const faces = done ? shFaces(d) : [null, null, null, null], model = done ? d.model : shView.model;
+  return `<section class="sh-stage" id="sh-stage" data-sh="${id}">
+    <h2>${icon('dice')}Tirage pour ${esc(shWho(d))}</h2>
+    ${d.q ? `<p class="sh-q">« ${esc(d.q)} »</p>` : ''}
+    ${!done && isShaman() && d.status === 'accepted' ? `<div class="sh-models" role="group" aria-label="Modèle d'osselets"><span>Osselets :</span>${Object.entries(SH_MODELS).map(([k, m]) =>
+      `<button type="button" data-sh-model="${k}" aria-pressed="${shView.model === k}">${esc(m.label)}</button>`).join('')}</div>` : ''}
+    <div class="sh-mat"><div class="sh-bones">${faces.map((f, i) => `<div class="sh-slot${done && !hide ? ' landed' : ''}"><div class="sh-bone${done ? '' : ' idle'}" id="sh-bone${i}">${shBoneSvg(i, f, model)}</div>
+      <p class="sh-roll" id="sh-roll${i}">${done && !hide ? `<b>${SH_FACES[f].name}</b>${shPad(d.vals[i])}` : '&nbsp;'}</p></div>`).join('')}</div>
+      ${!done && isShaman() && d.status === 'accepted' ? `<button type="button" class="btn sh-throw" data-sh-throw="${id}">Lancer les osselets</button>`
+        : !done ? `<p class="reserved sh-wait">${d.status === 'accepted' ? 'Henbilee n’a pas encore lancé les osselets. Reste sur cette page pour suivre le tirage en direct.' : esc(shStatus(d))}</p>` : ''}</div>
+    <div id="sh-aug"${hide ? ' hidden' : ''}>${done ? shAugHtml(d) : ''}</div>
+  </section>`; };
+const shItemHtml = ([id, d]) => { const mine = d.p === me, a = d.status === 'done' ? shAugure(d).aug : null, secret = d.status === 'done' && shMustPlay(id, d);
+  return `<div class="sh-item${shView.focus === id ? ' on' : ''}">
+    <div><b>${esc(shWho(d))}</b>${d.q ? ` <span class="sh-iq">« ${esc(d.q)} »</span>` : ''}<small>${fmtIso(d.day || isoDay(new Date(d.at)))} · ${a && !secret ? `<span class="sh-pill ${a[1]}">${esc(a[0])}</span>` : esc(shStatus(d))}</small></div>
+    <div class="sh-acts">${isShaman() && d.status === 'asked' ? `<button type="button" class="btn small" data-sh-ok="${id}">Accepter</button><button type="button" class="link small" data-sh-no="${id}">Refuser</button>`
+      : mine && d.status === 'asked' ? `<button type="button" class="link small" data-sh-cancel="${id}">Annuler la demande</button>`
+      : d.status === 'accepted' || d.status === 'done' ? `<button type="button" class="link small" data-sh-focus="${id}">${secret ? 'Voir le tirage' : d.status === 'done' ? 'Revoir l’augure' : isShaman() ? 'Préparer le tirage' : 'Suivre le tirage'}</button>` : ''}</div></div>`; };
+function renderShagai() {
+  if (shAnimating) { shDirty = true; return; }
+  root.className = 't-khurdan';
+  const L = shList(), mine = C.filter(c => c.player === me && c.id !== SHAMAN);
+  // Le demandeur qui arrive sur la page voit son tirage (une seule fois).
+  const pend = L.find(([id, d]) => shMustPlay(id, d)); if (pend) { shView.focus = pend[0]; shView.playing = pend[0]; }
+  if (shView.focus && !SHAGAI[shView.focus]) shView.focus = null;
+  if (!shView.focus) { const next = L.find(([, d]) => d.status === 'accepted'); if (next) shView.focus = next[0]; }
+  if (mine.length && !mine.some(c => c.id === shView.by)) shView.by = mine[0].id;
+  const open = new Set(L.filter(([, d]) => d.status === 'asked' || d.status === 'accepted').map(([, d]) => d.by));
+  const canAsk = mine.filter(c => !open.has(c.id));
+  document.getElementById('view').innerHTML = `
+    <p class="ev-back"><button type="button" class="link" data-go="${SHAMAN}">‹ Fiche d’Henbilee</button></p>
+    <header><p class="kicker">${APP_NAME}</p><h1>Le shagaï d’Henbilee</h1></header>
+    <section>
+      <p class="reserved">Les augures des quatre osselets. Seuls le joueur d’Henbilee et celui qui demande voient le tirage.</p>
+      ${shView.focus ? shStageHtml(shView.focus) : ''}
+      ${mine.length ? `<details class="ev-new sh-new"${!L.some(([, d]) => d.p === me) ? ' open' : ''}><summary>${icon('plus')}Demander un tirage à Henbilee</summary>
+        <div class="ev-form">${canAsk.length ? `
+          ${canAsk.length > 1 ? `<div class="ev-join"><span>Pour :</span><div class="place-list subs" role="group" aria-label="Personnage qui demande">${canAsk.map(c => `<button type="button" data-sh-by="${c.id}" aria-pressed="${shView.by === c.id}">${esc(c.name)}</button>`).join('')}</div></div>` : ''}
+          <input type="text" id="sh-q" maxlength="140" placeholder="Ta question (facultatif)" value="${esc(shView.draft)}" enterkeyhint="send">
+          <button type="button" class="btn" id="sh-ask">Demander${canAsk.length === 1 ? ` pour ${esc(canAsk[0].name)}` : ''}</button>
+          <p class="reserved">Henbilee reçoit une nouvelle. S’il accepte, il lance les osselets : tu peux suivre le tirage en direct ou le voir en arrivant ici.</p>`
+          : '<p class="reserved">Une demande est déjà en cours pour chacun de tes personnages.</p>'}</div></details>` : ''}
+      ${L.length ? `<h2 class="sh-h">${isShaman() ? 'Demandes et augures' : 'Mes demandes'}</h2>${L.map(shItemHtml).join('')}` : `<p class="reserved">Aucune demande pour l’instant.</p>`}
+    </section>`;
+  if (shView.playing) { const pid = shView.playing; requestAnimationFrame(() => shPlay(pid)); }
+}
+// Chute des osselets : chacun tombe avec la face qu'il donne, roule et se pose ; l'augure apparaît ensuite.
+const shPlay = id => { const d = SHAGAI[id]; if (!d || d.status !== 'done') return;
+  if (current !== 'shagai' || shAnimating || document.getElementById('sh-stage')?.dataset.sh !== id) return;
+  shPlayed.add(id); shAnimating = true; shSeen(id);
+  const faces = shFaces(d), reduce = matchMedia('(prefers-reduced-motion: reduce)').matches, rnd = (a, b) => a + Math.random() * (b - a);
+  faces.forEach((f, i) => { const b = document.getElementById('sh-bone' + i); if (b) { b.innerHTML = shBoneSvg(i, f, d.model); b.classList.remove('idle'); } });
+  Promise.all(faces.map((f, i) => new Promise(res => {
+    const el = document.getElementById('sh-bone' + i); if (!el) return res();
+    const dx = rnd(-50, 50), turns = rnd(2, 3.4) * (Math.random() < .5 ? -1 : 1) * 360, tilt = rnd(-16, 16);
+    const a = el.animate([
+      { transform: `translate(${dx}px, -170px) rotate(${turns}deg) scale(.7)`, opacity: 0 },
+      { transform: `translate(${dx * .6}px, -90px) rotate(${turns * .6}deg) scale(.85, .95)`, opacity: 1, offset: .25 },
+      { transform: `translate(${dx * .25}px, 0) rotate(${turns * .25}deg) scaleX(-.9)`, offset: .5 },
+      { transform: `translate(${-dx * .15}px, -28px) rotate(${turns * .08}deg) scale(.95)`, offset: .68 },
+      { transform: `translate(0, 0) rotate(${tilt * .4}deg) scale(1.06, .92)`, offset: .84 },
+      { transform: `translate(0, -6px) rotate(${tilt * .2}deg) scale(.98, 1.03)`, offset: .92 },
+      { transform: `translate(0, 0) rotate(${tilt * .15}deg) scale(1)` },
+    ], { duration: reduce ? 1 : rnd(1300, 1800) + i * 160, easing: 'cubic-bezier(.3,.6,.4,1)', fill: 'forwards' });
+    a.onfinish = () => { const r = document.getElementById('sh-roll' + i); if (r) r.innerHTML = `<b>${SH_FACES[f].name}</b>${shPad(d.vals[i])}`;
+      el.parentElement?.classList.add('landed'); res(); };
+  }))).then(() => { const a = document.getElementById('sh-aug'); if (a) { a.hidden = false; a.classList.add('show'); }
+    shView.playing = null; setTimeout(() => { shAnimating = false; if (shDirty) { shDirty = false; shRefresh(); } }, 700); });
+};
+const shRefresh = () => { if (current !== 'shagai') return; const q = document.getElementById('sh-q'); if (q) shView.draft = q.value;
+  const y = window.scrollY, h = fullH(); renderShagai(); holdHeight(h); window.scrollTo({ top: y }); holdPlace(null, y); };
+document.addEventListener('input', e => { if (e.target.id === 'sh-q') shView.draft = e.target.value; });
+document.addEventListener('keydown', e => { if (e.target.id === 'sh-q' && e.key === 'Enter') { e.preventDefault(); document.getElementById('sh-ask')?.click(); } });
+document.addEventListener('click', e => {
+  const t = e.target;
+  const op = t.closest('[data-shagai-open]'); if (op) { shView.focus = op.dataset.shagaiOpen || null; return go('shagai'); }
+  if (current !== 'shagai' || shAnimating) return;
+  const by = t.closest('[data-sh-by]'); if (by) { shView.by = by.dataset.shBy; document.querySelectorAll('[data-sh-by]').forEach(b => b.setAttribute('aria-pressed', b === by)); return; }
+  const md = t.closest('[data-sh-model]'); if (md) { shView.model = md.dataset.shModel; return shRefresh(); }
+  if (t.closest('#sh-ask')) { const q = (document.getElementById('sh-q')?.value || '').trim().replace(/\s+/g, ' ');
+    askShagai(shView.by, q); shView.draft = ''; document.getElementById('sh-q').value = ''; return shRefresh(); }
+  const ok = t.closest('[data-sh-ok]'); if (ok) { acceptShagai(ok.dataset.shOk); return shRefresh(); }
+  const no = t.closest('[data-sh-no]'); if (no) { refuseShagai(no.dataset.shNo); return shRefresh(); }
+  const cc = t.closest('[data-sh-cancel]'); if (cc) { cancelShagai(cc.dataset.shCancel); return shRefresh(); }
+  const fo = t.closest('[data-sh-focus]'); if (fo) { shView.focus = fo.dataset.shFocus; renderShagai(); return document.getElementById('sh-stage')?.scrollIntoView({ block: 'start' }); }
+  const th = t.closest('[data-sh-throw]'); if (th) { throwShagai(th.dataset.shThrow); shRefresh(); }
+});
+
+// Sur les fiches d'Henbilee et du personnage qui a demandé (le jour du tirage), visibles seulement de ces deux joueurs.
+const shagaiFicheHtml = id => {
+  const day = isoDay(rpDay), L = shList().filter(([, d]) => (id === SHAMAN || d.by === id) && d.status !== 'refused' && (d.day === day || (d.doneAt && isoDay(new Date(d.doneAt)) === day)));
+  if (!L.length) return '';
+  return `<div class="sh-fiche"><p class="shared-h">${icon('dice')}Shagaï d’Henbilee</p>${L.map(([sid, d]) => { const a = d.status === 'done' ? shAugure(d).aug : null, secret = shMustPlay(sid, d);
+    return `<div class="sh-fiche-item"><span>${id === SHAMAN ? `Pour ${esc(shWho(d))}` : 'Demande à Henbilee'}${d.q ? ` · « ${esc(d.q)} »` : ''}</span>
+      ${a && !secret ? `<span><span class="sh-pill ${a[1]}">${esc(a[0])}</span> <i>« ${esc(a[2])} »</i></span>` : `<small>${secret ? 'Les osselets sont lancés.' : esc(shStatus(d))}</small>`}
+      <button type="button" class="link small" data-shagai-open="${sid}">${secret ? 'Voir le tirage' : 'Ouvrir le shagaï'}</button></div>`; }).join('')}</div>`; };
 // ---------- Projets de l'Iloh : objectifs communs, une barre qui avance avec les activités liées ----------
 // shared/projects : { id: { title, desc, by (joueur), at, goal, acts: [activités liées], steps: [étapes], done (date) ou null,
 //   contrib: { 'personnage:AAAA-MM-JJ': { c, l (activité), p (joueur) } } } } — une participation par personnage et par jour.
@@ -2261,7 +2482,8 @@ const wrapExtrasHtml = (c, y) => {
 const tabsHtml = id => `<div class="tabs" role="tablist">
   <button type="button" role="tab" data-view="day" aria-selected="${state[id].view !== 'history'}">Journée</button>
   <button type="button" role="tab" data-view="history" aria-selected="${state[id].view === 'history'}">Historique</button>
-  <button type="button" role="tab" data-yurt-of="${id}" aria-selected="false">Yourte</button></div>`;
+  <button type="button" role="tab" data-yurt-of="${id}" aria-selected="false">Yourte</button>${id === SHAMAN ? `
+  <button type="button" role="tab" data-shagai-open="" aria-selected="false">Shagaï</button>` : ''}</div>`;
 const bindTabs = id => document.querySelectorAll('[data-view]').forEach(b => b.addEventListener('click', () => {
   state[id].view = b.dataset.view; renderChar(id); window.scrollTo({ top:0 });
 }));
@@ -2928,6 +3150,7 @@ function renderCharNow(id) {
     document.getElementById('view').innerHTML = `
     ${tabsHtml(id)}
     ${sharedActsHtml(id, canComplete(id))}
+    ${shagaiFicheHtml(id)}
     ${canComplete(id) ? projFicheHtml(id) : ''}
     ${complementHtml(id)}
     ${logisticsHtml(id)}
@@ -2998,6 +3221,7 @@ function renderCharNow(id) {
     ${prevNightBlock(id)}
     <div class="chrono-part"><h3 class="chrono-h">Activités</h3>
       ${sharedActsHtml(id, true)}
+      ${shagaiFicheHtml(id)}
       ${projFicheHtml(id)}
       ${cats.length ? '' : `<p class="reserved">Liste d'activités à définir. En attendant, utilise le champ « Activité spéciale » et coche « L'ajouter aussi à la liste ».</p>`}
       ${!s.manageActs && cats.length > 1 ? `<div class="fold-all"><button type="button" class="link small ico-btn" data-fold-all="1" title="Tout replier" aria-label="Tout replier">${icon('foldall')}</button><button type="button" class="link small ico-btn" data-fold-all="0" title="Tout déplier" aria-label="Tout déplier">${icon('unfoldall')}</button></div>` : ''}
@@ -3314,7 +3538,7 @@ function renderCharNow(id) {
   document.getElementById('done-'+id).addEventListener('click', () => { s.done = true; s.doneAt ??= Date.now(); renderNav(); renderChar(id); window.RP_SYNC?.saveNow(); window.RP_DISCORD?.send(id); });
 }
 
-function go(id) { resetSpacer(); lastPage = null; current = id; renderNav(); if (id !== 'home') fxOff(); id === 'home' ? renderHome() : id === 'events' ? renderEvents() : id === 'iloh' ? renderIloh() : id === 'liens' ? renderLinks() : id === 'search' ? renderSearch() : id === 'projets' ? renderProjects() : id === 'tableau' ? renderBoard() : id === 'evjour' ? renderEvDay() : renderChar(id); window.scrollTo({ top:0 }); }
+function go(id) { resetSpacer(); lastPage = null; current = id; renderNav(); if (id !== 'home') fxOff(); id === 'home' ? renderHome() : id === 'events' ? renderEvents() : id === 'iloh' ? renderIloh() : id === 'liens' ? renderLinks() : id === 'search' ? renderSearch() : id === 'projets' ? renderProjects() : id === 'tableau' ? renderBoard() : id === 'evjour' ? renderEvDay() : id === 'shagai' ? renderShagai() : renderChar(id); window.scrollTo({ top:0 }); }
 document.addEventListener('click', e => { const b = e.target.closest('[data-go]'); if (b) go(b.dataset.go); });
 document.addEventListener('click', async e => {
   const b = e.target.closest('[data-wrap-open]'); if (!b) return;
@@ -3337,7 +3561,7 @@ document.querySelectorAll('.nav-filter button').forEach(b => b.addEventListener(
   const row = b.dataset.f ? '[data-f]' : '[data-g]';
   if (b.dataset.f) filter = b.dataset.f; else groupFilter = b.dataset.g;
   document.querySelectorAll('.nav-filter button' + row).forEach(x => x.setAttribute('aria-pressed', x === b));
-  if (!['home', 'events', 'iloh', 'liens', 'search', 'projets', 'tableau', 'evjour'].includes(current) && !C.some(c => c.id === current && shown(c))) current = 'home';
+  if (!['home', 'events', 'iloh', 'liens', 'search', 'projets', 'tableau', 'evjour', 'shagai'].includes(current) && !C.some(c => c.id === current && shown(c))) current = 'home';
   go(current);
 }));
 initPlaces();
@@ -3462,7 +3686,7 @@ const rerender = () => {
   if (isTyping(document.activeElement)) { typingDirty = true; return; }
   // Jamais entre l'appui et le relâchement : la fiche serait remplacée sous le pointeur et le clic tomberait à côté.
   if (pointerDown) { typingDirty = true; return; }
-  typingDirty = false; renderNav(); current === 'home' ? renderHome() : current === 'events' ? renderEvents() : current === 'iloh' ? renderIloh() : current === 'liens' ? renderLinks() : current === 'search' ? null : current === 'projets' ? renderProjects() : current === 'tableau' ? renderBoard() : current === 'evjour' ? renderEvDay() : renderChar(current);
+  typingDirty = false; renderNav(); current === 'home' ? renderHome() : current === 'events' ? renderEvents() : current === 'iloh' ? renderIloh() : current === 'liens' ? renderLinks() : current === 'search' ? null : current === 'projets' ? renderProjects() : current === 'tableau' ? renderBoard() : current === 'evjour' ? renderEvDay() : current === 'shagai' ? renderShagai() : renderChar(current);
 };
 document.addEventListener('focusout', () => setTimeout(() => { if (typingDirty && !pointerDown) rerender(); }, 0));
 
@@ -3514,6 +3738,7 @@ window.RP_APP = {
   },
   applyRequests: list => { Object.keys(REQUESTS).forEach(k => delete REQUESTS[k]); list.forEach(({ id, ...r }) => { REQUESTS[id] = r; }); },
   applyIloh: d => { if (d?.guests) { Object.keys(ILOH_GUESTS).forEach(k => delete ILOH_GUESTS[k]); Object.assign(ILOH_GUESTS, d.guests); } },
+  applyShagai: list => { Object.keys(SHAGAI).forEach(k => delete SHAGAI[k]); list.forEach(({ id, ...d }) => { SHAGAI[id] = d; }); },
   applyMail: list => { Object.keys(MAIL).forEach(k => delete MAIL[k]); list.forEach(({ id, ...m }) => { MAIL[id] = m; }); },
   applyBoard: d => { BOARD.notes = d?.notes || {}; BOARD.discordMsg = d?.discordMsg || null; },
   applyProjects: d => { Object.keys(PROJECTS).forEach(k => delete PROJECTS[k]); Object.assign(PROJECTS, d || {}); },
@@ -3653,6 +3878,7 @@ const openFromLink = () => {
     // Notification d'un projet : ?projets ouvre la page des projets.
     if (q.has('tableau')) { go('tableau'); history.replaceState(null, '', location.pathname + location.hash); return true; }
     if (q.has('projets')) { go('projets'); history.replaceState(null, '', location.pathname + location.hash); return true; }
+    if (q.has('shagai')) { shView.focus = q.get('shagai') || null; go('shagai'); history.replaceState(null, '', location.pathname + location.hash); return true; }
     if (q.has('evenement')) { openEvDay(q.get('evenement')); history.replaceState(null, '', location.pathname + location.hash); return true; }
     if (q.has('evenements')) { openEventsOn(q.get('evenements')); history.replaceState(null, '', location.pathname + location.hash); return true; }
     if (!id || !C.some(c => c.id === id)) return false;
