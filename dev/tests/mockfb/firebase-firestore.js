@@ -19,7 +19,7 @@ export const query = (c, w) => ({ path: c.path, coll: true, w });
 const snapDoc = (path) => ({ id: path.split('/').pop(), exists: () => path in store, data: () => store[path] ? JSON.parse(JSON.stringify(store[path])) : undefined, metadata: { hasPendingWrites: false } });
 const docsOf = q => Object.keys(store).filter(p => p.startsWith(q.path + '/') && p.split('/').length === q.path.split('/').length + 1)
   .filter(p => !q.w || store[p][q.w.f] === q.w.v).map(snapDoc);
-export const getDoc = async r => snapDoc(r.path);
+export const getDoc = async r => { store = load(); return snapDoc(r.path); };
 export const runTransaction = async (db, fn) => fn({ get: getDoc, set: (r, d, o) => { setDoc(r, d, o); }, update: (r, d) => { updateDoc(r, d); } });
 export const getDocs = async q => { const docs = docsOf(q); return { docs, forEach: f => docs.forEach(f) }; };
 const deepMerge = (a, b) => { const o = { ...(a || {}) }; for (const [k, v] of Object.entries(b)) if (v && v.__del) delete o[k]; else o[k] = v && typeof v === 'object' && !Array.isArray(v) && o[k] && typeof o[k] === 'object' && !Array.isArray(o[k]) ? deepMerge(o[k], v) : v; return o; };
