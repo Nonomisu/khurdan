@@ -98,6 +98,9 @@ st['news/vieille'] = { from: 'nono', to: 'eden', text: 'Vieille', charId: 'tengi
   ok(await remindEvents(now) === 0, 'rappel envoyé une seule fois');
   await sleep(250);
   ok(sent.slice(before2).some(x => x.body.startsWith('Demain : « Naadam »') && x.url.endsWith('?evenements=2026-11-07')), 'notification du rappel : ouvre le calendrier sur le jour');
+  // Événement du jour : rappel aux joueurs inscrits à une action ; la notification ouvre la page de l'événement
+  st['shared/events'].ev4 = { type: 'ceremonie', text: 'Grandes Funérailles', date: '2026-11-07', daily: true, acts: { a1: { text: 'Fleurs', by: 'taiga', who: { taiga: 'jynette', boroo: 'idriss' } } } };
+  ok(await remindEvents(now) === 2 && st['news/event:ev4:rappel:idriss']?.text.includes('(Cérémonie)'), 'événement du jour : rappel aux inscrits des actions');
   console.log(fails ? `${fails} échec(s)` : 'Tout est bon.');
   process.exit(fails ? 1 : 0);
 })();

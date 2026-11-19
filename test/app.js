@@ -124,6 +124,7 @@ Object.assign(ICONS, {
 ICONS.temp = '<path d="M10 14.5V5a2 2 0 0 1 4 0v9.5a4 4 0 1 1-4 0z"/><path d="M12 9v7.5"/><circle cx="12" cy="17.5" r="1.2"/>';
 ICONS.snow = '<path d="M12 3v18M4.2 7.5l15.6 9M4.2 16.5l15.6-9"/><path d="M9.8 4.6 12 6.4l2.2-1.8M9.8 19.4 12 17.6l2.2 1.8"/>';
 ICONS.ground = '<path d="M3 19c3-2.2 6-2.2 9 0s6 2.2 9 0"/><path d="M12 4v9M8.1 6.2l7.8 4.6M8.1 10.8l7.8-4.6"/>';
+ICONS.flame = '<path d="M12 2.5c.6 3.6 6 6.2 6 11.5a6 6 0 0 1-12 0c0-2.8 1.4-4.7 2.8-5.9.2 2.1 1.1 3.4 2.4 3.9-.3-3.6.2-6.6.8-9.5z"/><path d="M12 21a2.5 2.5 0 0 1-2.5-2.5c0-1.6 1.3-2.6 2.5-4 1.2 1.4 2.5 2.4 2.5 4A2.5 2.5 0 0 1 12 21z"/>';
 ICONS.lips = '<path style="fill:currentColor;stroke:none" d="M2 12c2.2-3.2 4.6-5 6.6-5 1.4 0 2.4.8 3.4 1.6 1-.8 2-1.6 3.4-1.6 2 0 4.4 1.8 6.6 5-2.6 3.6-6 5.6-10 5.6S4.6 15.6 2 12z"/><path style="stroke:var(--bg)" stroke-width="1.1" d="M4 12.1c2.6.9 5.3 1.1 8 .3 2.7.8 5.4.6 8-.3"/>';
 ICONS.shield = '<path d="M12 3l7 3v5c0 4.6-3 8.2-7 10-4-1.8-7-5.4-7-10V6z"/><path d="M9 12l2 2 4-4"/>';
 ICONS.globe = '<circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.6 2.4 3.8 5.3 3.8 8.5s-1.2 6.1-3.8 8.5c-2.6-2.4-3.8-5.3-3.8-8.5s1.2-6.1 3.8-8.5z"/>';
@@ -810,7 +811,8 @@ const EVENT_TYPES = [
   { id:'info', label:"Information importante pour l'Iloh", icon:'warn' },
   { id:'chasse', label:'Grand événement de chasse', icon:'target' },
   { id:'fete', label:'Fête ou rassemblement', icon:'star' },
-  { id:'autre', label:'Annonce au groupe', icon:'flag' },
+  { id:'ceremonie', label:'Cérémonie', icon:'flame' },
+  { id:'autre', label:'Annonce à la tribu', icon:'flag' },
 ];
 const GROUP_EVENTS = {};   // id → { type, text, by (joueur), at, until (AAAA-MM-JJ ou null) } — rempli par sync.js (shared/events)
 const evType = t => EVENT_TYPES.find(x => x.id === t) || EVENT_TYPES[EVENT_TYPES.length - 1];

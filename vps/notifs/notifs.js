@@ -98,7 +98,7 @@ function watchSubs() {
 }
 
 // ---------- Rappel la veille d'un événement de l'Iloh, pour les joueurs inscrits (à partir de 18 h) ----------
-const EV_LABEL = { info: "Information importante pour l'Iloh", chasse: 'Grand événement de chasse', fete: 'Fête ou rassemblement', autre: 'Annonce au groupe' };
+const EV_LABEL = { info: "Information importante pour l'Iloh", chasse: 'Grand événement de chasse', fete: 'Fête ou rassemblement', ceremonie: 'Cérémonie', autre: 'Annonce à la tribu' };
 const pad = n => String(n).padStart(2, '0');
 const isoOf = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 async function remindEvents(now = new Date()) {
@@ -108,7 +108,9 @@ async function remindEvents(now = new Date()) {
   let n = 0;
   for (const [id, e] of Object.entries(evs)) {
     if (!e || e.date !== tomorrow) continue;
-    const players = [...new Set(Object.values(e.going || {}).filter(p => typeof p === 'string'))];
+    // Inscrits : à l'événement, ou (événement du jour) à l'une de ses actions.
+    const who = [...Object.values(e.going || {}), ...Object.values(e.acts || {}).flatMap(a => Object.values(a?.who || {}))];
+    const players = [...new Set(who.filter(p => typeof p === 'string'))];
     for (const p of players) {
       const key = `event:${id}:rappel:${p}`, ref = db.doc('news/' + key);
       if ((await ref.get()).exists) continue;   // déjà rappelé
