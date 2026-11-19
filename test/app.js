@@ -646,7 +646,6 @@ const reqLine = ([id, r], logi) => `<li class="req ${r.status}"><div><b>${esc(r.
         <button type="button" class="link small danger" data-req-no="${id}">Refuser</button></span>`
     : `<span class="req-wait">${REQ_STATUS[r.status]}</span>${r.status === 'pending' ? `<button type="button" class="link small" data-req-cancel="${id}">Annuler</button>` : ''}`}</li>`;
 const logisticsHtml = id => {
-  if (id !== LOGI_CHAR) return '';
   const all = Object.entries(REQUESTS).sort((a, b) => b[1].at - a[1].at), logi = isLogi();
   const mineChars = C.filter(c => c.player === me), open = all.filter(([, r]) => ['pending', 'preparing'].includes(r.status)), closed = all.filter(([, r]) => ['done', 'refused'].includes(r.status));
   const pick = reqView.char && mineChars.some(c => c.id === reqView.char) ? reqView.char : mineChars[0]?.id;
@@ -665,22 +664,34 @@ const logisticsHtml = id => {
     : (m => m.length ? `<h3>Mes demandes</h3><ul class="req-list">${m.slice(0, 20).map(x => reqLine(x, false)).join('')}</ul>` : '')(all.filter(([, r]) => r.from === me))}
   </section>`;
 };
+// Demandes en cours (pastille de l'onglet, pour le joueur de Khokkutsai seulement).
+const logiOpen = () => isLogi() ? Object.values(REQUESTS).filter(r => r && ['pending', 'preparing'].includes(r.status)).length : 0;
+// Onglet « Logistique » de la fiche de Khokkutsai : une page à part, sur le modèle du shagaï d'Henbilee.
+function renderLogi() {
+  root.className = 't-khurdan';
+  document.getElementById('view').innerHTML = `
+    <p class="ev-back"><button type="button" class="link" data-go="${LOGI_CHAR}">‹ Fiche de ${esc(nameOf(LOGI_CHAR))}</button></p>
+    <header><p class="kicker">${APP_NAME}</p><h1>La logistique de l'Iloh</h1></header>
+    ${logisticsHtml(LOGI_CHAR)}`;
+}
+const logiRefresh = () => { if (current !== 'logistique') return renderChar(current);
+  const y = window.scrollY, h = fullH(); renderLogi(); holdHeight(h); window.scrollTo({ top: y }); holdPlace(null, y); };
 document.addEventListener('change', e => { if (e.target.id === 'req-char') reqView.char = e.target.value; });
 document.addEventListener('click', e => {
   const q = sel => e.target.closest(sel);
   const ok = q('[data-req-ok]'), cancel = q('[data-req-cancel]'), prep = q('[data-req-prep]'), no = q('[data-req-no]'), prepOk = q('[data-req-prep-ok]'), noOk = q('[data-req-no-ok]');
-  if (ok) { validateRequest(ok.dataset.reqOk); reqView.msg = ''; reqView.step = null; return renderChar(current); }
-  if (prep) { reqView.step = { id: prep.dataset.reqPrep, kind: 'prep' }; return renderChar(current); }
-  if (no) { reqView.step = { id: no.dataset.reqNo, kind: 'no' }; return renderChar(current); }
-  if (q('[data-req-step-no]')) { reqView.step = null; return renderChar(current); }
-  if (prepOk) { prepareRequest(prepOk.dataset.reqPrepOk, document.getElementById('req-eta')?.value || null); reqView.step = null; return renderChar(current); }
-  if (noOk) { refuseRequest(noOk.dataset.reqNoOk, document.getElementById('req-reason')?.value.trim() || ''); reqView.step = null; return renderChar(current); }
-  if (cancel) { cancelRequest(cancel.dataset.reqCancel); return renderChar(current); }
+  if (ok) { validateRequest(ok.dataset.reqOk); reqView.msg = ''; reqView.step = null; return logiRefresh(); }
+  if (prep) { reqView.step = { id: prep.dataset.reqPrep, kind: 'prep' }; return logiRefresh(); }
+  if (no) { reqView.step = { id: no.dataset.reqNo, kind: 'no' }; return logiRefresh(); }
+  if (q('[data-req-step-no]')) { reqView.step = null; return logiRefresh(); }
+  if (prepOk) { prepareRequest(prepOk.dataset.reqPrepOk, document.getElementById('req-eta')?.value || null); reqView.step = null; return logiRefresh(); }
+  if (noOk) { refuseRequest(noOk.dataset.reqNoOk, document.getElementById('req-reason')?.value.trim() || ''); reqView.step = null; return logiRefresh(); }
+  if (cancel) { cancelRequest(cancel.dataset.reqCancel); return logiRefresh(); }
   if (e.target.closest('#req-send')) {
     const f = document.getElementById('req-item'), item = f.value.trim(); if (!item) return f.focus();
     const charId = document.getElementById('req-char').value;
     addRequest(charId, item, document.getElementById('req-note').value.trim());
-    reqView.msg = isLogi() ? 'Demande ajoutée à ta liste.' : `Demande envoyée à ${nameOf(LOGI_CHAR)}.`; renderChar(current);
+    reqView.msg = isLogi() ? 'Demande ajoutée à ta liste.' : `Demande envoyée à ${nameOf(LOGI_CHAR)}.`; logiRefresh();
   }
 });
 document.addEventListener('keydown', e => { if ((e.target.id === 'req-item' || e.target.id === 'req-note') && e.key === 'Enter') { e.preventDefault(); document.getElementById('req-send')?.click(); } });
@@ -931,7 +942,8 @@ const openEventsOn = iso => {
 // Type de nouvelle (couleur) : nuit chaude, grossesse possible ou vie intime → rose ; personnage mentionné dans une activité commune → vert.
 const newsKind = n => /^(night|risk|intime):/.test(n.key || '') ? 'k-hot' : /^(with|proj|evday):/.test(n.key || '') ? 'k-with' : 'k-other';
 // Nouvelle cliquable : la fiche du personnage, ou le calendrier pour un événement de l'Iloh.
-const newsLink = (n, inner) => n.charId ? `<button type="button" class="link" data-go="${n.charId}">${inner}</button>`
+const newsLink = (n, inner) => /^req(ok|prep|no)?:/.test(n.key || '') ? `<button type="button" class="link" data-go="logistique">${inner}</button>`
+  : n.charId ? `<button type="button" class="link" data-go="${n.charId}">${inner}</button>`
   : n.key?.startsWith('shagai:') ? `<button type="button" class="link" data-shagai-open="${esc(n.key.split(':')[1])}">${inner}</button>`
   : n.key?.startsWith('evday:') ? `<button type="button" class="link" data-evday-open="${esc(n.key.split(':')[1])}">${inner}</button>`
   : n.key?.startsWith('event:') ? `<button type="button" class="link" data-ev-open="${esc(n.key.split(':')[1])}">${inner}</button>`
@@ -2483,7 +2495,8 @@ const tabsHtml = id => `<div class="tabs" role="tablist">
   <button type="button" role="tab" data-view="day" aria-selected="${state[id].view !== 'history'}">Journée</button>
   <button type="button" role="tab" data-view="history" aria-selected="${state[id].view === 'history'}">Historique</button>
   <button type="button" role="tab" data-yurt-of="${id}" aria-selected="false">Yourte</button>${id === SHAMAN ? `
-  <button type="button" role="tab" data-shagai-open="" aria-selected="false">Shagaï</button>` : ''}</div>`;
+  <button type="button" role="tab" data-shagai-open="" aria-selected="false">Shagaï</button>` : ''}${id === LOGI_CHAR ? `
+  <button type="button" role="tab" data-go="logistique" aria-selected="false">Logistique${logiOpen() ? ` <span class="badge">${logiOpen()}</span>` : ''}</button>` : ''}</div>`;
 const bindTabs = id => document.querySelectorAll('[data-view]').forEach(b => b.addEventListener('click', () => {
   state[id].view = b.dataset.view; renderChar(id); window.scrollTo({ top:0 });
 }));
@@ -3153,7 +3166,6 @@ function renderCharNow(id) {
     ${shagaiFicheHtml(id)}
     ${canComplete(id) ? projFicheHtml(id) : ''}
     ${complementHtml(id)}
-    ${logisticsHtml(id)}
     ${readOnly ? `<p class="readonly-note">${icon('eye')}${isMirror(id) ? `Fiche tenue par ${PLAYER_NAME[c.player]} dans Journée RP, recopiée ici : lecture seule.` : `Fiche de ${PLAYER_NAME[c.player]} : lecture seule.`}</p>` : ''}
     <article class="recap">
       ${alertBlock(id, false)}
@@ -3538,7 +3550,7 @@ function renderCharNow(id) {
   document.getElementById('done-'+id).addEventListener('click', () => { s.done = true; s.doneAt ??= Date.now(); renderNav(); renderChar(id); window.RP_SYNC?.saveNow(); window.RP_DISCORD?.send(id); });
 }
 
-function go(id) { resetSpacer(); lastPage = null; current = id; renderNav(); if (id !== 'home') fxOff(); id === 'home' ? renderHome() : id === 'events' ? renderEvents() : id === 'iloh' ? renderIloh() : id === 'liens' ? renderLinks() : id === 'search' ? renderSearch() : id === 'projets' ? renderProjects() : id === 'tableau' ? renderBoard() : id === 'evjour' ? renderEvDay() : id === 'shagai' ? renderShagai() : renderChar(id); window.scrollTo({ top:0 }); }
+function go(id) { resetSpacer(); lastPage = null; current = id; renderNav(); if (id !== 'home') fxOff(); id === 'home' ? renderHome() : id === 'events' ? renderEvents() : id === 'iloh' ? renderIloh() : id === 'liens' ? renderLinks() : id === 'search' ? renderSearch() : id === 'projets' ? renderProjects() : id === 'tableau' ? renderBoard() : id === 'evjour' ? renderEvDay() : id === 'shagai' ? renderShagai() : id === 'logistique' ? renderLogi() : renderChar(id); window.scrollTo({ top:0 }); }
 document.addEventListener('click', e => { const b = e.target.closest('[data-go]'); if (b) go(b.dataset.go); });
 document.addEventListener('click', async e => {
   const b = e.target.closest('[data-wrap-open]'); if (!b) return;
@@ -3561,7 +3573,7 @@ document.querySelectorAll('.nav-filter button').forEach(b => b.addEventListener(
   const row = b.dataset.f ? '[data-f]' : '[data-g]';
   if (b.dataset.f) filter = b.dataset.f; else groupFilter = b.dataset.g;
   document.querySelectorAll('.nav-filter button' + row).forEach(x => x.setAttribute('aria-pressed', x === b));
-  if (!['home', 'events', 'iloh', 'liens', 'search', 'projets', 'tableau', 'evjour', 'shagai'].includes(current) && !C.some(c => c.id === current && shown(c))) current = 'home';
+  if (!['home', 'events', 'iloh', 'liens', 'search', 'projets', 'tableau', 'evjour', 'shagai', 'logistique'].includes(current) && !C.some(c => c.id === current && shown(c))) current = 'home';
   go(current);
 }));
 initPlaces();
@@ -3686,7 +3698,7 @@ const rerender = () => {
   if (isTyping(document.activeElement)) { typingDirty = true; return; }
   // Jamais entre l'appui et le relâchement : la fiche serait remplacée sous le pointeur et le clic tomberait à côté.
   if (pointerDown) { typingDirty = true; return; }
-  typingDirty = false; renderNav(); current === 'home' ? renderHome() : current === 'events' ? renderEvents() : current === 'iloh' ? renderIloh() : current === 'liens' ? renderLinks() : current === 'search' ? null : current === 'projets' ? renderProjects() : current === 'tableau' ? renderBoard() : current === 'evjour' ? renderEvDay() : current === 'shagai' ? renderShagai() : renderChar(current);
+  typingDirty = false; renderNav(); current === 'home' ? renderHome() : current === 'events' ? renderEvents() : current === 'iloh' ? renderIloh() : current === 'liens' ? renderLinks() : current === 'search' ? null : current === 'projets' ? renderProjects() : current === 'tableau' ? renderBoard() : current === 'evjour' ? renderEvDay() : current === 'shagai' ? renderShagai() : current === 'logistique' ? renderLogi() : renderChar(current);
 };
 document.addEventListener('focusout', () => setTimeout(() => { if (typingDirty && !pointerDown) rerender(); }, 0));
 

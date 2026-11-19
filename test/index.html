@@ -399,13 +399,24 @@ html, body, #view { overflow-anchor: none; }
 .board-h { margin: 0 0 .9rem; text-align: center; font: 500 1rem/1.2 var(--display); letter-spacing: .12em; color: #f3e3c0; text-shadow: 0 1px 2px rgba(0,0,0,.6); }
 .board-notes { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr)); gap: 1.1rem; align-items: start; }
 .board-empty { text-align: center; color: #f3e3c0; opacity: .8; margin: .5rem 0; }
-.note { position: relative; padding: 1.15rem .9rem .7rem; background: #f1e3bf; color: #2b2015; border-radius: 2px; text-align: left;
-  box-shadow: 0 3px 6px rgba(0,0,0,.35); font-size: .95rem; line-height: 1.45; min-width: 0; }
-.note::before { content: ''; position: absolute; top: .35rem; left: 50%; width: .7rem; height: .7rem; margin-left: -.35rem; border-radius: 50%;
+.note { position: relative; padding: 1.25rem 1rem .8rem; color: #33230f; text-align: left; font-size: .95rem; line-height: 1.45; min-width: 0;
+  /* Parchemin : grain, fibres, taches et bords brunis ; contour légèrement irrégulier. */
+  --parch: #e6d2a6; background-color: var(--parch);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .42 0 0 0 0 .28 0 0 0 0 .12 0 0 0 .32 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.012 .35' numOctaves='2' seed='7' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .5 0 0 0 0 .34 0 0 0 0 .16 0 0 0 .24 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23f)'/%3E%3C/svg%3E"),
+    radial-gradient(ellipse 60% 45% at 22% 18%, rgba(255,248,226,.55), transparent 70%),
+    radial-gradient(ellipse 40% 30% at 80% 85%, rgba(122,78,34,.2), transparent 70%),
+    radial-gradient(ellipse 35% 22% at 70% 30%, rgba(140,92,44,.14), transparent 75%),
+    radial-gradient(ellipse 25% 35% at 12% 75%, rgba(150,100,50,.12), transparent 80%),
+    radial-gradient(ellipse 115% 115% at 50% 50%, transparent 50%, rgba(104,60,20,.5) 100%);
+  border-radius: 3px 7px 4px 8px / 7px 3px 8px 4px;
+  box-shadow: inset 0 0 18px rgba(98,56,18,.5), inset 0 0 3px rgba(70,38,12,.75), 0 3px 7px rgba(0,0,0,.4); }
+.note::before { content: ''; position: absolute; top: .35rem; left: 50%; width: .7rem; height: .7rem; margin-left: -.35rem; border-radius: 50%; z-index: 1;
   background: radial-gradient(circle at 35% 35%, #e08a6a, #9c3b24); box-shadow: 0 1px 2px rgba(0,0,0,.5); }
-.note.t1 { transform: rotate(-1.2deg); } .note.t2 { transform: rotate(.9deg); background: #ead9b0; } .note.t3 { transform: rotate(-.5deg); background: #f4e8cc; }
+.note.t1 { transform: rotate(-1.2deg); }
+.note.t2 { transform: rotate(.9deg); --parch: #dfc697; border-radius: 6px 3px 8px 4px / 3px 7px 4px 8px; }
+.note.t3 { transform: rotate(-.5deg); --parch: #ead9b3; border-radius: 4px 8px 3px 6px / 8px 4px 6px 3px; }
 .note-text { white-space: pre-wrap; overflow-wrap: anywhere; margin: 0; }
-.note-sign { margin: .55rem 0 0; font-style: italic; text-align: right; color: #5a4632; font-size: .85rem; }
+.note-sign { margin: .55rem 0 0; font-style: italic; text-align: right; color: #5b4024; font-size: .85rem; }
 .note-tools { display: flex; justify-content: flex-end; gap: .4rem; margin-top: .4rem; }
 .note-tools .link { color: #5a4632; font-size: .8rem; }
 .mail-form fieldset { border: 0; padding: 0; margin: 0 0 .3rem; display: flex; flex-wrap: wrap; gap: .4rem 1rem; }
@@ -829,6 +840,6 @@ button.link.danger { color: #e0a24d; }
 <div class="sync-state" id="sync-state" aria-live="polite"></div>
 </div>
 
-<script src="app.js?v=1e57a8dd49" charset="utf-8"></script>
+<script src="app.js?v=d9bbe38a65" charset="utf-8"></script>
 <script type="module" src="sync.js?v=7d6e02a2e5"></script>
 

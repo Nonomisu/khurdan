@@ -332,6 +332,9 @@ const ok = (cond, label) => { console.log((cond ? '  ok  ' : '  ÉCHEC ') + labe
 
   console.log('Logistique : demande de matériel (Eden → Nono)');
   await ed.evaluate(() => go('khokkutsai')); await ed.waitForTimeout(300);
+  ok(await ed.locator('.tabs [data-go="logistique"]').count() === 1 && !(await ed.locator('.logi').count()), 'fiche de Khokkutsai : onglet « Logistique » (plus de bloc sur la fiche)');
+  await ed.click('.tabs [data-go="logistique"]'); await ed.waitForTimeout(300);
+  ok(await ed.evaluate(() => current === 'logistique'), 'page de la logistique');
   ok(await ed.isVisible('.logi #req-item') && !(await ed.textContent('.logi')).includes('Demandes en cours'), 'fiche de Khokkutsai : formulaire de demande, sans la liste des demandes');
   await ed.selectOption('#req-char', 'buyan'); await ed.fill('#req-item', 'Nouvelle yourte'); await ed.fill('#req-note', 'Pour la saison des pluies');
   await ed.click('#req-send'); await ed.waitForTimeout(1500);
@@ -343,6 +346,8 @@ const ok = (cond, label) => { console.log((cond ? '  ok  ' : '  ÉCHEC ') + labe
   ok(await sh.evaluate(() => Object.keys(REQUESTS).length) === 0, 'Idriss ne voit pas les demandes des autres');
   const lg = await open('nono', 'nono@test.fr');
   await lg.evaluate(() => go('khokkutsai')); await lg.waitForTimeout(300);
+  ok((await lg.textContent('.tabs [data-go="logistique"]')).includes('1'), 'onglet : pastille des demandes en cours (Nono)');
+  await lg.evaluate(() => go('logistique')); await lg.waitForTimeout(300);
   ok((await lg.textContent('.logi')).includes('Demandes en cours') && (await lg.textContent('.logi .req.pending')).includes('Pour Buyan'), 'Nono voit la demande en cours, avec son origine');
   await lg.click('[data-req-ok]'); await lg.waitForTimeout(1500);
   ok((await lg.textContent('.logi')).includes('Aucune demande en attente') && (await lg.textContent('.req-done summary')).includes('(1)'), 'demande validée : passe dans les livrées');
@@ -410,11 +415,11 @@ const ok = (cond, label) => { console.log((cond ? '  ok  ' : '  ÉCHEC ') + labe
   ok(await ed.evaluate(() => current) === 'boroo', 'résultat : ouvre la journée');
 
   console.log('Logistique détaillée');
-  await ed.evaluate(() => go('khokkutsai')); await ed.waitForTimeout(200);
+  await ed.evaluate(() => go('logistique')); await ed.waitForTimeout(200);
   await ed.selectOption('#req-char', 'buyan'); await ed.fill('#req-item', 'Arc composite'); await ed.click('#req-send'); await ed.waitForTimeout(400);
   await ed.fill('#req-item', 'Troisième yourte'); await ed.click('#req-send'); await ed.waitForTimeout(1500);
   const lg2 = await open('nono', 'nono@test.fr');
-  await lg2.evaluate(() => go('khokkutsai')); await lg2.waitForTimeout(300);
+  await lg2.evaluate(() => go('logistique')); await lg2.waitForTimeout(300);
   const rid = n => lg2.evaluate(n => Object.keys(REQUESTS).find(k => REQUESTS[k].item === n), n);
   const arc = await rid('Arc composite'), yt = await rid('Troisième yourte');
   await lg2.click(`[data-req-prep="${arc}"]`); await lg2.waitForTimeout(150);

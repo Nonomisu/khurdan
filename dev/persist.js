@@ -119,7 +119,7 @@ const rerender = () => {
   if (isTyping(document.activeElement)) { typingDirty = true; return; }
   // Jamais entre l'appui et le relâchement : la fiche serait remplacée sous le pointeur et le clic tomberait à côté.
   if (pointerDown) { typingDirty = true; return; }
-  typingDirty = false; renderNav(); current === 'home' ? renderHome() : current === 'events' ? renderEvents() : current === 'iloh' ? renderIloh() : current === 'liens' ? renderLinks() : current === 'search' ? null : current === 'projets' ? renderProjects() : current === 'tableau' ? renderBoard() : current === 'evjour' ? renderEvDay() : current === 'shagai' ? renderShagai() : renderChar(current);
+  typingDirty = false; renderNav(); current === 'home' ? renderHome() : current === 'events' ? renderEvents() : current === 'iloh' ? renderIloh() : current === 'liens' ? renderLinks() : current === 'search' ? null : current === 'projets' ? renderProjects() : current === 'tableau' ? renderBoard() : current === 'evjour' ? renderEvDay() : current === 'shagai' ? renderShagai() : current === 'logistique' ? renderLogi() : renderChar(current);
 };
 document.addEventListener('focusout', () => setTimeout(() => { if (typingDirty && !pointerDown) rerender(); }, 0));
 
