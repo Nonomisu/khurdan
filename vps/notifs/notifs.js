@@ -58,6 +58,8 @@ async function pushNews(id) {
     const ev = (await db.doc('shared/events').get()).data()?.[n.key.split(':')[1]];
     url = `${APP}?evenements=${encodeURIComponent(ev?.date || '')}`;
   }
+  // Événement du jour : la notification ouvre sa page (les actions des personnages).
+  if (String(n.key || '').startsWith('evday:')) url = `${APP}?evenement=${encodeURIComponent(n.key.split(':')[1])}`;
   // Projet de l'Iloh : la notification ouvre la page des projets.
   if (String(n.key || '').startsWith('proj:')) url = `${APP}?projets`;
   // Boîte aux lettres, tableau de l'iloh, message à la corne : la notification ouvre le tableau.

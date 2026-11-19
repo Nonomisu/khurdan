@@ -137,6 +137,9 @@ window.RP_SYNC = {
   saveProject: (id, p) => noWrites ? Promise.resolve() : setDoc(prRef, { [id]: p === null ? deleteField() : p }, { merge: true }).catch(report),
   saveProjectFields: (id, f) => noWrites ? Promise.resolve() : updateDoc(prRef, ...Object.entries(f).flatMap(([k, v]) => [new FieldPath(id, k), v])).catch(report),
   setContrib: (id, k, c) => noWrites ? Promise.resolve() : updateDoc(prRef, new FieldPath(id, 'contrib', k), c || deleteField()).catch(report),
+  // Événement du jour : une action (ou son retrait), un participant — champ par champ.
+  saveEvDayAct: (evId, aid, a) => noWrites ? Promise.resolve() : updateDoc(evRef, new FieldPath(evId, 'acts', aid), a || deleteField()).catch(report),
+  setEvDayWho: (evId, aid, cid, player) => noWrites ? Promise.resolve() : updateDoc(evRef, new FieldPath(evId, 'acts', aid, 'who', cid), player || deleteField()).catch(report),
   saveEvent: (id, e) => noWrites ? Promise.resolve() : setDoc(evRef, { [id]: e === null ? deleteField() : e }, { merge: true }).catch(report),
   setWebhook: url => setDoc(doc(db, 'shared', 'discord'), { webhook: url }, { merge: true }),
   // Toute l'année (pour le wrap) : douze mois, tous personnages.

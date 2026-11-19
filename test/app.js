@@ -282,10 +282,12 @@ const setWith = (id, l, other, on, quiet = false) => {
 const sharedActsOf = id => C.filter(x => x.id !== id && state[x.id]?.done).flatMap(x => Object.entries(state[x.id].withActs || {})
   .filter(([l, ids]) => ids.includes(id) && state[x.id].checked?.has(l) && !state[x.id].withFrom?.[l]).map(([l, ids]) => ({ from: x.id, act: l, others: ids.filter(o => o !== id && isChar(o)) })));
 const sharedActsHtml = (id, canJoin) => {
-  const L = sharedActsOf(id), E = evActsOf(id); if (!L.length && !E.length) return '';
+  const L = sharedActsOf(id), E = evActsOf(id), D = evDayActsOf(id); if (!L.length && !E.length && !D.length) return '';
   const evItems = E.map(x => `<div class="shared-item"><span>${icon(evType(x.e.type).icon)}Événement de l'Iloh : « ${esc(x.e.text)} »${goingOf(x.e).length > 1 ? ` avec ${esc(andList(goingOf(x.e).filter(o => o !== id).map(nameOf)))}` : ''}.</span>
     ${canJoin ? state[id].checked.has(x.act) ? '<small class="joined">✓ Sur la fiche</small>' : `<button type="button" class="join-btn" data-ev-act="${x.evId}">${icon('plus')}L'ajouter à la fiche ${deName(nameOf(id))}</button>` : ''}</div>`).join('');
-  return `<div class="shared-acts"><p class="shared-h">${icon('users')}Activités communes du jour</p>${evItems}${L.map(a => `<div class="shared-item"><span>${esc(nameOf(a.from))} a noté « ${esc(a.act)} » avec ${esc(andList([nameOf(id), ...a.others.map(nameOf)]))}.</span>
+  const dayItems = D.map(x => { const o = evDayWho(x.a).filter(c => c !== id); return `<div class="shared-item"><span>${icon('flag')}Événement du jour « ${esc(x.e.text)} » : ${esc(x.a.text)}${o.length ? ` avec ${esc(andList(o.map(nameOf)))}` : ''}.</span>
+    ${canJoin ? state[id].checked.has(x.act) ? '<small class="joined">✓ Sur la fiche</small>' : `<button type="button" class="join-btn" data-evd-fiche="${x.evId}:${x.aid}">${icon('plus')}L'ajouter à la fiche ${deName(nameOf(id))}</button>` : ''}</div>`; }).join('');
+  return `<div class="shared-acts"><p class="shared-h">${icon('users')}Activités communes du jour</p>${dayItems}${evItems}${L.map(a => `<div class="shared-item"><span>${esc(nameOf(a.from))} a noté « ${esc(a.act)} » avec ${esc(andList([nameOf(id), ...a.others.map(nameOf)]))}.</span>
     ${canJoin ? state[id].checked.has(a.act) ? '<small class="joined">✓ Sur la fiche</small>' : `${joinPickHtml(id, a)}<button type="button" class="join-btn" data-join-from="${a.from}" data-join-act="${esc(a.act)}">${icon('plus')}L'ajouter à la fiche ${deName(nameOf(id))}</button>` : ''}</div>`).join('')}</div>`;
 };
 // Reprend l'activité d'un autre personnage : cochée (en activité spéciale si elle n'est pas dans la liste), mêmes moments, mêmes personnages.
@@ -820,15 +822,17 @@ const evWhen = e => { const a = evStart(e), t = isoDay(rpDay);
   return e.until && e.until !== a ? (a > t ? `du ${fmtIso(a)} au ${fmtIso(e.until)}` : `jusqu'au ${fmtIso(e.until)}`) : a > t ? `le ${fmtIso(a)}` : a === t ? "aujourd'hui" : `depuis le ${fmtIso(a)}`; };
 const activeEvents = () => Object.entries(GROUP_EVENTS).filter(([, e]) => e && (!e.until || e.until >= isoDay(rpDay)))
   .sort((a, b) => evStart(a[1]).localeCompare(evStart(b[1])) || a[1].at - b[1].at);
-const evView = { open: false, del: null, type: 'info' };
+const evView = { open: false, del: null, type: 'info', daily: false };
 const evCal = { y: null, m: null, sel: null };   // calendrier des événements : mois affiché et jour choisi
-const addGroupEvent = (type, text, until, date) => {
+const addGroupEvent = (type, text, until, date, daily) => {
   const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6), at = Date.now();
   date = date || isoDay(rpDay);
-  const e = { type, text, by: me, at, date, until: until && until > date ? until : null };
+  const e = { type, text, by: me, at, date, until: !daily && until && until > date ? until : null };
+  if (daily) Object.assign(e, { daily: true, acts: {} });
   GROUP_EVENTS[id] = e; window.RP_SYNC?.saveEvent(id, e);
-  const txt = evText(e) + (date > isoDay(rpDay) ? ` (${evWhen(e)})` : '');
+  const txt = (daily ? `Événement du jour : ${text}` : evText(e)) + (date > isoDay(rpDay) ? ` (${evWhen(e)})` : '') + (daily ? ' — viens y inscrire tes actions.' : '');
   PLAYERS.filter(p => p.id !== me).forEach(p => NEWS.unshift({ to: p.id, text: txt, charId: null, key: 'event:' + id + ':' + p.id, read: false, at }));
+  return id;
 };
 const removeGroupEvent = id => { delete GROUP_EVENTS[id]; window.RP_SYNC?.saveEvent(id, null); dropNews(PLAYERS.map(p => 'event:' + id + ':' + p.id)); };
 const fmtIso = iso => { const [y, m, d] = iso.split('-').map(Number); return fmtDay(new Date(y, m - 1, d)); };
@@ -843,7 +847,7 @@ const goingHtml = (id, e) => { const g = goingOf(e), mine = C.filter(c => c.play
     ${evFinished(e) || !mine.length ? '' : `<div class="ev-join"><span>Je participe avec :</span><div class="place-list subs" role="group" aria-label="Participer avec">${mine.map(c => `<button type="button" data-ev-go="${id}:${c.id}" aria-pressed="${!!e.going?.[c.id]}">${esc(c.name)}</button>`).join('')}</div></div>`}</div>`; };
 // Le jour J : l'événement auquel un personnage participe peut être ajouté à sa fiche (avec les autres participants).
 const evActLabel = e => e.text.length <= 60 ? e.text : evType(e.type).label;
-const evActsOf = id => Object.entries(GROUP_EVENTS).filter(([, e]) => e && e.going?.[id] && evOn(e, isoDay(rpDay))).map(([evId, e]) => ({ evId, e, act: evActLabel(e) }));
+const evActsOf = id => Object.entries(GROUP_EVENTS).filter(([, e]) => e && !e.daily && e.going?.[id] && evOn(e, isoDay(rpDay))).map(([evId, e]) => ({ evId, e, act: evActLabel(e) }));
 const addEvAct = (id, evId) => {
   const e = GROUP_EVENTS[evId], s = state[id], c = C.find(x => x.id === id); if (!e) return;
   const l = evActLabel(e);
@@ -865,16 +869,17 @@ const birthdayNews = () => {
   C.filter(c => c.player === me && BIRTHDAYS[c.id] && bdayOn(BIRTHDAYS[c.id], rpDay)).forEach(c =>
     PLAYERS.filter(p => p.id !== me).forEach(p => RP_SYNC.newsOnce('bday:' + isoDay(rpDay) + ':' + c.id + ':' + p.id, { to: p.id, text: `C'est l'anniversaire ${deName(c.name)} !`, charId: c.id })));
 };
-const evCardHtml = ([id, e]) => `<div class="g-event">${icon(evType(e.type).icon)}<div><b>${esc(evType(e.type).label)}</b><span>${esc(e.text)}</span>
-      <small>${evWhen(e).replace(/^./, c => c.toUpperCase())} · annoncé par ${esc(PLAYER_NAME[e.by] || '?')}</small>${goingHtml(id, e)}</div>
+const evCardHtml = ([id, e]) => `<div class="g-event${e.daily ? ' ev-daily-card' : ''}">${icon(evType(e.type).icon)}<div><b>${e.daily ? 'Événement du jour · ' : ''}${esc(evType(e.type).label)}</b><span>${esc(e.text)}</span>
+      <small>${evWhen(e).replace(/^./, c => c.toUpperCase())} · annoncé par ${esc(PLAYER_NAME[e.by] || '?')}</small>${e.daily ? evDaySummaryHtml(id, e) : goingHtml(id, e)}</div>
       ${e.by === me || isAdminMe() ? evView.del === id ? `<span class="g-del"><button type="button" class="link small danger" data-ev-del-ok="${id}">Retirer l'annonce</button> <button type="button" class="link small" data-ev-del-no>Annuler</button></span>`
         : `<button type="button" class="link small ico-btn" data-ev-del="${id}" title="Retirer l'annonce" aria-label="Retirer l'annonce">${icon('trash')}</button>` : ''}</div>`;
 const evFormHtml = date => `<details class="ev-new ev-announce"${evView.open ? ' open' : ''}><summary>${icon('plus')}Annoncer un événement sur l'Iloh</summary>
       <div class="ev-form">
         <div class="place-list" role="group" aria-label="Type d'événement">${EVENT_TYPES.map(t => `<button type="button" data-ev-type="${t.id}" aria-pressed="${evView.type === t.id}">${icon(t.icon)}${esc(t.label)}</button>`).join('')}</div>
         <input type="text" id="ev-text" maxlength="200" placeholder="Ex. : Couvre-feu à partir de ce soir" enterkeyhint="send">
+        <label class="ev-daily"><input type="checkbox" id="ev-daily"${evView.daily ? ' checked' : ''}><span><b>Événement du jour</b> — une page où chaque personnage inscrit les actions qu'il entreprend ou rejoint celles des autres</span></label>
         <div class="ev-dates"><label class="ev-until"><span>Date</span><input type="date" id="ev-date" value="${date}" min="${isoDay(rpDay)}"></label>
-          <label class="ev-until"><span>Jusqu'au (facultatif)</span><input type="date" id="ev-until" min="${date}"></label></div>
+          <label class="ev-until"${evView.daily ? ' hidden' : ''}><span>Jusqu'au (facultatif)</span><input type="date" id="ev-until" min="${date}"></label></div>
         <button type="button" class="btn" id="ev-add">Annoncer à tout le groupe</button>
         <p class="reserved">Tous les autres joueurs recevront une nouvelle et une notification.</p>
       </div></details>`;
@@ -921,15 +926,17 @@ const openEventsOn = iso => {
   Object.assign(evCal, { y, m: m - 1, sel: d }); evView.del = null; go('events');
 };
 // Type de nouvelle (couleur) : nuit chaude, grossesse possible ou vie intime → rose ; personnage mentionné dans une activité commune → vert.
-const newsKind = n => /^(night|risk|intime):/.test(n.key || '') ? 'k-hot' : /^(with|proj):/.test(n.key || '') ? 'k-with' : 'k-other';
+const newsKind = n => /^(night|risk|intime):/.test(n.key || '') ? 'k-hot' : /^(with|proj|evday):/.test(n.key || '') ? 'k-with' : 'k-other';
 // Nouvelle cliquable : la fiche du personnage, ou le calendrier pour un événement de l'Iloh.
 const newsLink = (n, inner) => n.charId ? `<button type="button" class="link" data-go="${n.charId}">${inner}</button>`
+  : n.key?.startsWith('evday:') ? `<button type="button" class="link" data-evday-open="${esc(n.key.split(':')[1])}">${inner}</button>`
   : n.key?.startsWith('event:') ? `<button type="button" class="link" data-ev-open="${esc(n.key.split(':')[1])}">${inner}</button>`
   : n.key?.startsWith('proj:') ? `<button type="button" class="link" data-proj-open="${esc(n.key.split(':')[1])}">${inner}</button>`
   : /^(mail|board|horn):/.test(n.key || '') ? `<button type="button" class="link" data-go="tableau">${inner}</button>` : `<span>${inner}</span>`;
 document.addEventListener('click', e => { const b = e.target.closest('[data-ev-open]'); if (!b) return;
   const ev = GROUP_EVENTS[b.dataset.evOpen]; openEventsOn(ev ? evStart(ev) : null); });
 const evRefresh = () => {
+  if (current === 'evjour') return evDayRefresh();
   if (current !== 'events' && current !== 'home') return;
   const y = window.scrollY, h = fullH();
   current === 'events' ? renderEvents() : renderHome();
@@ -951,12 +958,118 @@ document.addEventListener('click', e => {
   if (add) {
     const f = document.getElementById('ev-text'), text = f.value.trim(); if (!text) return f.focus();
     const date = document.getElementById('ev-date').value || isoDay(rpDay);
-    addGroupEvent(evView.type, text, document.getElementById('ev-until').value || null, date < isoDay(rpDay) ? isoDay(rpDay) : date);
-    evView.open = false; evRefresh();
+    const nid = addGroupEvent(evView.type, text, document.getElementById('ev-until').value || null, date < isoDay(rpDay) ? isoDay(rpDay) : date, evView.daily);
+    const daily = evView.daily; evView.open = false; evView.daily = false;
+    if (daily && nid) return openEvDay(nid);
+    evRefresh();
   }
 });
-document.addEventListener('change', e => { if (e.target.id === 'ev-date') { const u = document.getElementById('ev-until'); if (u) u.min = e.target.value; } });
+document.addEventListener('change', e => { if (e.target.id === 'ev-daily') { evView.daily = e.target.checked; const u = document.getElementById('ev-until'); if (u) { u.closest('label').hidden = evView.daily; if (evView.daily) u.value = ''; } }
+  if (e.target.id === 'ev-date') { const u = document.getElementById('ev-until'); if (u) u.min = e.target.value; } });
 document.addEventListener('keydown', e => { if (e.target.id === 'ev-text' && e.key === 'Enter') { e.preventDefault(); document.getElementById('ev-add')?.click(); } });
+// ---------- Événement du jour : une page à part où chaque personnage inscrit les actions qu'il entreprend ou rejoint ----------
+// Un événement annoncé avec « Événement du jour » (e.daily) porte e.acts = { idAction: { text, by (personnage), p (joueur), at,
+//   who: { personnage: joueur } } } — écrit champ par champ : deux joueurs qui s'inscrivent en même temps ne s'écrasent pas.
+// Celui qui propose une action y participe d'office ; elle se retire par son joueur, l'auteur de l'événement ou l'admin.
+const evDay = { id: null, by: null, del: null, open: false, draft: '' };
+const evDayActs = e => Object.entries(e?.acts || {}).filter(([, a]) => a).sort((a, b) => a[1].at - b[1].at);
+const evDayWho = a => Object.keys(a.who || {}).filter(isChar).sort((x, y) => (x === a.by ? -1 : y === a.by ? 1 : nameOf(x).localeCompare(nameOf(y), 'fr')));
+const evDayClosed = e => evStart(e) < isoDay(rpDay);   // le lendemain, les actions restent visibles mais ne bougent plus
+const evDayPeople = e => [...new Set(evDayActs(e).flatMap(([, a]) => evDayWho(a)))];
+const evDayKey = (evId, aid, tail) => `evday:${evId}:${aid}:${tail}`;
+const dot = cid => `<i class="yc-dot" style="background:${PLAYERS.find(p => p.id === playerOf(cid))?.color}"></i>`;
+const addEvDayAct = (evId, text, by) => {
+  const e = GROUP_EVENTS[evId]; if (!e || !text || !isChar(by)) return;
+  const aid = Date.now().toString(36) + Math.random().toString(36).slice(2, 5), at = Date.now();
+  const a = { text, by, p: me, at, who: { [by]: me } };
+  (e.acts ||= {})[aid] = a; window.RP_SYNC?.saveEvDayAct?.(evId, aid, a);
+  PLAYERS.filter(p => p.id !== me).forEach(p => NEWS.unshift({ to: p.id, text: `${nameOf(by)} propose « ${text} » pour l'événement du jour « ${e.text} ».`,
+    charId: null, key: evDayKey(evId, aid, p.id), read: false, at }));
+};
+const removeEvDayAct = (evId, aid) => { const e = GROUP_EVENTS[evId], a = e?.acts?.[aid]; if (!a) return;
+  delete e.acts[aid]; window.RP_SYNC?.saveEvDayAct?.(evId, aid, null);
+  dropNews([...PLAYERS.map(p => evDayKey(evId, aid, p.id)), ...Object.keys(a.who || {}).map(c => evDayKey(evId, aid, 'go-' + c))]); };
+const setEvDayWho = (evId, aid, cid, on) => { const a = GROUP_EVENTS[evId]?.acts?.[aid]; if (!a || cid === a.by) return;
+  a.who ||= {}; if (on) a.who[cid] = me; else delete a.who[cid];
+  window.RP_SYNC?.setEvDayWho?.(evId, aid, cid, on ? me : null);
+  const key = evDayKey(evId, aid, 'go-' + cid);
+  if (on && playerOf(a.by) !== me) NEWS.unshift({ to: playerOf(a.by), text: `${nameOf(cid)} rejoint l'action « ${a.text} » proposée par ${nameOf(a.by)} (${GROUP_EVENTS[evId].text}).`,
+    charId: a.by, key, read: false, at: Date.now() });
+  else if (!on) dropNews([key]);
+};
+// Sur la fiche, le jour J : chaque action à laquelle le personnage participe, à ajouter avec les autres participants.
+const evDayActLabel = (e, a) => a.text.length + e.text.length <= 56 ? `${a.text} (${e.text})` : a.text;
+const evDayActsOf = id => Object.entries(GROUP_EVENTS).filter(([, e]) => e?.daily && evOn(e, isoDay(rpDay)))
+  .flatMap(([evId, e]) => evDayActs(e).filter(([, a]) => a.who?.[id]).map(([aid, a]) => ({ evId, aid, e, a, act: evDayActLabel(e, a) })));
+const addEvDayToFiche = (id, evId, aid) => {
+  const e = GROUP_EVENTS[evId], a = e?.acts?.[aid], s = state[id], c = C.find(x => x.id === id); if (!a) return;
+  const l = evDayActLabel(e, a);
+  if (!allActs(c).includes(l) && !s.specials.includes(l)) s.specials.push(l);
+  s.checked.add(l);
+  evDayWho(a).filter(o => o !== id).forEach(o => setWith(id, l, o, true, true));   // les autres participants, sans nouvelle
+  saveComplement(id);
+};
+document.addEventListener('click', e => { const b = e.target.closest('[data-evd-fiche]'); if (!b || !isChar(current)) return;
+  const [evId, aid] = b.dataset.evdFiche.split(':'); addEvDayToFiche(current, evId, aid); renderChar(current); });
+// Carte de l'événement (accueil, calendrier) : résumé et lien vers sa page.
+const evDaySummaryHtml = (id, e) => { const A = evDayActs(e), P = evDayPeople(e);
+  return `<div class="ev-going"><p class="ev-who">${icon('users')}<span>${A.length ? `${A.length} action${A.length > 1 ? 's' : ''}${P.length ? ` · ${P.length} personnage${P.length > 1 ? 's' : ''} : ${P.map(c => dot(c) + esc(nameOf(c))).join(', ')}` : ''}` : 'Aucune action pour l\'instant.'}</span></p>
+    <button type="button" class="btn small evd-open" data-evday-open="${id}">${icon('checks')}${evDayClosed(e) ? 'Voir les actions' : 'Voir et proposer des actions'}</button></div>`; };
+const evDayCardHtml = (evId, e, [aid, a]) => {
+  const who = evDayWho(a), mine = C.filter(c => c.player === me), closed = evDayClosed(e);
+  const canDel = a.p === me || e.by === me || isAdminMe();
+  return `<article class="evd-act" id="evd-${aid}">
+    <div class="evd-head"><h3>${esc(a.text)}</h3>${canDel && !closed ? evDay.del === aid
+      ? `<span class="g-del"><button type="button" class="link small danger" data-evd-del-ok="${aid}">Retirer l'action</button> <button type="button" class="link small" data-evd-del-no>Annuler</button></span>`
+      : `<button type="button" class="link small ico-btn" data-evd-del="${aid}" title="Retirer l'action" aria-label="Retirer l'action">${icon('trash')}</button>` : ''}</div>
+    <p class="evd-by">Proposée par ${esc(nameOf(a.by))}</p>
+    <p class="ev-who">${icon('users')}<span>${who.map(c => dot(c) + esc(nameOf(c))).join(', ')}</span></p>
+    ${closed || !mine.length ? '' : `<div class="ev-join"><span>Je participe avec :</span><div class="place-list subs" role="group" aria-label="Participer avec">${mine.map(c => c.id === a.by
+      ? `<button type="button" aria-pressed="true" disabled title="${esc(c.name)} a proposé cette action">${esc(c.name)}</button>`
+      : `<button type="button" data-evd-go="${aid}:${c.id}" aria-pressed="${!!a.who?.[c.id]}">${esc(c.name)}</button>`).join('')}</div></div>`}
+  </article>`; };
+function renderEvDay() {
+  root.className = 't-khurdan';
+  const id = evDay.id, e = GROUP_EVENTS[id], mine = C.filter(c => c.player === me);
+  if (mine.length && !mine.some(c => c.id === evDay.by)) evDay.by = mine[0].id;
+  const back = `<p class="ev-back"><button type="button" class="link" data-go="home">‹ Accueil</button> · <button type="button" class="link" data-ev-open="${esc(id || '')}">Calendrier</button></p>`;
+  if (!e) { document.getElementById('view').innerHTML = `${back}<header><p class="kicker">${APP_NAME}</p><h1>Événement du jour</h1></header>
+    <section><p class="reserved">Cet événement a été retiré.</p></section>`; return; }
+  const A = evDayActs(e), closed = evDayClosed(e);
+  document.getElementById('view').innerHTML = `${back}
+    <header><p class="kicker">Événement du jour · ${esc(evType(e.type).label)}</p><h1>${esc(e.text)}</h1>
+      <p class="evd-when">${evWhen(e).replace(/^./, c => c.toUpperCase())} · annoncé par ${esc(PLAYER_NAME[e.by] || '?')}</p></header>
+    <section>
+      <p class="reserved">${closed ? 'L\'événement est passé : les actions restent visibles.' : 'Chaque personnage inscrit les actions qu\'il entreprend, ou rejoint celles proposées par les autres. Le jour J, elles s\'ajoutent à la fiche depuis « Activités communes du jour ».'}</p>
+      ${A.length ? A.map(x => evDayCardHtml(id, e, x)).join('') : '<p class="reserved">Aucune action pour l\'instant.</p>'}
+      ${closed || !mine.length ? '' : `<details class="ev-new evd-new"${evDay.open || !A.length ? ' open' : ''}><summary>${icon('plus')}Proposer une action</summary>
+        <div class="ev-form">
+          <input type="text" id="evd-text" maxlength="120" placeholder="Ex. : Apporter les fleurs" enterkeyhint="send" value="${esc(evDay.draft)}">
+          ${mine.length > 1 ? `<div class="ev-join"><span>Proposée par :</span><div class="place-list subs" role="group" aria-label="Proposée par">${mine.map(c => `<button type="button" data-evd-by="${c.id}" aria-pressed="${evDay.by === c.id}">${esc(c.name)}</button>`).join('')}</div></div>` : ''}
+          <button type="button" class="btn" id="evd-add">Proposer l'action</button>
+          <p class="reserved">Les autres joueurs reçoivent une nouvelle ; ${mine.length > 1 ? 'le personnage choisi' : esc(mine[0].name)} y participe d'office.</p>
+        </div></details>`}
+    </section>`;
+}
+const openEvDay = id => { Object.assign(evDay, { id, del: null, open: false, draft: '' }); go('evjour'); };
+const evDayRefresh = () => { if (current !== 'evjour') return evRefresh();
+  const d = document.getElementById('evd-text'); if (d) evDay.draft = d.value;
+  const y = window.scrollY, h = fullH(); renderEvDay(); holdHeight(h); window.scrollTo({ top: y }); holdPlace(null, y); };
+document.addEventListener('toggle', e => { if (e.target.classList?.contains('evd-new')) evDay.open = e.target.open; }, true);
+document.addEventListener('input', e => { if (e.target.id === 'evd-text') evDay.draft = e.target.value; });
+document.addEventListener('click', e => {
+  const t = e.target;
+  const o = t.closest('[data-evday-open]'); if (o) return openEvDay(o.dataset.evdayOpen);
+  if (current !== 'evjour') return;
+  const by = t.closest('[data-evd-by]'); if (by) { evDay.by = by.dataset.evdBy; document.querySelectorAll('[data-evd-by]').forEach(b => b.setAttribute('aria-pressed', b === by)); return; }
+  const g = t.closest('[data-evd-go]'); if (g) { const [aid, cid] = g.dataset.evdGo.split(':'); setEvDayWho(evDay.id, aid, cid, g.getAttribute('aria-pressed') !== 'true'); return evDayRefresh(); }
+  if (t.closest('[data-evd-del-no]')) { evDay.del = null; return evDayRefresh(); }
+  const d = t.closest('[data-evd-del]'); if (d) { evDay.del = d.dataset.evdDel; return evDayRefresh(); }
+  const ok = t.closest('[data-evd-del-ok]'); if (ok) { evDay.del = null; removeEvDayAct(evDay.id, ok.dataset.evdDelOk); return evDayRefresh(); }
+  if (t.closest('#evd-add')) { const f = document.getElementById('evd-text'), v = f.value.trim().replace(/\s+/g, ' '); if (!v) return f.focus();
+    addEvDayAct(evDay.id, v, evDay.by); evDay.draft = ''; evDay.open = false; evDayRefresh(); }
+});
+document.addEventListener('keydown', e => { if (e.target.id === 'evd-text' && e.key === 'Enter') { e.preventDefault(); document.getElementById('evd-add')?.click(); } });
 // ---------- Projets de l'Iloh : objectifs communs, une barre qui avance avec les activités liées ----------
 // shared/projects : { id: { title, desc, by (joueur), at, goal, acts: [activités liées], steps: [étapes], done (date) ou null,
 //   contrib: { 'personnage:AAAA-MM-JJ': { c, l (activité), p (joueur) } } } } — une participation par personnage et par jour.
@@ -3199,7 +3312,7 @@ function renderCharNow(id) {
   document.getElementById('done-'+id).addEventListener('click', () => { s.done = true; s.doneAt ??= Date.now(); renderNav(); renderChar(id); window.RP_SYNC?.saveNow(); window.RP_DISCORD?.send(id); });
 }
 
-function go(id) { resetSpacer(); lastPage = null; current = id; renderNav(); if (id !== 'home') fxOff(); id === 'home' ? renderHome() : id === 'events' ? renderEvents() : id === 'iloh' ? renderIloh() : id === 'liens' ? renderLinks() : id === 'search' ? renderSearch() : id === 'projets' ? renderProjects() : id === 'tableau' ? renderBoard() : renderChar(id); window.scrollTo({ top:0 }); }
+function go(id) { resetSpacer(); lastPage = null; current = id; renderNav(); if (id !== 'home') fxOff(); id === 'home' ? renderHome() : id === 'events' ? renderEvents() : id === 'iloh' ? renderIloh() : id === 'liens' ? renderLinks() : id === 'search' ? renderSearch() : id === 'projets' ? renderProjects() : id === 'tableau' ? renderBoard() : id === 'evjour' ? renderEvDay() : renderChar(id); window.scrollTo({ top:0 }); }
 document.addEventListener('click', e => { const b = e.target.closest('[data-go]'); if (b) go(b.dataset.go); });
 document.addEventListener('click', async e => {
   const b = e.target.closest('[data-wrap-open]'); if (!b) return;
@@ -3222,7 +3335,7 @@ document.querySelectorAll('.nav-filter button').forEach(b => b.addEventListener(
   const row = b.dataset.f ? '[data-f]' : '[data-g]';
   if (b.dataset.f) filter = b.dataset.f; else groupFilter = b.dataset.g;
   document.querySelectorAll('.nav-filter button' + row).forEach(x => x.setAttribute('aria-pressed', x === b));
-  if (!['home', 'events', 'iloh', 'liens', 'search', 'projets', 'tableau'].includes(current) && !C.some(c => c.id === current && shown(c))) current = 'home';
+  if (!['home', 'events', 'iloh', 'liens', 'search', 'projets', 'tableau', 'evjour'].includes(current) && !C.some(c => c.id === current && shown(c))) current = 'home';
   go(current);
 }));
 initPlaces();
@@ -3347,7 +3460,7 @@ const rerender = () => {
   if (isTyping(document.activeElement)) { typingDirty = true; return; }
   // Jamais entre l'appui et le relâchement : la fiche serait remplacée sous le pointeur et le clic tomberait à côté.
   if (pointerDown) { typingDirty = true; return; }
-  typingDirty = false; renderNav(); current === 'home' ? renderHome() : current === 'events' ? renderEvents() : current === 'iloh' ? renderIloh() : current === 'liens' ? renderLinks() : current === 'search' ? null : current === 'projets' ? renderProjects() : current === 'tableau' ? renderBoard() : renderChar(current);
+  typingDirty = false; renderNav(); current === 'home' ? renderHome() : current === 'events' ? renderEvents() : current === 'iloh' ? renderIloh() : current === 'liens' ? renderLinks() : current === 'search' ? null : current === 'projets' ? renderProjects() : current === 'tableau' ? renderBoard() : current === 'evjour' ? renderEvDay() : renderChar(current);
 };
 document.addEventListener('focusout', () => setTimeout(() => { if (typingDirty && !pointerDown) rerender(); }, 0));
 
@@ -3538,6 +3651,7 @@ const openFromLink = () => {
     // Notification d'un projet : ?projets ouvre la page des projets.
     if (q.has('tableau')) { go('tableau'); history.replaceState(null, '', location.pathname + location.hash); return true; }
     if (q.has('projets')) { go('projets'); history.replaceState(null, '', location.pathname + location.hash); return true; }
+    if (q.has('evenement')) { openEvDay(q.get('evenement')); history.replaceState(null, '', location.pathname + location.hash); return true; }
     if (q.has('evenements')) { openEventsOn(q.get('evenements')); history.replaceState(null, '', location.pathname + location.hash); return true; }
     if (!id || !C.some(c => c.id === id)) return false;
     if (jour && jour !== isoDay(rpDay)) {

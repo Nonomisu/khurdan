@@ -324,6 +324,14 @@ html, body, #view { overflow-anchor: none; }
 .cal-day .ev-count { position: absolute; top: 3px; right: 5px; font-style: normal; font-size: .65rem; color: var(--gold); line-height: 1; }
 .cal-day.sel .ev-count { color: var(--bg); }
 
+.evd-act { display: grid; gap: .35rem; padding: .75rem .85rem; margin: .6rem 0; border: 1px solid var(--gold); border-radius: 8px; background: color-mix(in srgb, var(--gold) 7%, var(--surface)); text-align: left; }
+.evd-head { display: flex; align-items: flex-start; justify-content: space-between; gap: .5rem; }
+.evd-head h3 { margin: 0; font-size: 1.05rem; overflow-wrap: anywhere; }
+.evd-by, .evd-when { margin: 0; color: var(--dim); font-size: .88rem; font-style: italic; }
+.evd-open { justify-self: start; margin-top: .35rem; }
+.evd-act .place-list button[disabled] { opacity: .75; cursor: default; }
+.ev-daily { display: flex; gap: .5rem; align-items: flex-start; text-align: left; font-size: .92rem; }
+.ev-daily input { margin-top: .2rem; flex: none; }
 .g-event { display: flex; align-items: flex-start; text-align: left; gap: .7rem; padding: .7rem .8rem; border: 1px solid var(--gold); border-radius: 8px; background: color-mix(in srgb, var(--gold) 9%, var(--surface)); }
 .g-event > .ico { width: 1.3rem; height: 1.3rem; color: var(--gold); flex: none; margin-top: .15rem; }
 .g-event > div { display: grid; gap: .15rem; flex: 1; min-width: 0; }
@@ -775,6 +783,6 @@ button.link.danger { color: #e0a24d; }
 <div class="sync-state" id="sync-state" aria-live="polite"></div>
 </div>
 
-<script src="app.js?v=25cf63e20a" charset="utf-8"></script>
-<script type="module" src="sync.js?v=ca43f9ee25"></script>
+<script src="app.js?v=6d122543ae" charset="utf-8"></script>
+<script type="module" src="sync.js?v=a64dcf770c"></script>
 
