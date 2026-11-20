@@ -137,6 +137,8 @@ window.RP_SYNC = {
   updateMail: (id, patch) => noWrites ? Promise.resolve() : updateDoc(doc(db, 'mailbox', id), patch).catch(report),
   deleteMail: id => noWrites ? Promise.resolve() : deleteDoc(doc(db, 'mailbox', id)).catch(report),
   saveBoardNote: (id, n) => noWrites ? Promise.resolve() : setDoc(boardRef, { notes: { [id]: n === null ? deleteField() : n } }, { merge: true }).catch(report),
+  // Archiver une annonce (date) ou la remettre au tableau (null) : seul ce champ change.
+  setNoteArchived: (id, at) => noWrites ? Promise.resolve() : setDoc(boardRef, { notes: { [id]: { archivedAt: at || deleteField() } } }, { merge: true }).catch(report),
   setBoardMsg: id => noWrites ? Promise.resolve() : setDoc(boardRef, { discordMsg: id }, { merge: true }).catch(report),
   saveProject: (id, p) => noWrites ? Promise.resolve() : setDoc(prRef, { [id]: p === null ? deleteField() : p }, { merge: true }).catch(report),
   saveProjectFields: (id, f) => noWrites ? Promise.resolve() : updateDoc(prRef, ...Object.entries(f).flatMap(([k, v]) => [new FieldPath(id, k), v])).catch(report),

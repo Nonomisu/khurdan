@@ -1452,10 +1452,13 @@ document.addEventListener('keydown', e => { if (e.target.id === 'proj-act' && e.
 // shared/board = { notes: { id: { text, sign, at } }, discordMsg } — le tableau public, rempli par le joueur de Javkhaanhun.
 const POSTMASTER = 'javkhaanhun';
 const MAIL = {}, BOARD = { notes: {} };   // remplis par sync.js
-const mailView = { open: false, kind: 'public', mode: 'ecrit', anon: false, to: '', edit: null, noteEdit: null, newNote: false, del: null };
+const mailView = { open: false, kind: 'public', mode: 'ecrit', anon: false, to: '', edit: null, noteEdit: null, newNote: false, del: null, tab: 'tableau', noteDel: null, clear: null };
 const isPostmaster = () => playerOf(POSTMASTER) === me;
 const mailId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-const boardNotes = () => Object.entries(BOARD.notes || {}).filter(([, n]) => n?.text).sort((a, b) => b[1].at - a[1].at);
+const boardNotes = () => Object.entries(BOARD.notes || {}).filter(([, n]) => n?.text && !n.archivedAt).sort((a, b) => b[1].at - a[1].at);
+// Archives de Javkhaanhun : annonces retirées du tableau (gardées, sans être affichées ni sur Discord) et messages déjà traités.
+const archivedNotes = () => Object.entries(BOARD.notes || {}).filter(([, n]) => n?.text && n.archivedAt).sort((a, b) => b[1].archivedAt - a[1].archivedAt);
+const doneMails = () => mailList().filter(([, m]) => m.status !== 'new');
 const mailList = () => Object.entries(MAIL).sort((a, b) => b[1].at - a[1].at);
 const mailNew = () => mailList().filter(([, m]) => m.status === 'new').length;
 const MAIL_STATUS = { new: 'En attente', posted: 'Affiché sur le tableau', forwarded: 'Transmis à la corne', archived: 'Classé' };
@@ -1463,7 +1466,21 @@ const noteTilt = id => 't' + (1 + [...id].reduce((a, ch) => a + ch.charCodeAt(0)
 const mailAt = t => fmtDay(new Date(t));
 const noteHtml = ([id, n]) => `<article class="note ${noteTilt(id)}" id="note-${id}"><p class="note-text">${esc(n.text)}</p>
     <p class="note-sign">— ${esc(n.sign || 'Anonyme')}, ${mailAt(n.at)}</p>
-    ${isPostmaster() ? `<div class="note-tools"><button type="button" class="link" data-note-edit="${id}">Modifier</button><button type="button" class="link" data-note-del="${id}">Retirer</button></div>` : ''}</article>`;
+    ${isPostmaster() ? `<div class="note-tools">${noteDelHtml(id) || `<button type="button" class="link" data-note-edit="${id}">Modifier</button><button type="button" class="link" data-note-arch="${id}">Archiver</button><button type="button" class="link" data-note-del="${id}">Supprimer</button>`}</div>` : ''}</article>`;
+const noteDelHtml = id => mailView.noteDel === id ? `<button type="button" class="link danger" data-note-del-ok="${id}">Supprimer pour de bon</button><button type="button" class="link" data-note-del-no>Non</button>` : '';
+const archNoteHtml = ([id, n]) => `<div class="mail-item arch-note" id="arch-${id}"><p class="mail-text">${esc(n.text)}</p>
+    <p class="mail-meta">— ${esc(n.sign || 'Anonyme')} · affichée le ${mailAt(n.at)} · archivée le ${mailAt(n.archivedAt)}</p>
+    <div class="mail-actions">${noteDelHtml(id) || `<button type="button" class="link small" data-note-back="${id}">${icon('pin')}Remettre au tableau</button><button type="button" class="link small" data-note-del="${id}">Supprimer</button>`}</div></div>`;
+const clearHtml = (kind, label, n) => n ? `<p class="arch-clear">${mailView.clear === kind
+    ? `<span>Supprimer pour de bon ${n > 1 ? `ces ${n} éléments` : 'cet élément'} ?</span> <button type="button" class="link small danger" data-arch-clear-ok="${kind}">Oui, tout supprimer</button> <button type="button" class="link small" data-arch-clear-no>Non</button>`
+    : `<button type="button" class="link small" data-arch-clear="${kind}">${label}</button>`}</p>` : '';
+const archivesHtml = () => { const A = archivedNotes(), M = doneMails();
+  return `<h2>${icon('pin')}Annonces archivées${A.length ? ` (${A.length})` : ''}</h2>
+    <p class="reserved">Retirées du tableau (et de Discord), elles restent ici. « Remettre au tableau » la réaffiche à sa date d'origine.</p>
+    ${A.length ? `<div class="mail-list">${A.map(archNoteHtml).join('')}</div>${clearHtml('notes', 'Vider les annonces archivées', A.length)}` : '<p class="reserved">Aucune annonce archivée.</p>'}
+    <h2>${icon('mailbox')}Messages traités${M.length ? ` (${M.length})` : ''}</h2>
+    <p class="reserved">Les messages de la boîte déjà affichés, transmis à la corne ou classés.</p>
+    ${M.length ? `<div class="mail-list">${M.map(mailItemHtml).join('')}</div>${clearHtml('mails', 'Vider les messages traités', M.length)}` : '<p class="reserved">Aucun message traité.</p>'}`; };
 const noteEditorHtml = (key, text, sign, label) => `<div class="mail-edit" data-note-form="${key}">
     <textarea data-note-text maxlength="1500" aria-label="Texte de la note">${esc(text)}</textarea>
     <input type="text" data-note-sign maxlength="60" placeholder="Signature (ou « Anonyme »)" value="${esc(sign)}" aria-label="Signature">
@@ -1509,17 +1526,21 @@ function renderBoard() {
   document.getElementById('view').innerHTML = `
     <p class="ev-back"><button type="button" class="link" data-go="home">‹ Accueil</button></p>
     <header><p class="kicker">${APP_NAME} · tenu par Javkhaanhun</p><h1>Le tableau de l'iloh</h1></header>
-    <section>
+    ${pm ? `<div class="tabs" role="tablist"><button type="button" role="tab" data-board-tab="tableau" aria-selected="${mailView.tab !== 'archives'}">Tableau et boîte</button>
+      <button type="button" role="tab" data-board-tab="archives" aria-selected="${mailView.tab === 'archives'}">Archives${archivedNotes().length + doneMails().length ? ` <span class="badge">${archivedNotes().length + doneMails().length}</span>` : ''}</button></div>` : ''}
+    ${pm && mailView.tab === 'archives' ? `<section>${archivesHtml()}</section>` : `<section>
       <div class="board"><p class="board-h">Annonces de l'iloh</p>
         ${notes.length ? `<div class="board-notes">${notes.map(([id, n]) => mailView.noteEdit === id ? `<article class="note t3">${noteEditorHtml('note:' + id, n.text, n.sign, 'Enregistrer')}</article>` : noteHtml([id, n])).join('')}</div>` : '<p class="board-empty">Aucune annonce pour le moment.</p>'}
       </div>
       ${pm ? (mailView.newNote ? noteEditorHtml('new', '', 'Javkhaanhun', 'Épingler au tableau') : `<p><button type="button" class="link" id="note-new">${icon('pin')}Écrire une note sur le tableau</button></p>`) : ''}
-      ${horns.length ? `<h2>${icon('horn')}Messages reçus à la corne</h2><div class="mail-list horn-list">${horns.map(n => `<div class="mail-item"><p class="mail-text">${esc(n.text)}</p><p class="mail-meta">${n.at ? mailAt(n.at) : ''}</p></div>`).join('')}</div>` : ''}
+      ${horns.length ? `<h2>${icon('horn')}Messages reçus à la corne</h2><div class="mail-list horn-list">${horns.map(n => `<div class="mail-item"><p class="mail-text">${esc(n.text)}</p><p class="mail-meta">${n.at ? mailAt(n.at) : ''}</p>
+        <div class="mail-actions">${mailView.del === n.key ? `<button type="button" class="link small danger" data-horn-del-ok="${esc(n.key)}">Effacer ce message</button><button type="button" class="link small" data-mail-del-no>Non</button>` : `<button type="button" class="link small" data-mail-del="${esc(n.key)}">Effacer</button>`}</div></div>`).join('')}</div>` : ''}
       ${mailFormHtml()}
       ${pm ? `<h2>${icon('mailbox')}Boîte aux lettres${mailNew() ? ` (${mailNew()} nouveau${mailNew() > 1 ? 'x' : ''})` : ''}</h2>
-        ${mails.length ? `<div class="mail-list">${mails.map(mailItemHtml).join('')}</div>` : '<p class="reserved">La boîte est vide.</p>'}`
+        ${mailNew() ? `<div class="mail-list">${mails.filter(([, m]) => m.status === 'new').map(mailItemHtml).join('')}</div>` : '<p class="reserved">Aucun nouveau message.</p>'}
+        ${doneMails().length ? `<p><button type="button" class="link" data-board-tab="archives">Messages traités et annonces archivées : voir les archives</button></p>` : ''}`
       : mails.length ? `<h2>Tes messages déposés</h2><div class="mail-list">${mails.map(mailItemHtml).join('')}</div>` : ''}
-    </section>`;
+    </section>`}`;
 }
 const boardRefresh = () => { if (current !== 'tableau' && current !== 'home') return; const y = window.scrollY, h = fullH();
   if (current === 'tableau') renderBoard(); else renderHome(); holdHeight(h); window.scrollTo({ top: y }); holdPlace(null, y); };
@@ -1560,7 +1581,21 @@ document.addEventListener('click', e => { const t = e.target;
       if (key.startsWith('mail:')) { const mid = key.slice(5); MAIL[mid].status = 'posted'; window.RP_SYNC?.updateMail?.(mid, { status: 'posted' }); } }
     Object.assign(mailView, { edit: null, noteEdit: null, newNote: false }); return boardRefresh();
   }
-  const nd = t.closest('[data-note-del]'); if (nd && isPostmaster()) { saveNote(nd.dataset.noteDel, null); return boardRefresh(); }
+  const bt = t.closest('[data-board-tab]'); if (bt) { Object.assign(mailView, { tab: bt.dataset.boardTab, noteDel: null, clear: null, del: null, edit: null }); boardRefresh(); return window.scrollTo({ top: 0 }); }
+  const nd = t.closest('[data-note-del]'); if (nd && isPostmaster()) { mailView.noteDel = nd.dataset.noteDel; return boardRefresh(); }
+  if (t.closest('[data-note-del-no]')) { mailView.noteDel = null; return boardRefresh(); }
+  const nk = t.closest('[data-note-del-ok]'); if (nk && isPostmaster()) { saveNote(nk.dataset.noteDelOk, null); mailView.noteDel = null; return boardRefresh(); }
+  const na = t.closest('[data-note-arch]'); if (na && isPostmaster()) { const id = na.dataset.noteArch; BOARD.notes[id].archivedAt = Date.now();
+    window.RP_SYNC?.setNoteArchived?.(id, BOARD.notes[id].archivedAt); boardToDiscord(); return boardRefresh(); }
+  const nb = t.closest('[data-note-back]'); if (nb && isPostmaster()) { const id = nb.dataset.noteBack; delete BOARD.notes[id].archivedAt;
+    window.RP_SYNC?.setNoteArchived?.(id, null); boardToDiscord(); return boardRefresh(); }
+  const cl = t.closest('[data-arch-clear]'); if (cl) { mailView.clear = cl.dataset.archClear; return boardRefresh(); }
+  if (t.closest('[data-arch-clear-no]')) { mailView.clear = null; return boardRefresh(); }
+  const ck = t.closest('[data-arch-clear-ok]'); if (ck && isPostmaster()) {
+    if (ck.dataset.archClearOk === 'notes') archivedNotes().forEach(([id]) => saveNote(id, null));
+    else doneMails().forEach(([id]) => { delete MAIL[id]; window.RP_SYNC?.deleteMail?.(id); });
+    mailView.clear = null; return boardRefresh(); }
+  const hd = t.closest('[data-horn-del-ok]'); if (hd) { dropNews([hd.dataset.hornDelOk]); mailView.del = null; return boardRefresh(); }
   const hs = t.closest('[data-horn-send]'); if (hs && isPostmaster()) {
     const id = hs.dataset.hornSend, m = MAIL[id], text = hs.closest('[data-horn-form]').querySelector('[data-horn-text]').value.replace(/\s+$/, '');
     if (!text.trim()) return; const tp = playerOf(m.to);
