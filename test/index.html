@@ -377,6 +377,11 @@ html, body, #view { overflow-anchor: none; }
 .sh-fiche-item button { justify-self: start; }
 @media (max-width: 560px) { .sh-bones { grid-template-columns: repeat(2, 1fr); row-gap: .9rem; } }
 @media (prefers-reduced-motion: reduce) { .sh-slot.landed .sh-bone, #sh-aug.show .sh-aug { animation: none; } }
+.ev-archives { margin-top: 1.2rem; text-align: left; }
+.ev-archives > summary { cursor: pointer; color: var(--gold); }
+.ev-arch { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; justify-content: space-between; padding: .5rem 0; border-top: 1px solid var(--rule); }
+.ev-arch > div { display: grid; gap: .1rem; min-width: 0; }
+.ev-arch small { color: var(--dim); }
 .evd-act { display: grid; gap: .35rem; padding: .75rem .85rem; margin: .6rem 0; border: 1px solid var(--gold); border-radius: 8px; background: color-mix(in srgb, var(--gold) 7%, var(--surface)); text-align: left; }
 .evd-head { display: flex; align-items: flex-start; justify-content: space-between; gap: .5rem; }
 .evd-head h3 { margin: 0; font-size: 1.05rem; overflow-wrap: anywhere; }
@@ -852,6 +857,6 @@ button.link.danger { color: #e0a24d; }
 <div class="sync-state" id="sync-state" aria-live="polite"></div>
 </div>
 
-<script src="app.js?v=3ba5e7c571" charset="utf-8"></script>
+<script src="app.js?v=32174c96e3" charset="utf-8"></script>
 <script type="module" src="sync.js?v=ef6b938dd3"></script>
 

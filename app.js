@@ -835,7 +835,12 @@ const evStart = e => e.date || isoDay(new Date(e.at));
 const evOn = (e, iso) => evStart(e) <= iso && iso <= (e.until || evStart(e));
 const evWhen = e => { const a = evStart(e), t = isoDay(rpDay);
   return e.until && e.until !== a ? (a > t ? `du ${fmtIso(a)} au ${fmtIso(e.until)}` : `jusqu'au ${fmtIso(e.until)}`) : a > t ? `le ${fmtIso(a)}` : a === t ? "aujourd'hui" : `depuis le ${fmtIso(a)}`; };
-const activeEvents = () => Object.entries(GROUP_EVENTS).filter(([, e]) => e && (!e.until || e.until >= isoDay(rpDay)))
+// Événement du jour archivé trois jours après sa date (ex. : le 20 → archivé le 23) : il quitte l'accueil et reste
+// consultable dans les archives du calendrier, avec ses actions. Rien n'est supprimé.
+const evArchiveFrom = () => { const d = new Date(rpDay); d.setDate(d.getDate() - 3); return isoDay(d); };
+const evArchived = e => !!e?.daily && evStart(e) <= evArchiveFrom();
+const archivedDaily = () => Object.entries(GROUP_EVENTS).filter(([, e]) => evArchived(e)).sort((a, b) => evStart(b[1]).localeCompare(evStart(a[1])) || b[1].at - a[1].at);
+const activeEvents = () => Object.entries(GROUP_EVENTS).filter(([, e]) => e && !evArchived(e) && (!e.until || e.until >= isoDay(rpDay)))
   .sort((a, b) => evStart(a[1]).localeCompare(evStart(b[1])) || a[1].at - b[1].at);
 const evView = { open: false, del: null, type: 'info', daily: false };
 const evCal = { y: null, m: null, sel: null };   // calendrier des événements : mois affiché et jour choisi
@@ -933,8 +938,13 @@ function renderEvents() {
         ${calSpecialsHtml(isoDate(sel))}
         ${selList.length ? selList.map(evCardHtml).join('') : calSpecials(isoDate(sel)).length ? '' : '<p class="reserved">Aucun événement ce jour-là.</p>'}</div>` : ''}
       ${evFormHtml(sel && sel >= isoDay(rpDay) ? sel : isoDay(rpDay))}
+      ${(A => A.length ? `<details class="ev-archives"${evView.arch ? ' open' : ''}><summary>${icon('checks')}Archives des événements du jour (${A.length})</summary>
+        ${A.map(([id, e]) => { const n = evDayActs(e).length, P = evDayPeople(e).length;
+          return `<div class="ev-arch"><div><b>${esc(e.text)}</b><small>${fmtIso(evStart(e))} · ${n} action${n > 1 ? 's' : ''}${P ? ` · ${P} personnage${P > 1 ? 's' : ''}` : ''}</small></div>
+            <button type="button" class="link small" data-evday-open="${id}">Voir les actions</button></div>`; }).join('')}</details>` : '')(archivedDaily())}
     </section>`;
 }
+document.addEventListener('toggle', e => { if (e.target.classList?.contains('ev-archives')) evView.arch = e.target.open; }, true);
 // Réaffichage de l'accueil ou du calendrier sans saut de page (même cale que pour les fiches).
 const openEventsOn = iso => {
   const d = /^\d{4}-\d\d-\d\d$/.test(iso || '') ? iso : isoDay(rpDay), [y, m] = d.split('-').map(Number);
@@ -1057,7 +1067,7 @@ function renderEvDay() {
     <header><p class="kicker">Événement du jour · ${esc(evType(e.type).label)}</p><h1>${esc(e.text)}</h1>
       <p class="evd-when">${evWhen(e).replace(/^./, c => c.toUpperCase())} · annoncé par ${esc(PLAYER_NAME[e.by] || '?')}</p></header>
     <section>
-      <p class="reserved">${closed ? 'L\'événement est passé : les actions restent visibles.' : 'Chaque personnage inscrit les actions qu\'il entreprend, ou rejoint celles proposées par les autres. Le jour J, elles s\'ajoutent à la fiche depuis « Activités communes du jour ».'}</p>
+      <p class="reserved">${evArchived(e) ? 'Événement archivé : ses actions restent consultables ici et dans les archives du calendrier.' : closed ? 'L\'événement est passé : les actions restent visibles.' : 'Chaque personnage inscrit les actions qu\'il entreprend, ou rejoint celles proposées par les autres. Le jour J, elles s\'ajoutent à la fiche depuis « Activités communes du jour ».'}</p>
       ${A.length ? A.map(x => evDayCardHtml(id, e, x)).join('') : '<p class="reserved">Aucune action pour l\'instant.</p>'}
       ${closed || !mine.length ? '' : `<details class="ev-new evd-new"${evDay.open || !A.length ? ' open' : ''}><summary>${icon('plus')}Proposer une action</summary>
         <div class="ev-form">
