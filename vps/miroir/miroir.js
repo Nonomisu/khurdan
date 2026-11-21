@@ -8,12 +8,14 @@
 // Dans Journée RP, le service n'écrit QUE dans la collection « iloh » (iloh/{personnage}/months/{AAAA-MM}) :
 // les activités communes acceptées dans Iloh pour les 10 personnages recopiés (retour demandé, voir copyBack),
 // et la liste des noms des personnages propres à Iloh (iloh/_noms/months/liste, voir copyNames).
+// Le pont (pont.js) y dépose aussi le résumé de l'Iloh du jour (iloh/_live/months/{AAAA-MM-JJ}).
 // Il ne touche jamais aux journées, fiches ou réglages de Journée RP.
 'use strict';
 process.env.TZ = 'Europe/Paris';
 const admin = require('firebase-admin');
 const { FieldPath, FieldValue } = require('firebase-admin/firestore');
 const T = require('./transform');
+const P = require('./pont');   // Iloh ↔ Journée RP : résumé de l'Iloh et gestes faits dans Journée RP (voir pont.js)
 
 const need = k => { const v = process.env[k]; if (!v) { console.error(`Variable ${k} manquante (chemin de la clé de service).`); process.exit(1); } return v; };
 const srcKey = require(need('SRC_KEY')), dstKey = require(need('DST_KEY'));
@@ -189,6 +191,7 @@ async function watch() {
   subs.push(src.doc(`shared/day-${iso}`).onSnapshot(guard('journée')(s => copyDay(iso, s.data()))));
   subs.push(src.doc('shared/global').onSnapshot(guard('réglages')(s => copyGlobal(s.data()))));
   copyNames().catch(e => console.error('noms', e.message || e));
+  P.start(src, dst, today);
   log(`écoute de Journée RP pour la journée du ${iso} (${subs.length} documents)`);
 }
 
@@ -223,5 +226,5 @@ if (process.argv.includes('--tout')) {
   start();
   // Nouvelle journée RP (5 h) : on suit les nouveaux documents du jour (et du mois).
   setInterval(() => { if (isoOf(rpDate()) !== watchingIso) start(); }, 5 * 60e3);
-  process.on('SIGINT', () => { subs.forEach(u => u()); process.exit(0); });
+  process.on('SIGINT', () => { subs.forEach(u => u()); P.stop(); process.exit(0); });
 }

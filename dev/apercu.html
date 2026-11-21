@@ -2158,7 +2158,8 @@ const joinRepost = id => { if (current === id) { setTimeout(() => window.RP_DISC
 // Côté joueur qui s'est joint : une fois acceptée, l'activité s'ajoute sur la fiche de ses personnages (le même jour), sans tirage.
 const applyJoins = () => {
   Object.entries(JOINS).forEach(([id, j]) => {
-    if (!j || j.p !== me || j.status !== 'ok' || j.applied || joinApplied.has(id) || j.day !== isoDay(rpDay)) return;
+    // Demande faite depuis Journée RP : l'activité s'ajoute là-bas, sur la fiche d'origine du personnage (pas dans les compléments Iloh).
+    if (!j || j.via === 'jrp' || j.p !== me || j.status !== 'ok' || j.applied || joinApplied.has(id) || j.day !== isoDay(rpDay)) return;
     joinApplied.add(id);
     j.chars.filter(c => isChar(c) && playerOf(c) === me && state[c]).forEach(c => {
       const s = state[c], cc = C.find(x => x.id === c);

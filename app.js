@@ -1348,7 +1348,8 @@ const joinRepost = id => { if (current === id) { setTimeout(() => window.RP_DISC
 // Côté joueur qui s'est joint : une fois acceptée, l'activité s'ajoute sur la fiche de ses personnages (le même jour), sans tirage.
 const applyJoins = () => {
   Object.entries(JOINS).forEach(([id, j]) => {
-    if (!j || j.p !== me || j.status !== 'ok' || j.applied || joinApplied.has(id) || j.day !== isoDay(rpDay)) return;
+    // Demande faite depuis Journée RP : l'activité s'ajoute là-bas, sur la fiche d'origine du personnage (pas dans les compléments Iloh).
+    if (!j || j.via === 'jrp' || j.p !== me || j.status !== 'ok' || j.applied || joinApplied.has(id) || j.day !== isoDay(rpDay)) return;
     joinApplied.add(id);
     j.chars.filter(c => isChar(c) && playerOf(c) === me && state[c]).forEach(c => {
       const s = state[c], cc = C.find(x => x.id === c);
@@ -4055,6 +4056,7 @@ const openFromLink = () => {
     // Notification d'un projet : ?projets ouvre la page des projets.
     if (q.has('tableau')) { go('tableau'); history.replaceState(null, '', location.pathname + location.hash); return true; }
     if (q.has('projets')) { go('projets'); history.replaceState(null, '', location.pathname + location.hash); return true; }
+    if (q.has('logistique')) { go('logistique'); history.replaceState(null, '', location.pathname + location.hash); return true; }
     if (q.has('shagai')) { shView.focus = q.get('shagai') || null; go('shagai'); history.replaceState(null, '', location.pathname + location.hash); return true; }
     if (q.has('evenement')) { openEvDay(q.get('evenement')); history.replaceState(null, '', location.pathname + location.hash); return true; }
     if (q.has('evenements')) { openEventsOn(q.get('evenements')); history.replaceState(null, '', location.pathname + location.hash); return true; }

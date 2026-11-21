@@ -25,7 +25,7 @@ const who = x => typeof x !== 'string' || ILOH.includes(x) ? x : (JRP_NAMES[x] |
 
 // Champs de la journée qui ne sont pas repris.
 const DROP_KEYS = ['reopens', 'intime', 'intimeWith', 'jais', 'set', 'setLate', 'lateAt', 'wait', 'door', 'callPartner', 'returnHour',
-  'discordMsg', 'film', 'nefaste', 'night', 'hideIloh', 'privWith'];
+  'discordMsg', 'film', 'nefaste', 'night', 'hideIloh', 'privWith', 'ilohOps'];
 // Activités intimes : « Sexe avec … », « Plaisir en solo sur Moonstone » et celles marquées « intime » dans Journée RP
 // (shared/global → privActs, voir setPrivate) : jamais recopiées.
 const PRIV = new Set();
@@ -143,4 +143,5 @@ function withNews(id, date, pub) {
   return out;
 }
 
-module.exports = { setPrivate, MIRROR, ILOH_ONLY, ilohNames, withNews, COUPLES, ILOH, coupleOf, who, publicEntry, hotNight, lovers, protectFor, charDoc, todayDoc, isPrivateAct, hiddenOf, ilohBack, ilohBackMonth };
+const noms = () => Object.keys(NOMS).length ? NOMS : Object.fromEntries(ILOH.map(x => [x, { name: nameOf(x) }]));
+module.exports = { noms, setPrivate, MIRROR, ILOH_ONLY, ilohNames, withNews, COUPLES, ILOH, coupleOf, who, publicEntry, hotNight, lovers, protectFor, charDoc, todayDoc, isPrivateAct, hiddenOf, ilohBack, ilohBackMonth };
