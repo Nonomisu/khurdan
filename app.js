@@ -874,7 +874,8 @@ const addEvAct = (id, evId) => {
   if (!allActs(c).includes(l) && !s.specials.includes(l)) s.specials.push(l);
   s.checked.add(l);
   goingOf(e).filter(o => o !== id).forEach(o => setWith(id, l, o, true, true));   // les autres participants, sans nouvelle
-  saveComplement(id);
+  (s.withFrom ||= {})[l] = 'evenement';   // déjà dans l'événement : pas re-proposé aux autres comme activité commune
+  joinSave(id);
 };
 // Anniversaires des personnages et grands jours khurdans (transhumances, Naadam, Mois Blanc) : affichés au calendrier.
 const calSpecials = d => { const k = C.find(c => c.groups.includes('Khurdans'));
@@ -1034,7 +1035,8 @@ const addEvDayToFiche = (id, evId, aid) => {
   if (!allActs(c).includes(l) && !s.specials.includes(l)) s.specials.push(l);
   s.checked.add(l);
   evDayWho(a).filter(o => o !== id).forEach(o => setWith(id, l, o, true, true));   // les autres participants, sans nouvelle
-  saveComplement(id);
+  (s.withFrom ||= {})[l] = 'evenement';   // déjà dans l'événement : pas re-proposé aux autres comme activité commune
+  joinSave(id);
 };
 document.addEventListener('click', e => { const b = e.target.closest('[data-evd-fiche]'); if (!b || !isChar(current)) return;
   const [evId, aid] = b.dataset.evdFiche.split(':'); addEvDayToFiche(current, evId, aid); renderChar(current); });
