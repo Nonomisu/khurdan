@@ -2,7 +2,7 @@
 // ---------- Persistance : ce que sync.js lit et enregistre dans Firestore ----------
 // Journée d'un personnage (champs enregistrés ; le reste de state[id] ne sert qu'à l'affichage).
 const ENTRY_KEYS = ['withFrom', 'mood', 'checked', 'specials', 'slots', 'places', 'region', 'zone', 'trip', 'done', 'doneAt', 'phys', 'physNote',
-  'details', 'mental', 'stateNotes', 'nightStates', 'nightNote', 'nightNotes', 'huntSet', 'faits', 'dayEvents', 'infos', 'violet', 'contractOff', 'discordMsg', 'withActs'];
+  'details', 'mental', 'stateNotes', 'nightStates', 'nightNote', 'nightNotes', 'huntSet', 'faits', 'dayEvents', 'infos', 'violet', 'contractOff', 'discordMsg', 'withActs', 'joinedOf', 'huntCrew'];
 const freshEntry = () => ({ mood:'', checked:new Set(), specials:[], slots:{}, places:new Set(), done:false, phys:new Set(), mental:new Set(), stateNotes:{}, nightStates:new Set() });
 // Firestore ne connaît ni les Set ni les Date : on les encode.
 const enc = v => v instanceof Set ? { $set: [...v].map(enc) } : v instanceof Date ? { $date: v.toISOString() }
@@ -160,17 +160,20 @@ window.RP_APP = {
   mirrors: () => C.filter(c => c.mirror).map(c => c.id),
   // Fiche recopiée + compléments Iloh (forme enregistrée : ensembles en { $set: [...] }).
   mergeExtra: (id, e, x) => {
-    if (!x || (!x.added?.length && !Object.keys(x.withActs || {}).length)) return e;
+    if (!x || (!x.added?.length && !Object.keys(x.withActs || {}).length && !Object.keys(x.huntCrew || {}).length)) return e;
     const out = JSON.parse(JSON.stringify(e || {})), c = C.find(k => k.id === id), set = new Set(out.checked?.$set || []);
     (x.added || []).forEach(l => { set.add(l); if (!allActs(c).includes(l)) { out.specials ||= []; if (!out.specials.includes(l)) out.specials.push(l); } });
     out.checked = { $set: [...set] };
     if (x.slots) out.slots = { ...(out.slots || {}), ...x.slots };
     out.withActs = { ...(out.withActs || {}), ...(x.withActs || {}) };
     if (x.withFrom) out.withFrom = { ...(out.withFrom || {}), ...x.withFrom };
+    if (x.joinedOf && Object.keys(x.joinedOf).length) out.joinedOf = { ...(out.joinedOf || {}), ...x.joinedOf };
+    if (x.huntCrew && Object.keys(x.huntCrew).length) out.huntCrew = { ...(out.huntCrew || {}), ...x.huntCrew };
     return out;
   },
   applyRequests: list => { Object.keys(REQUESTS).forEach(k => delete REQUESTS[k]); list.forEach(({ id, ...r }) => { REQUESTS[id] = r; }); },
   applyIloh: d => { if (d?.guests) { Object.keys(ILOH_GUESTS).forEach(k => delete ILOH_GUESTS[k]); Object.assign(ILOH_GUESTS, d.guests); } },
+  applyJoins: list => { Object.keys(JOINS).forEach(k => delete JOINS[k]); list.forEach(({ id, ...j }) => { JOINS[id] = j; }); applyJoins(); },
   applyShagai: list => { Object.keys(SHAGAI).forEach(k => delete SHAGAI[k]); list.forEach(({ id, ...d }) => { SHAGAI[id] = d; }); },
   applyMail: list => { Object.keys(MAIL).forEach(k => delete MAIL[k]); list.forEach(({ id, ...m }) => { MAIL[id] = m; }); },
   applyBoard: d => { BOARD.notes = d?.notes || {}; BOARD.discordMsg = d?.discordMsg || null; },

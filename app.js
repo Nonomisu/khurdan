@@ -324,7 +324,8 @@ const canComplete = id => isMirror(id) && playerOf(id) === me;
 const mirrorBase = id => new Set(window.RP_SYNC?.rawToday?.(id)?.checked?.$set || []);
 const extraOf = id => {
   const s = state[id], base = mirrorBase(id), added = [...s.checked].filter(l => !base.has(l));
-  return { added, slots: Object.fromEntries(added.filter(l => s.slots?.[l]?.length).map(l => [l, [...s.slots[l]]])), withActs: JSON.parse(JSON.stringify(s.withActs || {})), withFrom: { ...(s.withFrom || {}) } };
+  return { added, slots: Object.fromEntries(added.filter(l => s.slots?.[l]?.length).map(l => [l, [...s.slots[l]]])), withActs: JSON.parse(JSON.stringify(s.withActs || {})), withFrom: { ...(s.withFrom || {}) },
+    joinedOf: { ...(s.joinedOf || {}) }, huntCrew: JSON.parse(JSON.stringify(s.huntCrew || {})) };
 };
 const saveComplement = id => { if (canComplete(id)) window.RP_SYNC?.saveExtra?.(id, extraOf(id)); };
 const complOpen = new Set();
@@ -1305,6 +1306,99 @@ const shagaiFicheHtml = id => {
     return `<div class="sh-fiche-item"><span>${id === SHAMAN ? `Pour ${esc(shWho(d))}` : 'Demande à Henbilee'}${d.q ? ` · « ${esc(d.q)} »` : ''}</span>
       ${a && !secret ? `<span><span class="sh-pill ${a[1]}">${esc(a[0])}</span> <i>« ${esc(a[2])} »</i></span>` : `<small>${secret ? 'Les osselets sont lancés.' : esc(shStatus(d))}</small>`}
       <button type="button" class="link small" data-shagai-open="${sid}">${secret ? 'Voir le tirage' : 'Ouvrir le shagaï'}</button></div>`; }).join('')}</div>`; };
+// ---------- « J'y participe aussi » : se joindre à l'activité d'une fiche validée d'un autre joueur ----------
+// joins/{id} = { host (fiche d'origine), act, chars: [personnages qui se joignent], p (joueur qui demande), day (AAAA-MM-JJ), at,
+//   status: 'asked' | 'ok' | 'no', applied (ajouté sur les fiches des personnages qui se joignent) }.
+// Le joueur de la fiche d'origine accepte d'un appui : la fiche reste validée et est republiée sur Discord.
+// Aucun tirage n'est refait : la chasse garde ses chasseurs d'origine (huntCrew) et ceux qui se joignent ne tirent rien (joinedOf).
+const JOINS = {};
+const joinView = { host: null, act: null, sel: new Set() };
+const joinApplied = new Set(), joinRepostIds = new Set();
+const joinsOf = host => Object.entries(JOINS).filter(([, j]) => j && j.host === host && j.day === isoDay(rpDay));
+const joinPending = (host, act) => joinsOf(host).filter(([, j]) => j.act === act && j.status === 'asked');
+const joinSave = id => isMirror(id) ? saveComplement(id) : window.RP_SYNC?.save?.();
+const askJoin = (host, act, chars) => {
+  if (!chars.length) return;
+  const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6), at = Date.now();
+  const j = { host, act, chars, p: me, day: isoDay(rpDay), at, status: 'asked' };
+  JOINS[id] = j; window.RP_SYNC?.saveJoin?.(id, j);
+  const hp = playerOf(host);
+  if (hp && hp !== me) NEWS.unshift({ to: hp, text: `${andList(chars.map(nameOf))} ${chars.length > 1 ? 'ont' : 'a'} aussi participé à « ${act} » avec ${nameOf(host)}. À accepter sur sa fiche.`,
+    charId: host, key: `join:${id}`, read: false, at });
+};
+const cancelJoin = id => { const j = JOINS[id]; if (!j || j.p !== me || j.status !== 'asked') return;
+  delete JOINS[id]; window.RP_SYNC?.deleteJoin?.(id); dropNews([`join:${id}`]); };
+const answerJoin = (id, ok) => {
+  const j = JOINS[id], s = state[j?.host]; if (!j || j.status !== 'asked' || playerOf(j.host) !== me || !s) return;
+  ok = ok && s.checked.has(j.act);
+  if (ok) {   // la fiche d'abord, la réponse ensuite (une écriture peut recharger la fiche)
+    // La chasse est déjà tirée : on fige ses chasseurs d'origine avant d'ajouter les nouveaux (un chasseur expert ajouté ne change rien).
+    if (HUNTS[j.host]?.acts?.[j.act]) { s.huntCrew ||= {}; if (!(j.act in s.huntCrew)) s.huntCrew[j.act] = withOf(s.withActs, j.act); }
+    j.chars.filter(isChar).forEach(c => setWith(j.host, j.act, c, true, true));
+    joinSave(j.host);
+    if (!isMirror(j.host) && s.done) joinRepost(j.host);   // fiche de l'Iloh : republiée ; fiche recopiée : mise à jour par le suivi des recopies
+  }
+  j.status = ok ? 'ok' : 'no'; window.RP_SYNC?.updateJoin?.(id, { status: j.status });
+  dropNews([`join:${id}`]);
+  if (j.p !== me) NEWS.unshift({ to: j.p, text: ok ? `${nameOf(j.host)} accepte : ${andList(j.chars.map(nameOf))} ${j.chars.length > 1 ? 'sont ajoutés' : 'est ajouté·e'} à « ${j.act} ».`
+      : `${nameOf(j.host)} n'a pas retenu la participation de ${andList(j.chars.map(nameOf))} à « ${j.act} ».`, charId: j.chars[0] || null, key: `join:${id}:${ok ? 'ok' : 'no'}`, read: false, at: Date.now() });
+};
+// Fiche (de l'Iloh) déjà validée et modifiée : republiée sur Discord, une fois affichée (l'image est prise à l'écran).
+const joinRepost = id => { if (current === id) { setTimeout(() => window.RP_DISCORD?.send?.(id), 400); joinRepostIds.delete(id); } else joinRepostIds.add(id); };
+// Côté joueur qui s'est joint : une fois acceptée, l'activité s'ajoute sur la fiche de ses personnages (le même jour), sans tirage.
+const applyJoins = () => {
+  Object.entries(JOINS).forEach(([id, j]) => {
+    if (!j || j.p !== me || j.status !== 'ok' || j.applied || joinApplied.has(id) || j.day !== isoDay(rpDay)) return;
+    joinApplied.add(id);
+    j.chars.filter(c => isChar(c) && playerOf(c) === me && state[c]).forEach(c => {
+      const s = state[c], cc = C.find(x => x.id === c);
+      if (!allActs(cc).includes(j.act) && !s.specials.includes(j.act)) s.specials.push(j.act);
+      s.checked.add(j.act);
+      if (!s.slots[j.act]?.length && state[j.host]?.slots?.[j.act]?.length) s.slots[j.act] = [...state[j.host].slots[j.act]];
+      (s.withFrom ||= {})[j.act] = j.host; (s.joinedOf ||= {})[j.act] = j.host;
+      [j.host, ...j.chars.filter(o => o !== c)].forEach(o => setWith(c, j.act, o, true, true));
+      joinSave(c);
+      if (!isMirror(c) && s.done) joinRepost(c);
+    });
+    window.RP_SYNC?.updateJoin?.(id, { applied: true });
+  });
+};
+// Sur la fiche validée d'un autre joueur : « J'y participe aussi » ; sur sa propre fiche : les demandes à accepter.
+const joinsFicheHtml = id => {
+  const s = state[id]; if (!s?.done || !isChar(id)) return '';
+  const own = playerOf(id) === me, L = joinsOf(id);
+  if (own) { const ask = L.filter(([, j]) => j.status === 'asked'); if (!ask.length) return '';
+    return `<div class="joins"><p class="shared-h">${icon('users')}Ils y ont participé aussi</p>${ask.map(([jid, j]) => `<div class="shared-item"><span>${esc(PLAYER_NAME[j.p] || '?')} : ${esc(andList(j.chars.map(nameOf)))} ${j.chars.length > 1 ? 'ont' : 'a'} aussi participé à « ${esc(j.act)} ».</span>
+      <span class="join-ans"><button type="button" class="btn small" data-join-ok="${jid}">Accepter</button><button type="button" class="link small" data-join-no="${jid}">Refuser</button></span></div>`).join('')}
+      <p class="reserved">Accepter ajoute ${L.length > 1 ? 'ces personnages' : 'ce personnage'} sur la fiche, sans la rouvrir, et la republie sur Discord. Les tirages restent les mêmes.</p></div>`; }
+  const mine = C.filter(c => c.player === me && c.id !== id); if (!mine.length) return '';
+  const acts = [...s.checked].filter(canShareAct); if (!acts.length) return '';
+  const myAsk = L.filter(([, j]) => j.p === me && j.status === 'asked');
+  const open = joinView.host === id;
+  return `<details class="joins join-me"${open || myAsk.length ? ' open' : ''}><summary>${icon('plus')}J'y participe aussi</summary>
+    <p class="reserved">Ton personnage était là ? Choisis l'activité : ${esc(PLAYER_NAME[playerOf(id)] || 'son joueur')} n'a plus qu'à accepter.</p>
+    ${acts.map(l => { const w = withOf(s.withActs, l), pend = joinPending(id, l).flatMap(([, j]) => j.chars), free = mine.filter(c => !w.includes(c.id) && !pend.includes(c.id));
+      const sel = open && joinView.act === l;
+      return `<div class="join-act${sel ? ' on' : ''}"><div class="join-act-h"><span>${esc(l)}${w.length ? ` <small>avec ${esc(andList(w.map(nameOf)))}</small>` : ''}</span>
+        ${free.length && !sel ? `<button type="button" class="link small" data-join-pick="${esc(l)}">J'y étais aussi</button>` : ''}</div>
+        ${myAsk.filter(([, j]) => j.act === l).map(([jid, j]) => `<p class="join-wait"><small>En attente : ${esc(andList(j.chars.map(nameOf)))}</small> <button type="button" class="link small" data-join-cancel="${jid}">Annuler</button></p>`).join('')}
+        ${sel ? `<div class="join-who"><small>Qui y était ?</small><div class="place-list subs" role="group" aria-label="Qui y était ?">${free.map(c => `<button type="button" data-join-who="${c.id}" aria-pressed="${joinView.sel.has(c.id)}">${esc(c.name)}</button>`).join('')}</div></div>
+          <div class="mail-actions"><button type="button" class="btn small" data-join-send="${esc(l)}"${joinView.sel.size ? '' : ' disabled'}>Envoyer à ${esc(PLAYER_NAME[playerOf(id)] || 'son joueur')}</button><button type="button" class="link small" data-join-close>Annuler</button></div>` : ''}</div>`; }).join('')}
+  </details>`;
+};
+const joinRefresh = () => { const y = window.scrollY, h = fullH(); renderChar(current); holdHeight(h); window.scrollTo({ top: y }); holdPlace(null, y); };
+document.addEventListener('click', e => { const t = e.target; if (!isChar(current)) return;
+  const pk = t.closest('[data-join-pick]'); if (pk) { const free = C.filter(c => c.player === me && c.id !== current);
+    Object.assign(joinView, { host: current, act: pk.dataset.joinPick, sel: new Set() });
+    const w = withOf(state[current].withActs, joinView.act), pend = joinPending(current, joinView.act).flatMap(([, j]) => j.chars), avail = free.filter(c => !w.includes(c.id) && !pend.includes(c.id));
+    if (avail.length === 1) joinView.sel.add(avail[0].id); return joinRefresh(); }
+  const wh = t.closest('[data-join-who]'); if (wh) { const c = wh.dataset.joinWho; joinView.sel.has(c) ? joinView.sel.delete(c) : joinView.sel.add(c); return joinRefresh(); }
+  if (t.closest('[data-join-close]')) { Object.assign(joinView, { host: null, act: null, sel: new Set() }); return joinRefresh(); }
+  const sd = t.closest('[data-join-send]'); if (sd && joinView.sel.size) { askJoin(current, sd.dataset.joinSend, [...joinView.sel]); Object.assign(joinView, { host: current, act: null, sel: new Set() }); return joinRefresh(); }
+  const cc = t.closest('[data-join-cancel]'); if (cc) { cancelJoin(cc.dataset.joinCancel); return joinRefresh(); }
+  const ok = t.closest('[data-join-ok]'); if (ok) { answerJoin(ok.dataset.joinOk, true); return joinRefresh(); }
+  const no = t.closest('[data-join-no]'); if (no) { answerJoin(no.dataset.joinNo, false); return joinRefresh(); }
+});
 // ---------- Projets de l'Iloh : objectifs communs, une barre qui avance avec les activités liées ----------
 // shared/projects : { id: { title, desc, by (joueur), at, goal, acts: [activités liées], steps: [étapes], done (date) ou null,
 //   contrib: { 'personnage:AAAA-MM-JJ': { c, l (activité), p (joueur) } } } } — une participation par personnage et par jour.
@@ -2724,8 +2818,9 @@ const HUNTS = Object.fromEntries(C.map(c => [c.id, KHURDAN_HUNT]));
 HUNTS.ankhbayar = { ...KHURDAN_HUNT, odds: { solo: .9, group: .95 } };
 // Chasseurs expérimentés : leur présence dans une chasse de groupe (chasseur ou personnage noté « avec ») rend le mammouth plus probable.
 const EXPERT_HUNTERS = ['ankhbayar'];
-const huntWith = (id, label, day) => (sameDay(day, rpDay) ? state[id]?.withActs?.[label]
-  : typeof HISTORY !== 'undefined' ? HISTORY[id]?.[keyOf(day)]?.withActs?.[label] : null) || [];
+// Chasseurs pris en compte pour le tirage : ceux d'origine (huntCrew, figés quand d'autres se sont joints après coup), sinon les « avec ».
+const huntWith = (id, label, day) => { const e = sameDay(day, rpDay) ? state[id] : typeof HISTORY !== 'undefined' ? HISTORY[id]?.[keyOf(day)] : null;
+  return e?.huntCrew?.[label] || e?.withActs?.[label] || []; };
 // Tableau de chasse de l'année (wrap).
 const huntYear = (c, x) => {
   const outs = x.filled.flatMap(([d, r]) => r.acts.filter(a => HUNTS[c.id]?.acts[a]).map(a => huntFor(c.id, a, d)));
@@ -2754,6 +2849,8 @@ const huntManual = (id, label, day) => sameDay(day, rpDay) ? state[id]?.huntSet?
 const huntGame = (id, label) => { const h = HUNTS[id], mode = h?.acts[label]; return !mode ? [] : h.game.filter(g => mode === 'group' || !g.group).map(g => g.name); };
 const huntFor = (id, label, day = rpDay) => {
   const h = HUNTS[id], mode = h?.acts[label]; if (!mode) return null;
+  // Personnage qui s'est joint à la chasse d'un autre (« J'y participe aussi ») : pas de tirage, la prise est sur la fiche d'origine.
+  const je = sameDay(day, rpDay) ? state[id] : typeof HISTORY !== 'undefined' ? HISTORY[id]?.[keyOf(day)] : null; if (je?.joinedOf?.[label]) return null;
   const man = huntManual(id, label, day);
   if (Array.isArray(man)) return { mode, manual: true, catches: man.map(x => ({ name: x.name, qty: Math.max(1, +x.qty || 1) })) };
   const k = keyOf(day) + ':' + id + ':' + label;
@@ -3199,6 +3296,7 @@ function renderCharNow(id) {
     ${tabsHtml(id)}
     ${sharedActsHtml(id, canComplete(id))}
     ${shagaiFicheHtml(id)}
+    ${joinsFicheHtml(id)}
     ${canComplete(id) ? projFicheHtml(id) : ''}
     ${complementHtml(id)}
     ${readOnly ? `<p class="readonly-note">${icon('eye')}${isMirror(id) ? `Fiche tenue par ${PLAYER_NAME[c.player]} dans Journée RP, recopiée ici : lecture seule.` : `Fiche de ${PLAYER_NAME[c.player]} : lecture seule.`}</p>` : ''}
@@ -3269,6 +3367,7 @@ function renderCharNow(id) {
     <div class="chrono-part"><h3 class="chrono-h">Activités</h3>
       ${sharedActsHtml(id, true)}
       ${shagaiFicheHtml(id)}
+      ${joinsFicheHtml(id)}
       ${projFicheHtml(id)}
       ${cats.length ? '' : `<p class="reserved">Liste d'activités à définir. En attendant, utilise le champ « Activité spéciale » et coche « L'ajouter aussi à la liste ».</p>`}
       ${!s.manageActs && cats.length > 1 ? `<div class="fold-all"><button type="button" class="link small ico-btn" data-fold-all="1" title="Tout replier" aria-label="Tout replier">${icon('foldall')}</button><button type="button" class="link small ico-btn" data-fold-all="0" title="Tout déplier" aria-label="Tout déplier">${icon('unfoldall')}</button></div>` : ''}
@@ -3585,7 +3684,7 @@ function renderCharNow(id) {
   document.getElementById('done-'+id).addEventListener('click', () => { s.done = true; s.doneAt ??= Date.now(); renderNav(); renderChar(id); window.RP_SYNC?.saveNow(); window.RP_DISCORD?.send(id); });
 }
 
-function go(id) { resetSpacer(); lastPage = null; current = id; renderNav(); if (id !== 'home') fxOff(); id === 'home' ? renderHome() : id === 'events' ? renderEvents() : id === 'iloh' ? renderIloh() : id === 'liens' ? renderLinks() : id === 'search' ? renderSearch() : id === 'projets' ? renderProjects() : id === 'tableau' ? renderBoard() : id === 'evjour' ? renderEvDay() : id === 'shagai' ? renderShagai() : id === 'logistique' ? renderLogi() : renderChar(id); window.scrollTo({ top:0 }); }
+function go(id) { resetSpacer(); lastPage = null; current = id; renderNav(); if (id !== 'home') fxOff(); id === 'home' ? renderHome() : id === 'events' ? renderEvents() : id === 'iloh' ? renderIloh() : id === 'liens' ? renderLinks() : id === 'search' ? renderSearch() : id === 'projets' ? renderProjects() : id === 'tableau' ? renderBoard() : id === 'evjour' ? renderEvDay() : id === 'shagai' ? renderShagai() : id === 'logistique' ? renderLogi() : renderChar(id); window.scrollTo({ top:0 }); if (joinRepostIds.has(id)) joinRepost(id); }
 document.addEventListener('click', e => { const b = e.target.closest('[data-go]'); if (b) go(b.dataset.go); });
 document.addEventListener('click', async e => {
   const b = e.target.closest('[data-wrap-open]'); if (!b) return;
@@ -3616,7 +3715,7 @@ initPlaces();
 // ---------- Persistance : ce que sync.js lit et enregistre dans Firestore ----------
 // Journée d'un personnage (champs enregistrés ; le reste de state[id] ne sert qu'à l'affichage).
 const ENTRY_KEYS = ['withFrom', 'mood', 'checked', 'specials', 'slots', 'places', 'region', 'zone', 'trip', 'done', 'doneAt', 'phys', 'physNote',
-  'details', 'mental', 'stateNotes', 'nightStates', 'nightNote', 'nightNotes', 'huntSet', 'faits', 'dayEvents', 'infos', 'violet', 'contractOff', 'discordMsg', 'withActs'];
+  'details', 'mental', 'stateNotes', 'nightStates', 'nightNote', 'nightNotes', 'huntSet', 'faits', 'dayEvents', 'infos', 'violet', 'contractOff', 'discordMsg', 'withActs', 'joinedOf', 'huntCrew'];
 const freshEntry = () => ({ mood:'', checked:new Set(), specials:[], slots:{}, places:new Set(), done:false, phys:new Set(), mental:new Set(), stateNotes:{}, nightStates:new Set() });
 // Firestore ne connaît ni les Set ni les Date : on les encode.
 const enc = v => v instanceof Set ? { $set: [...v].map(enc) } : v instanceof Date ? { $date: v.toISOString() }
@@ -3774,17 +3873,20 @@ window.RP_APP = {
   mirrors: () => C.filter(c => c.mirror).map(c => c.id),
   // Fiche recopiée + compléments Iloh (forme enregistrée : ensembles en { $set: [...] }).
   mergeExtra: (id, e, x) => {
-    if (!x || (!x.added?.length && !Object.keys(x.withActs || {}).length)) return e;
+    if (!x || (!x.added?.length && !Object.keys(x.withActs || {}).length && !Object.keys(x.huntCrew || {}).length)) return e;
     const out = JSON.parse(JSON.stringify(e || {})), c = C.find(k => k.id === id), set = new Set(out.checked?.$set || []);
     (x.added || []).forEach(l => { set.add(l); if (!allActs(c).includes(l)) { out.specials ||= []; if (!out.specials.includes(l)) out.specials.push(l); } });
     out.checked = { $set: [...set] };
     if (x.slots) out.slots = { ...(out.slots || {}), ...x.slots };
     out.withActs = { ...(out.withActs || {}), ...(x.withActs || {}) };
     if (x.withFrom) out.withFrom = { ...(out.withFrom || {}), ...x.withFrom };
+    if (x.joinedOf && Object.keys(x.joinedOf).length) out.joinedOf = { ...(out.joinedOf || {}), ...x.joinedOf };
+    if (x.huntCrew && Object.keys(x.huntCrew).length) out.huntCrew = { ...(out.huntCrew || {}), ...x.huntCrew };
     return out;
   },
   applyRequests: list => { Object.keys(REQUESTS).forEach(k => delete REQUESTS[k]); list.forEach(({ id, ...r }) => { REQUESTS[id] = r; }); },
   applyIloh: d => { if (d?.guests) { Object.keys(ILOH_GUESTS).forEach(k => delete ILOH_GUESTS[k]); Object.assign(ILOH_GUESTS, d.guests); } },
+  applyJoins: list => { Object.keys(JOINS).forEach(k => delete JOINS[k]); list.forEach(({ id, ...j }) => { JOINS[id] = j; }); applyJoins(); },
   applyShagai: list => { Object.keys(SHAGAI).forEach(k => delete SHAGAI[k]); list.forEach(({ id, ...d }) => { SHAGAI[id] = d; }); },
   applyMail: list => { Object.keys(MAIL).forEach(k => delete MAIL[k]); list.forEach(({ id, ...m }) => { MAIL[id] = m; }); },
   applyBoard: d => { BOARD.notes = d?.notes || {}; BOARD.discordMsg = d?.discordMsg || null; },

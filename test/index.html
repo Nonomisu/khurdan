@@ -325,6 +325,15 @@ html, body, #view { overflow-anchor: none; }
 .cal-day .ev-count { position: absolute; top: 3px; right: 5px; font-style: normal; font-size: .65rem; color: var(--gold); line-height: 1; }
 .cal-day.sel .ev-count { color: var(--bg); }
 
+.joins { margin: .6rem 0; padding: .6rem .75rem; border: 1px solid var(--rule); border-radius: 8px; text-align: left; display: grid; gap: .45rem; }
+.joins > summary { cursor: pointer; color: var(--gold); font-weight: 600; }
+.join-act { display: grid; gap: .35rem; padding: .45rem 0; border-top: 1px solid var(--rule); }
+.join-act-h { display: flex; flex-wrap: wrap; gap: .5rem; align-items: baseline; justify-content: space-between; }
+.join-act-h small { color: var(--dim); }
+.join-wait { margin: 0; color: var(--dim); }
+.join-who { display: grid; gap: .3rem; }
+.join-who > small { color: var(--dim); }
+.join-ans { display: inline-flex; gap: .5rem; align-items: center; flex-wrap: wrap; }
 .sh-stage { display: grid; gap: .6rem; margin: .8rem 0 1.2rem; text-align: center; }
 .sh-stage h2 { justify-content: center; }
 .sh-q { margin: 0; font-style: italic; color: var(--dim); }
@@ -843,6 +852,6 @@ button.link.danger { color: #e0a24d; }
 <div class="sync-state" id="sync-state" aria-live="polite"></div>
 </div>
 
-<script src="app.js?v=c36898b442" charset="utf-8"></script>
-<script type="module" src="sync.js?v=96e30827ba"></script>
+<script src="app.js?v=90389fed47" charset="utf-8"></script>
+<script type="module" src="sync.js?v=ef6b938dd3"></script>
 

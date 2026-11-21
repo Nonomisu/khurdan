@@ -129,6 +129,10 @@ window.RP_SYNC = {
   newsOnce: (key, n) => noWrites ? Promise.resolve() : setDoc(newsRef(key), { ...n, key, read: false, from: me, createdAt: serverTimestamp() }).catch(() => {}),
   saveIloh: d => noWrites ? Promise.resolve() : setDoc(ilohRef, d, { merge: true }).catch(report),
   // Projets : création ou suppression d'un projet entier ; modification et participations champ par champ (rien ne s'écrase).
+  // « J'y participe aussi » (collection « joins » : demandes du jour pour se joindre à l'activité d'une autre fiche).
+  saveJoin: (id, j) => noWrites ? Promise.resolve() : setDoc(doc(db, 'joins', id), j).catch(report),
+  updateJoin: (id, patch) => noWrites ? Promise.resolve() : updateDoc(doc(db, 'joins', id), patch).catch(report),
+  deleteJoin: id => noWrites ? Promise.resolve() : deleteDoc(doc(db, 'joins', id)).catch(report),
   // Shagaï d'Henbilee (collection privée « shagai » : le joueur d'Henbilee et celui qui demande).
   saveShagai: (id, d) => noWrites ? Promise.resolve() : setDoc(doc(db, 'shagai', id), d).catch(report),
   updateShagai: (id, patch) => noWrites ? Promise.resolve() : updateDoc(doc(db, 'shagai', id), patch).catch(report),
@@ -345,6 +349,8 @@ function listen() {
   onSnapshot(ilohRef, s => { if (s.metadata.hasPendingWrites) return; A.applyIloh(s.data() || {}); A.rerender(); });
   onSnapshot(boardRef, s => { if (s.metadata.hasPendingWrites) return; A.applyBoard(s.data() || {}); A.rerender(); });
   // Boîte aux lettres : toute la boîte pour le joueur de Javkhaanhun, ses propres messages pour les autres.
+  onSnapshot(query(collection(db, 'joins'), where('day', '==', A.iso)), s => { A.applyJoins(s.docs.map(x => ({ id: x.id, ...x.data() }))); A.rerender(); },
+    e => console.warn('Participations illisibles :', e.message));
   if (!viewAs) onSnapshot(A.playerOf('henbilee') === me ? collection(db, 'shagai') : query(collection(db, 'shagai'), where('p', '==', me)),
     s => { A.applyShagai(s.docs.map(x => ({ id: x.id, ...x.data() }))); A.rerender(); }, e => console.warn('Shagaï illisible :', e.message));
   if (!viewAs) onSnapshot(A.playerOf('javkhaanhun') === me ? collection(db, 'mailbox') : query(collection(db, 'mailbox'), where('from', '==', me)),
