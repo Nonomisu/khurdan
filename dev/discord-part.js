@@ -289,14 +289,23 @@ window.RP_DISCORD.updateMirrors = updateMirrors;
 window.RP_DISCORD.postBoard = async notes => {
   const hook = hookFor(); if (!hook) return;
   const cut = (t, n) => t.length > n ? t.slice(0, n - 1) + '…' : t;
-  const fields = notes.slice(0, 25).map(([, n]) => ({ name: cut(`📌 ${n.sign || 'Anonyme'} · ${new Date(n.at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}`, 250), value: cut(n.text, 1000) }));
-  const body = JSON.stringify({ embeds: [{ title: '🪧 Tableau de l\'iloh — tenu par Javkhaanhun', color: 0xc9a35a,
-    description: notes.length ? '' : 'Aucune annonce pour le moment.', fields }] });
+  // Discord refuse un cadre de plus de 6 000 caractères (et de plus de 25 annonces) : les plus récentes d'abord, raccourcies
+  // s'il le faut ; les autres sont signalées en bas (« + 3 autres annonces… »).
+  const title = '🪧 Tableau de l\'iloh — tenu par Javkhaanhun', fields = []; let used = title.length + 120, hidden = 0;
+  for (const [, n] of notes) {
+    const name = cut(`📌 ${n.sign || 'Anonyme'} · ${new Date(n.at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}`, 250), room = 5800 - used - name.length;
+    if (fields.length >= 25 || room < 120) { hidden++; continue; }
+    const value = cut(String(n.text || '…'), Math.min(1000, room)); fields.push({ name, value }); used += name.length + value.length;
+  }
+  const embed = { title, color: 0xc9a35a, fields };
+  if (!notes.length) embed.description = 'Aucune annonce pour le moment.';
+  if (hidden) embed.footer = { text: `+ ${hidden} autre${hidden > 1 ? 's' : ''} annonce${hidden > 1 ? 's' : ''} à lire sur le tableau, dans l'appli Iloh Khurdan` };
+  const body = JSON.stringify({ embeds: [embed] });
   const prev = BOARD.discordMsg, opt = { method: prev ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' }, body };
   try {
     let res = await fetch(prev ? `${hook}/messages/${prev}` : `${hook}?wait=true`, opt);
     if (prev && res.status === 404) res = await fetch(`${hook}?wait=true`, { ...opt, method: 'POST' });
-    if (!res.ok) return;
+    if (!res.ok) { console.warn('Tableau Discord : refusé (' + res.status + ')', await res.text().catch(() => '')); return; }
     const j = await res.json().catch(() => null);
     if (j?.id && j.id !== prev) { BOARD.discordMsg = j.id; window.RP_SYNC?.setBoardMsg?.(j.id); }
   } catch (e) { console.warn('Tableau Discord :', e.message || e); }

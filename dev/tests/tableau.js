@@ -9,6 +9,9 @@ const ok = (c, l) => { console.log((c ? '  ok  ' : '  ÉCHEC ') + l); if (!c) pr
   await ctx.route('**fonts.g*.com**', r => r.fulfill({ body: '' }));
   const hooks = [];
   await ctx.route('https://discord.com/api/webhooks/**', r => { const q = r.request(); if (/application\/json/.test(q.headers()['content-type'] || '')) hooks.push({ m: q.method(), url: q.url(), body: q.postDataJSON() });
+    // Comme Discord : cadre refusé au-delà de 6 000 caractères ou de 25 champs.
+    const b = q.postDataJSON?.() || null, e = b?.embeds?.[0], size = e ? (e.title || '').length + (e.description || '').length + (e.footer?.text || '').length + (e.fields || []).reduce((t, f) => t + f.name.length + f.value.length, 0) : 0;
+    if (e && (size > 6000 || e.fields.length > 25)) return r.fulfill({ status: 400, contentType: 'application/json', body: '{"message":"Invalid Form Body"}' });
     r.fulfill({ status: 200, contentType: 'application/json', body: '{"id":"tab1"}' }); });
   const errs = [], seed = { 'access/nono@test.fr': { player: 'nono', role: 'admin' }, 'access/jynette@test.fr': { player: 'jynette', role: 'joueur' }, 'access/eden@test.fr': { player: 'eden', role: 'joueur' },
     'shared/discord': { webhook: 'https://discord.com/api/webhooks/1/abc' } };
@@ -75,6 +78,14 @@ const ok = (c, l) => { console.log((c ? '  ok  ' : '  ÉCHEC ') + l); if (!c) pr
   await nono.evaluate(() => go('tableau')); await nono.waitForTimeout(300);
   ok((await nono.textContent('.horn-list')).includes('Buyan te donne rendez-vous') && await nono.evaluate(() => document.querySelector('.horn-list .mail-text').innerText.includes('\n')), 'Nono : message reçu à la corne, lignes gardées');
   ok(await nono.locator('[data-mail-edit]').count() === 0 && await nono.locator('[data-note-edit]').count() === 0 && await nono.locator('.note').count() === 2, 'Nono voit le tableau, sans gérer la boîte');
+  console.log('Beaucoup d\'annonces longues : le tableau Discord reste à jour');
+  await jyn.evaluate(() => { const long = 'Annonce très longue. '.repeat(45); for (let i = 0; i < 12; i++) saveNote('long' + i, { text: long + i, sign: 'Javkhaanhun', at: Date.now() - (i + 10) * 60e3 }); });
+  await jyn.waitForTimeout(2600);
+  await jyn.evaluate(() => saveNote('neuve', { text: 'Toute nouvelle annonce', sign: 'Ankhbayar', at: Date.now() })); await jyn.waitForTimeout(2600);
+  { const e = hooks.at(-1).body.embeds[0], size = e.title.length + (e.footer?.text || '').length + e.fields.reduce((t, f) => t + f.name.length + f.value.length, 0);
+    ok(e.fields[0].value === 'Toute nouvelle annonce' && size <= 6000, `dernière annonce bien envoyée (cadre de ${size} caractères)`);
+    ok(/autres annonces à lire sur le tableau/.test(e.footer?.text || ''), 'les annonces en trop sont signalées en bas'); }
+  await jyn.evaluate(() => { for (let i = 0; i < 12; i++) saveNote('long' + i, null); saveNote('neuve', null); }); await jyn.waitForTimeout(2600);
   console.log('Archives et suppression (Javkhaanhun)');
   ok(await jyn.locator('[data-board-tab="archives"]').count() >= 1 && !(await eden.locator('[data-board-tab]').count()), 'onglet « Archives » pour le joueur de Javkhaanhun seulement');
   ok(await jyn.locator('#view .mail-list .mail-item').count() === 0 && (await jyn.textContent('#view')).includes('Aucun nouveau message'), 'boîte : les messages traités n\'y sont plus');
