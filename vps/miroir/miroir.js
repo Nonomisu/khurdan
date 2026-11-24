@@ -34,6 +34,7 @@ const rpDate = () => new Date(Date.now() - 5 * 3600e3);
 const isoOf = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 const ymOf = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}`;
 const prevMonth = d => new Date(d.getFullYear(), d.getMonth() - 1, 1);
+const prevDay = d => { const x = new Date(d); x.setDate(x.getDate() - 1); return x; };
 
 // Dernière valeur écrite, pour ne réécrire que ce qui change.
 const written = new Map();
@@ -58,6 +59,14 @@ const lastMonth = {}, lastToday = {};
 const todayEntry = id => { const t = rpDate(); return lastMonth[`${id}:${ymOf(t)}`]?.[String(t.getDate())] || null; };
 
 // ---------- Journées (days/{id}/months/{AAAA-MM}) ----------
+// Capture du jour d'une fiche (document {AAAA-MM-JJ}~shot à côté des mois) : recopiée telle quelle, ou retirée.
+async function copyShot(id, docId, data) {
+  if (!/^\d{4}-\d{2}-\d{2}~shot$/.test(docId)) return;
+  const ref = dst.doc(`days/${id}/months/${docId}`);
+  if (typeof data?.img === 'string' && data.img.startsWith('data:image/')) { await ref.set({ img: data.img, at: data.at || Date.now() }); log(`capture ${id} ${docId.slice(0, 10)} recopiée`); }
+  else await ref.delete().catch(() => {});
+}
+const copyDoc = (id, ref, data) => /~shot$/.test(ref.id) ? copyShot(id, ref.id, data) : /^\d{4}-\d{2}$/.test(ref.id) ? copyMonth(id, ref.id, data) : null;
 async function copyMonth(id, ym, data) {
   let n = 0;
   lastMonth[`${id}:${ym}`] = data || {};
@@ -184,6 +193,7 @@ async function watch() {
   const months = [ymOf(prevMonth(today)), ymOf(today)];   // le mois précédent aussi : la « nuit précédente » se corrige le lendemain
   for (const id of T.MIRROR) {
     for (const ym of months) subs.push(src.doc(`days/${id}/months/${ym}`).onSnapshot(guard(`days ${id} ${ym}`)(s => copyMonth(id, ym, s.data()))));
+    for (const d of [isoOf(prevDay(today)), iso]) subs.push(src.doc(`days/${id}/months/${d}~shot`).onSnapshot(guard(`capture ${id} ${d}`)(s => copyShot(id, `${d}~shot`, s.data()))));
     subs.push(src.doc(`characters/${id}`).onSnapshot(guard(`fiche ${id}`)(s => copyChar(id, s.data()))));
     subs.push(src.doc(`today/${id}`).onSnapshot(guard(`today ${id}`)(s => copyToday(id, s.data() || null))));
     for (const ym of months) subs.push(dst.doc(`extras/${id}/months/${ym}`).onSnapshot(guard(`retour ${id} ${ym}`)(s => copyBack(id, ym, s.data()))));
@@ -200,14 +210,14 @@ let startedLive = false;
 async function copyHistory() {
   for (const id of T.MIRROR) {
     const refs = await src.collection(`days/${id}/months`).listDocuments();
-    for (const ref of refs) await copyMonth(id, ref.id, (await ref.get()).data());
+    for (const ref of refs) await copyDoc(id, ref, (await ref.get()).data());
   }
 }
 async function copyAll() {
   await copyGlobal((await src.doc('shared/global').get()).data());   // d'abord : activités toujours masquées
   for (const id of T.MIRROR) {
     const refs = await src.collection(`days/${id}/months`).listDocuments();
-    for (const ref of refs) await copyMonth(id, ref.id, (await ref.get()).data());
+    for (const ref of refs) await copyDoc(id, ref, (await ref.get()).data());
     await copyChar(id, (await src.doc(`characters/${id}`).get()).data());
     await copyToday(id, (await src.doc(`today/${id}`).get()).data() || null);
     for (const ref of await dst.collection(`extras/${id}/months`).listDocuments()) await copyBack(id, ref.id, (await ref.get()).data());

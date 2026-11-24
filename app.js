@@ -2931,7 +2931,7 @@ const statesBlock = id => { const s = state[id]; s.phys ||= new Set(); s.mental 
   return group('État physique', PHYS, s.phys, 'data-phys') + group('État mental', MENTAL, s.mental, 'data-mental'); };
 const shotSection = id => { const s = state[id];
   return `<section><h2>Capture du jour</h2>
-    ${s.shot ? `<figure class="shot"><img src="${s.shot}" alt="Capture du jour de ${esc(C.find(x => x.id === id).name)}"><figcaption><button type="button" class="link ico-btn" id="shot-off-${id}" title="Retirer la capture" aria-label="Retirer la capture">${icon('minus')}</button></figcaption></figure>`
+    ${shotOf(id) ? `<figure class="shot"><img src="${shotOf(id)}" alt="Capture du jour de ${esc(C.find(x => x.id === id).name)}"><figcaption><button type="button" class="link ico-btn" id="shot-off-${id}" title="Retirer la capture" aria-label="Retirer la capture">${icon('minus')}</button></figcaption></figure>`
       : `<label class="btn file-btn">${icon('camera')}Joindre une capture<input type="file" id="shot-${id}" accept="image/*" hidden></label>`}
   </section>`; };
 const arcsSection = id => {
@@ -2971,9 +2971,9 @@ const bindDaySections = id => {
   document.querySelectorAll('[data-state-note]').forEach(i => i.addEventListener('input', () => { s.stateNotes[i.dataset.stateNote] = i.value.trim(); }));
   document.getElementById('shot-' + id)?.addEventListener('change', e => {
     const f = e.target.files[0]; if (!f) return;
-    const rd = new FileReader(); rd.onload = () => { s.shot = rd.result; renderChar(id); }; rd.readAsDataURL(f);
+    compressShot(f).then(img => { SHOTS[id] = img; window.RP_SYNC?.saveShot?.(id, img); renderChar(id); }, () => alert("Image illisible : essaie une capture en JPEG ou PNG."));
   });
-  document.getElementById('shot-off-' + id)?.addEventListener('click', () => { s.shot = null; renderChar(id); });
+  document.getElementById('shot-off-' + id)?.addEventListener('click', () => { SHOTS[id] = null; window.RP_SYNC?.saveShot?.(id, null); renderChar(id); });
   document.getElementById('arc-add-' + id)?.addEventListener('click', () => {
     const v = document.getElementById('arc-new-' + id).value.trim(); if (!v) return;
     list.push({ id:'arc-' + (arcSeq++), title:v, done:false, steps:[] }); renderChar(id);
@@ -3141,6 +3141,18 @@ document.addEventListener('click', e => { const t = e.target; if (current !== 'h
     const end = new Date(rpDay); end.setDate(end.getDate() + n);
     COUNTDOWN = { text: txt, end: isoDay(end), at: Date.now(), by: me }; cdView.form = false; window.RP_SYNC?.setCountdown?.(COUNTDOWN); return evRefresh(); }
 });
+// ---------- Capture du jour : enregistrée (compressée) à côté de la fiche, dans days/{perso}/months/{AAAA-MM-JJ}~shot ----------
+// Fiches recopiées : la capture vient de Journée RP (recopiée par le service du VPS) ; fiches de l'Iloh : enregistrée ici.
+const SHOTS = {};
+const shotOf = id => SHOTS[id] || null;
+// Plus grand côté 1400 px, JPEG ; on réduit jusqu'à rester sous ~600 Ko (une fiche Firestore est limitée à 1 Mo).
+const compressShot = file => new Promise((ok, ko) => { const url = URL.createObjectURL(file), im = new Image();
+  im.onload = () => { URL.revokeObjectURL(url); let side = 1400, q = .8, out = '';
+    for (let i = 0; i < 8; i++) { const k = Math.min(1, side / Math.max(im.width, im.height)), cv = document.createElement('canvas');
+      cv.width = Math.round(im.width * k); cv.height = Math.round(im.height * k); cv.getContext('2d').drawImage(im, 0, 0, cv.width, cv.height);
+      out = cv.toDataURL('image/jpeg', q); if (out.length < 600e3) break; side *= .8; q = Math.max(.55, q - .07); }
+    ok(out); };
+  im.onerror = () => { URL.revokeObjectURL(url); ko(new Error('image')); }; im.src = url; });
 function renderHome() {
   setTimeout(birthdayNews, 0);
   root.className = 't-khurdan';
@@ -3367,7 +3379,7 @@ function renderCharNow(id) {
         <span class="recap-what">${items.map(l => esc(dispLabel(l))).join(' · ')}</span></li>`).join('')}</ul>` : ''}
       ${s.faits?.trim() ? `<div class="recap-infos"><span>Faits notoires</span><p>${esc(s.faits.trim())}</p></div>` : ''}
       ${s.infos?.trim() ? `<div class="recap-infos"><span>Informations</span><p>${esc(s.infos.trim())}</p></div>` : ''}
-      ${s.shot ? `<img class="recap-shot" src="${s.shot}" alt="Capture du jour">` : ''}
+      ${shotOf(id) ? `<img class="recap-shot" src="${shotOf(id)}" alt="Capture du jour">` : ''}
       ${readOnly ? `<footer class="recap-foot"><span>${s.done ? '✓ Journée terminée' : 'Journée en cours'}</span></footer>` : `<footer class="recap-foot"><span>✓ Journée validée${window.RP_DISCORD ? RP_DISCORD.status(id) : ''}</span>
         <span class="foot-btns"><button type="button" class="btn" id="png-${id}">${icon('camera')}Image du récap</button>
         <button type="button" class="btn" id="edit-${id}">Modifier la journée</button></span></footer>`}
@@ -3933,6 +3945,8 @@ window.RP_APP = {
   applyShagai: list => { Object.keys(SHAGAI).forEach(k => delete SHAGAI[k]); list.forEach(({ id, ...d }) => { SHAGAI[id] = d; }); },
   applyMail: list => { Object.keys(MAIL).forEach(k => delete MAIL[k]); list.forEach(({ id, ...m }) => { MAIL[id] = m; }); },
   applyCountdown: d => { COUNTDOWN = d && (d.off || d.end) ? d : null; },
+  applyShot: (id, img) => { SHOTS[id] = img || null; },
+  shotSig: id => SHOTS[id] ? '|capture:' + SHOTS[id].length + ':' + SHOTS[id].slice(-24) : '',
   applyBoard: d => { BOARD.notes = d?.notes || {}; BOARD.discordMsg = d?.discordMsg || null; },
   applyProjects: d => { Object.keys(PROJECTS).forEach(k => delete PROJECTS[k]); Object.assign(PROJECTS, d || {}); },
   applyEvents: d => { Object.keys(GROUP_EVENTS).forEach(k => delete GROUP_EVENTS[k]); Object.assign(GROUP_EVENTS, d || {}); },

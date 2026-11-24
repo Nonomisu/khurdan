@@ -69,6 +69,8 @@ const S = stores['journee-rp'] = {
     night: { hot: true, with: 'taiga' }, nightNotes: { 'Nuit chaude': 'Sous la yourte des invités' }, intime: 'détails', intimeWith: { $set: ['taiga'] } } },
   [`days/taiga/months/2026-03`]: { '5': { mood: 'Rêveuse', done: true, checked: { $set: ['Sexe avec Davaajav'] }, night: { hot: true, with: 'davaajav' }, nightNotes: { 'Nuit chaude': 'Avec Davaajav' } } },
   [`days/davaajav/months/${ym}`]: { [day]: { mood: 'Invité comblé', done: true, checked: { $set: ['Sexe avec Taiga'] }, night: { hot: true, with: 'taiga' } } },
+  // Capture du jour de Tamachag (document à côté des mois)
+  [`days/tamachag/months/${iso}~shot`]: { img: 'data:image/jpeg;base64,QUJD', at: 5 },
 };
 S[`shared/day-${iso}`].nights.davaajav = { hot: true, with: 'taiga' };
 // Compléments acceptés dans Iloh (écrits par l'appli Iloh)
@@ -84,6 +86,7 @@ process.exit = code => {
   const D = stores['iloh-khurdan'];
   console.log('Recopie complète (code ' + code + ')');
   ok(JSON.stringify(Object.fromEntries(Object.entries(S).filter(([k]) => !k.startsWith('iloh/')))) === before, 'Journée RP : journées, fiches et réglages jamais modifiés');
+  ok(D[`days/tamachag/months/${iso}~shot`]?.img === 'data:image/jpeg;base64,QUJD' && !Object.keys(D).some(k => /~shot/.test(k) && k !== `days/tamachag/months/${iso}~shot`), 'capture du jour recopiée telle quelle (pas traitée comme un mois)');
   ok(Object.keys(S).filter(k => k.startsWith('iloh/')).sort().join() === `iloh/_noms/months/liste,iloh/tamachag/months/${ym}`, 'retour : seulement iloh/…, seulement pour les personnages recopiés (et la liste des noms)');
   const noms = S['iloh/_noms/months/liste']?.chars || {};
   ok(noms.shiruun?.name === 'Shiruun' && noms.buyan?.name === 'Buyan' && !noms.tamachag && !noms.taiga && Object.keys(noms).length === 13 && noms.sheyen?.name === 'Sheyen' && noms.qaikagan?.name === 'Qaikagan' && noms.uranchimeg?.name === 'Uranchimeg', 'noms des 13 personnages propres à Iloh déposés dans Journée RP (dont Sheyen, Qaikagan et Uranchimeg)');
