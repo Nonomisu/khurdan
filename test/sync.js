@@ -143,6 +143,7 @@ window.RP_SYNC = {
   saveBoardNote: (id, n) => noWrites ? Promise.resolve() : setDoc(boardRef, { notes: { [id]: n === null ? deleteField() : n } }, { merge: true }).catch(report),
   // Archiver une annonce (date) ou la remettre au tableau (null) : seul ce champ change.
   setNoteArchived: (id, at) => noWrites ? Promise.resolve() : setDoc(boardRef, { notes: { [id]: { archivedAt: at || deleteField() } } }, { merge: true }).catch(report),
+  setCountdown: c => noWrites ? Promise.resolve() : setDoc(doc(db, 'shared', 'countdown'), c).catch(report),
   setBoardMsg: id => noWrites ? Promise.resolve() : setDoc(boardRef, { discordMsg: id }, { merge: true }).catch(report),
   saveProject: (id, p) => noWrites ? Promise.resolve() : setDoc(prRef, { [id]: p === null ? deleteField() : p }, { merge: true }).catch(report),
   saveProjectFields: (id, f) => noWrites ? Promise.resolve() : updateDoc(prRef, ...Object.entries(f).flatMap(([k, v]) => [new FieldPath(id, k), v])).catch(report),
@@ -347,6 +348,7 @@ function listen() {
   if (!viewAs) onSnapshot(A.playerOf('khokkutsai') === me ? collection(db, 'requests') : query(collection(db, 'requests'), where('from', '==', me)),
     s => { A.applyRequests(s.docs.map(x => ({ id: x.id, ...x.data() }))); A.rerender(); }, e => console.warn('Demandes de matériel illisibles :', e.message));
   onSnapshot(ilohRef, s => { if (s.metadata.hasPendingWrites) return; A.applyIloh(s.data() || {}); A.rerender(); });
+  onSnapshot(doc(db, 'shared', 'countdown'), s => { if (s.metadata.hasPendingWrites) return; A.applyCountdown(s.data() || null); A.rerender(); }, () => {});
   onSnapshot(boardRef, s => { if (s.metadata.hasPendingWrites) return; A.applyBoard(s.data() || {}); A.rerender(); });
   // Boîte aux lettres : toute la boîte pour le joueur de Javkhaanhun, ses propres messages pour les autres.
   onSnapshot(query(collection(db, 'joins'), where('day', '==', A.iso)), s => { A.applyJoins(s.docs.map(x => ({ id: x.id, ...x.data() }))); A.rerender(); },

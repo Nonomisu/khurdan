@@ -333,6 +333,22 @@ html, body, #view { overflow-anchor: none; }
 .join-who { display: grid; gap: .3rem; }
 .join-who > small { color: var(--dim); }
 .join-ans { display: inline-flex; gap: .5rem; align-items: center; flex-wrap: wrap; }
+.countdown { position: relative; display: flex; gap: .9rem; align-items: center; justify-content: center; margin: .4rem auto 1.4rem; max-width: 34rem;
+  padding: .9rem 1.1rem 1.4rem; border: 1px solid #b0553a; border-radius: 12px; text-align: left;
+  background: linear-gradient(135deg, color-mix(in srgb, #b0553a 22%, var(--surface)), color-mix(in srgb, #b0553a 8%, var(--surface))); box-shadow: 0 0 18px rgba(176,85,58,.25); }
+.countdown > svg { width: 2.2rem; height: 2.2rem; flex: none; color: #e0a07a; }
+.countdown p { margin: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: .1rem .5rem; min-width: 0; }
+.countdown b { font-size: 2.4rem; line-height: 1; color: #f2c9a8; font-variant-numeric: tabular-nums; }
+.countdown span { font-size: 1.05rem; color: var(--text); }
+.countdown .cd-done { font-weight: 600; color: #f2c9a8; }
+.countdown.urgent { animation: cd-pulse 2.4s ease-in-out infinite; }
+@keyframes cd-pulse { 50% { box-shadow: 0 0 26px rgba(214,96,60,.55); } }
+.cd-tools { position: absolute; right: .6rem; bottom: .3rem; }
+.cd-tools .link { font-size: .78rem; opacity: .8; }
+.cd-admin { text-align: center; margin: 0 0 1rem; }
+.cd-form { display: flex; flex-wrap: wrap; gap: .5rem; justify-content: center; align-items: center; margin: 0 auto 1.2rem; max-width: 34rem; }
+.cd-form #cd-days { width: 5rem; } .cd-form #cd-text { flex: 1 1 14rem; min-width: 0; }
+@media (prefers-reduced-motion: reduce) { .countdown.urgent { animation: none; } }
 .sh-stage { display: grid; gap: .6rem; margin: .8rem 0 1.2rem; text-align: center; }
 .sh-stage h2 { justify-content: center; }
 .sh-q { margin: 0; font-style: italic; color: var(--dim); }
@@ -856,6 +872,6 @@ button.link.danger { color: #e0a24d; }
 <div class="sync-state" id="sync-state" aria-live="polite"></div>
 </div>
 
-<script src="app.js?v=b4f4777990" charset="utf-8"></script>
-<script type="module" src="sync.js?v=ef6b938dd3"></script>
+<script src="app.js?v=26e8732b6e" charset="utf-8"></script>
+<script type="module" src="sync.js?v=e1b9f88f85"></script>
 

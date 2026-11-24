@@ -176,6 +176,7 @@ window.RP_APP = {
   applyJoins: list => { Object.keys(JOINS).forEach(k => delete JOINS[k]); list.forEach(({ id, ...j }) => { JOINS[id] = j; }); applyJoins(); },
   applyShagai: list => { Object.keys(SHAGAI).forEach(k => delete SHAGAI[k]); list.forEach(({ id, ...d }) => { SHAGAI[id] = d; }); },
   applyMail: list => { Object.keys(MAIL).forEach(k => delete MAIL[k]); list.forEach(({ id, ...m }) => { MAIL[id] = m; }); },
+  applyCountdown: d => { COUNTDOWN = d && (d.off || d.end) ? d : null; },
   applyBoard: d => { BOARD.notes = d?.notes || {}; BOARD.discordMsg = d?.discordMsg || null; },
   applyProjects: d => { Object.keys(PROJECTS).forEach(k => delete PROJECTS[k]); Object.assign(PROJECTS, d || {}); },
   applyEvents: d => { Object.keys(GROUP_EVENTS).forEach(k => delete GROUP_EVENTS[k]); Object.assign(GROUP_EVENTS, d || {}); },

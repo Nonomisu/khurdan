@@ -320,6 +320,22 @@ html, body, #view { overflow-anchor: none; }
 .join-who { display: grid; gap: .3rem; }
 .join-who > small { color: var(--dim); }
 .join-ans { display: inline-flex; gap: .5rem; align-items: center; flex-wrap: wrap; }
+.countdown { position: relative; display: flex; gap: .9rem; align-items: center; justify-content: center; margin: .4rem auto 1.4rem; max-width: 34rem;
+  padding: .9rem 1.1rem 1.4rem; border: 1px solid #b0553a; border-radius: 12px; text-align: left;
+  background: linear-gradient(135deg, color-mix(in srgb, #b0553a 22%, var(--surface)), color-mix(in srgb, #b0553a 8%, var(--surface))); box-shadow: 0 0 18px rgba(176,85,58,.25); }
+.countdown > svg { width: 2.2rem; height: 2.2rem; flex: none; color: #e0a07a; }
+.countdown p { margin: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: .1rem .5rem; min-width: 0; }
+.countdown b { font-size: 2.4rem; line-height: 1; color: #f2c9a8; font-variant-numeric: tabular-nums; }
+.countdown span { font-size: 1.05rem; color: var(--text); }
+.countdown .cd-done { font-weight: 600; color: #f2c9a8; }
+.countdown.urgent { animation: cd-pulse 2.4s ease-in-out infinite; }
+@keyframes cd-pulse { 50% { box-shadow: 0 0 26px rgba(214,96,60,.55); } }
+.cd-tools { position: absolute; right: .6rem; bottom: .3rem; }
+.cd-tools .link { font-size: .78rem; opacity: .8; }
+.cd-admin { text-align: center; margin: 0 0 1rem; }
+.cd-form { display: flex; flex-wrap: wrap; gap: .5rem; justify-content: center; align-items: center; margin: 0 auto 1.2rem; max-width: 34rem; }
+.cd-form #cd-days { width: 5rem; } .cd-form #cd-text { flex: 1 1 14rem; min-width: 0; }
+@media (prefers-reduced-motion: reduce) { .countdown.urgent { animation: none; } }
 .sh-stage { display: grid; gap: .6rem; margin: .8rem 0 1.2rem; text-align: center; }
 .sh-stage h2 { justify-content: center; }
 .sh-q { margin: 0; font-style: italic; color: var(--dim); }
@@ -934,6 +950,7 @@ ICONS.temp = '<path d="M10 14.5V5a2 2 0 0 1 4 0v9.5a4 4 0 1 1-4 0z"/><path d="M1
 ICONS.snow = '<path d="M12 3v18M4.2 7.5l15.6 9M4.2 16.5l15.6-9"/><path d="M9.8 4.6 12 6.4l2.2-1.8M9.8 19.4 12 17.6l2.2 1.8"/>';
 ICONS.ground = '<path d="M3 19c3-2.2 6-2.2 9 0s6 2.2 9 0"/><path d="M12 4v9M8.1 6.2l7.8 4.6M8.1 10.8l7.8-4.6"/>';
 ICONS.dice = '<path d="M7 9c-1.5-3.5 1-6 4-5.5 2 .3 2.6 1.5 4.5 1.4 3-.2 5 2.2 4.4 5-.3 1.4-1 2.2-.9 3.4.2 1.5 1.2 2.4.8 4-.7 2.6-3.7 3.6-6.2 2.8-1.4-.4-2.1-1.2-3.6-1.1-2 .2-3.2 1.4-5.2.5C2.6 18.4 2 16 3.4 14.2c.8-1 1.8-1.4 2-2.6.2-1-.1-1.7 1.6-2.6z"/><circle cx="12" cy="12" r="2.2"/>';
+ICONS.hourglass = '<path d="M6 2h12M6 22h12M7 2c0 5 5 6.5 5 10s-5 5-5 10M17 2c0 5-5 6.5-5 10s5 5 5 10"/><path d="M9 19.5c1-1.2 2-1.7 3-1.7s2 .5 3 1.7"/>';
 ICONS.flame = '<path d="M12 2.5c.6 3.6 6 6.2 6 11.5a6 6 0 0 1-12 0c0-2.8 1.4-4.7 2.8-5.9.2 2.1 1.1 3.4 2.4 3.9-.3-3.6.2-6.6.8-9.5z"/><path d="M12 21a2.5 2.5 0 0 1-2.5-2.5c0-1.6 1.3-2.6 2.5-4 1.2 1.4 2.5 2.4 2.5 4A2.5 2.5 0 0 1 12 21z"/>';
 ICONS.lips = '<path style="fill:currentColor;stroke:none" d="M2 12c2.2-3.2 4.6-5 6.6-5 1.4 0 2.4.8 3.4 1.6 1-.8 2-1.6 3.4-1.6 2 0 4.4 1.8 6.6 5-2.6 3.6-6 5.6-10 5.6S4.6 15.6 2 12z"/><path style="stroke:var(--bg)" stroke-width="1.1" d="M4 12.1c2.6.9 5.3 1.1 8 .3 2.7.8 5.4.6 8-.3"/>';
 ICONS.shield = '<path d="M12 3l7 3v5c0 4.6-3 8.2-7 10-4-1.8-7-5.4-7-10V6z"/><path d="M9 12l2 2 4-4"/>';
@@ -3945,6 +3962,33 @@ document.addEventListener('change', e => { if (e.target.id !== 'fx-toggle') retu
   try { localStorage.setItem(FX_PREF, e.target.checked ? 'on' : 'off'); } catch {} fxStart(); });
 const fxToggleHtml = () => `<label class="check-inline fx-toggle"><input type="checkbox" id="fx-toggle" ${fxWanted() ? 'checked' : ''} ${fxReduced() ? 'disabled' : ''}> Animation de la météo${fxReduced() ? ' <small>(coupée : l\'appareil demande moins d\'animations)</small>' : ''}</label>`;
 
+// ---------- Compte à rebours de l'Iloh (accueil) : un nombre de jours qui baisse de 1 à chaque journée RP ----------
+// shared/countdown = { text, end (AAAA-MM-JJ, le jour où il arrive à 0), at, by } ou { off: true } une fois retiré par l'admin.
+// Tant que rien n'est enregistré, celui du 24 novembre 2026 s'affiche (23 jours → 0 le 17 décembre).
+const COUNTDOWN_START = { text: 'avant que la tribu ne manque de ressources', end: '2026-12-17', done: 'La tribu manque de ressources.' };
+let COUNTDOWN = null;   // null : rien d'enregistré (compte de départ)
+const cdView = { del: false, form: false };
+const cdNow = () => COUNTDOWN === null ? COUNTDOWN_START : COUNTDOWN?.off ? null : COUNTDOWN;
+const cdLeft = c => Math.round((new Date(c.end + 'T12:00:00') - new Date(isoDay(rpDay) + 'T12:00:00')) / 864e5);
+const countdownHtml = () => { const c = cdNow(), adm = isAdminMe();
+  if (!c) return adm ? (cdView.form ? `<div class="cd-form"><input type="number" id="cd-days" min="1" max="999" value="23" aria-label="Nombre de jours">
+      <input type="text" id="cd-text" maxlength="120" value="avant que la tribu ne manque de ressources" aria-label="Texte">
+      <button type="button" class="btn small" id="cd-start">Lancer le compte à rebours</button><button type="button" class="link small" data-cd-form="0">Annuler</button></div>`
+    : `<p class="cd-admin"><button type="button" class="link small" data-cd-form="1">${icon('plus')}Compte à rebours</button></p>`) : '';
+  const n = cdLeft(c);
+  return `<section class="countdown${n <= 3 ? ' urgent' : ''}" aria-live="polite">${icon('hourglass')}
+    <p>${n > 0 ? `<b>${n}</b> <span>jour${n > 1 ? 's' : ''} ${esc(c.text)}</span>` : `<span class="cd-done">${esc(c.done || 'Le compte à rebours est terminé.')}</span>`}</p>
+    ${adm ? `<span class="cd-tools">${cdView.del ? `<button type="button" class="link small danger" id="cd-off">Retirer le compte à rebours</button> <button type="button" class="link small" data-cd-del="0">Annuler</button>`
+      : `<button type="button" class="link small" data-cd-del="1" title="Retirer le compte à rebours">Retirer</button>`}</span>` : ''}</section>`; };
+document.addEventListener('click', e => { const t = e.target; if (current !== 'home') return;
+  const d = t.closest('[data-cd-del]'); if (d) { cdView.del = d.dataset.cdDel === '1'; return evRefresh(); }
+  const f = t.closest('[data-cd-form]'); if (f) { cdView.form = f.dataset.cdForm === '1'; return evRefresh(); }
+  if (t.closest('#cd-off') && isAdminMe()) { COUNTDOWN = { off: true, at: Date.now(), by: me }; cdView.del = false; window.RP_SYNC?.setCountdown?.(COUNTDOWN); return evRefresh(); }
+  if (t.closest('#cd-start') && isAdminMe()) { const n = Math.max(1, Math.min(999, parseInt(document.getElementById('cd-days').value, 10) || 0)), txt = document.getElementById('cd-text').value.trim().replace(/\s+/g, ' ');
+    if (!txt) return document.getElementById('cd-text').focus();
+    const end = new Date(rpDay); end.setDate(end.getDate() + n);
+    COUNTDOWN = { text: txt, end: isoDay(end), at: Date.now(), by: me }; cdView.form = false; window.RP_SYNC?.setCountdown?.(COUNTDOWN); return evRefresh(); }
+});
 function renderHome() {
   setTimeout(birthdayNews, 0);
   root.className = 't-khurdan';
@@ -3959,6 +4003,7 @@ function renderHome() {
         <button type="button" class="chip-link" data-go="projets">${icon('target')}Projets</button>
         <button type="button" class="chip-link" data-go="tableau">${icon('pin')}Tableau</button>
         <button type="button" class="chip-link" data-open-page="search">${icon('search')}Rechercher</button></p>${(f => f ? `<p class="fest home-fest">${icon('star')}En Eorzea : ${f.name}</p>` : '')(festivalOn(rpDay))}</header>
+    ${countdownHtml()}
     ${((unread, day) => `<section class="news"><h2>${icon('bell')}Nouvelles${unread.length ? ` <span class="badge">${unread.length}</span>` : ''}</h2>
       ${unread.length ? `<ul>${unread.slice(0, 8).map(n => `<li class="unread ${newsKind(n)}">${newsLink(n, esc(n.text))}</li>`).join('')}</ul>
       <button type="button" class="link ico-btn" id="news-read" title="Tout marquer comme lu" aria-label="Tout marquer comme lu">${icon('checks')}</button>` : '<p class="reserved">Rien de nouveau pour l\'instant.</p>'}
