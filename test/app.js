@@ -391,7 +391,7 @@ const YURTS = {
   13: { x:48.0, y:80.18, kind:'libre' },
   14: { x:56.3, y:67.71, chars:['cheyenne'], map:'Guérisseuse', size:'m' },
   15: { x:47.56, y:64.07, kind:'lieu', label:'Yourte des Soins', size:'l' },
-  16: { x:45.07, y:90.86, kind:'libre' },
+  16: { x:46.45, y:87.28, kind:'lieu', label:"Yourte d'agriculture", size:'m' },
   17: { x:39.6, y:83.25, kind:'libre' },
   18: { x:35.69, y:87.72, kind:'libre' },
   19: { x:25.54, y:90.22, chars:['shiruun'] },
