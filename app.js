@@ -380,8 +380,8 @@ const YURTS = {
   2: { x:91.36, y:69.25, kind:'speciale' },
   3: { x:95.07, y:74.55, kind:'speciale' },
   4: { x:83.5, y:70.08, kind:'lieu', label:'Yourte des Faucons', size:'l' },
-  5: { x:73.93, y:62.66, chars:['reaksa'], map:'Fauconnière et maître équin', size:'m' },
-  6: { x:65.04, y:71.29, kind:'lieu', label:'Yourte des Tatouages', staff:['inkaraa'] },
+  5: { x:73.24, y:62.7, chars:['reaksa'], map:'Yourte de la Dresseuse', size:'m' },
+  6: { x:64.61, y:71.28, kind:'lieu', label:'Yourte des Tatouages', staff:['inkaraa'] },
   7: { x:72.27, y:76.6, kind:'lieu', label:'Yourte des Captifs', size:'m' },
   8: { x:84.42, y:84.53, chars:['altan'] },
   9: { x:78.86, y:89.96, chars:['buyan'] },
@@ -408,7 +408,7 @@ const YURTS = {
   30: { x:11.04, y:41.62, kind:'libre' },
   31: { x:5.91, y:36.51, kind:'libre' },
   32: { x:16.94, y:36.7, kind:'libre' },
-  33: { x:12.94, y:29.35, kind:'libre' },
+  33: { x:12.94, y:29.35, chars:['khubunjin'] },
   34: { x:8.94, y:24.36, chars:['ankhbayar','khubunjin'] },
   35: { x:18.07, y:22.06, kind:'libre' },
   36: { x:23.49, y:25.58, kind:'libre' },
@@ -433,10 +433,11 @@ const YURTS = {
 const YURT_SIZE = { s:[6.4, 9], m:[8.4, 12.5], l:[9.2, 13.5], xl:[10.5, 15.5], xxl:[14, 17.5] };   // largeur, hauteur de la zone cliquable (%)
 // Autres lieux de la carte (x, y = coin haut gauche ; w, h = taille, en % de l'image). Les yourtes passent par-dessus.
 const ILOH_SPOTS = {
-  tour1: { x:32.2, y:16.4, w:4.6, h:11.5, kind:'tour', title:'Tour de guet n° 1' },
-  tour2: { x:93.2, y:32.2, w:4.6, h:11.5, kind:'tour', title:'Tour de guet n° 2' },
-  tour3: { x:61.4, y:80.4, w:4.6, h:11.5, kind:'tour', title:'Tour de guet n° 3' },
-  tour4: { x:2.1, y:75.2, w:4.6, h:11.5, kind:'tour', title:'Tour de guet n° 4' },
+  // Tours de guet : la zone couvre la tour et son nom écrit dessous.
+  tour1: { x:31.9, y:12.2, w:5.4, h:15.6, kind:'tour', title:'Bourane', side:'Tour du nord' },
+  tour2: { x:92.4, y:27.4, w:5.6, h:15.4, kind:'tour', title:'Sarman', side:"Tour de l'est" },
+  tour3: { x:60.6, y:80.9, w:6.4, h:15.4, kind:'tour', title:'Karabourane', side:'Tour du sud' },
+  tour4: { x:0.8, y:75.1, w:6.8, h:15.6, kind:'tour', title:'Soukhoveï', side:"Tour de l'ouest" },
   arc: { x:26.1, y:1.3, w:38.5, h:15, kind:'zone', title:"Zone d'entraînement des guerriers et guerrières" },
   chevaux: { x:74, y:7.3, w:24.5, h:23.6, kind:'zone', title:'Enclos des chevaux khurdans' },
   ours: { x:76.4, y:36.2, w:12.6, h:15.8, kind:'zone', title:'Enclos de Duulakh' },
@@ -468,7 +469,7 @@ const occupantHtml = cid => { const c = C.find(x => x.id === cid); if (!c) retur
     ${yurtTodayHtml(cid)}<button type="button" class="link small" data-go="${cid}">Voir la fiche ${deName(c.name)} ›</button></div>`; };
 const ilohCardHtml = key => {
   const spot = ILOH_SPOTS[key], y = YURTS[key]; if (!spot && !y) return '';
-  const head = spot ? `<p class="yc-kicker">${spot.kind === 'tour' ? 'Tour de guet' : 'Lieu de l\'Iloh'}</p><h3>${esc(spot.title)}</h3>`
+  const head = spot ? `<p class="yc-kicker">${spot.kind === 'tour' ? 'Tour de guet' + (spot.side ? ' · ' + spot.side : '') : 'Lieu de l\'Iloh'}</p><h3>${esc(spot.title)}</h3>`
     : `<p class="yc-kicker">Yourte n° ${key}${y.map ? ' · ' + esc(y.map) : ''}</p>${y.chars ? '' : `<h3>${esc(yurtTitle(y))}</h3>`}`;
   const body = y?.kind === 'invites' ? `${occupantsOf(key).map(cid => `<div class="yc-guest">${occupantHtml(cid)}<button type="button" class="link small danger" data-guest-del="${key}:${cid}">Retirer ${deName(nameOf(cid))} de la yourte</button></div>`).join('')
       || '<p class="yc-desc">Aucun invité en ce moment.</p>'}
