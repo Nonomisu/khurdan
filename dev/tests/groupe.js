@@ -189,7 +189,7 @@ const ok = (cond, label) => { console.log((cond ? '  ok  ' : '  ÉCHEC ') + labe
       return c.left >= w.left - 1 && c.right <= w.right + 1 && c.width > 150; }), `yourte ${n} (bord de carte) : fiche entière`);
   }
   await nono.click('[data-yurt-close]'); await nono.click('[data-yurt="tour3"]'); await nono.waitForTimeout(500);
-  ok((await nono.textContent('.yurt-card')).includes('Tour de guet n° 3'), 'tour de guet n° 3');
+  ok((await nono.textContent('.yurt-card')).includes('Karabourane') && (await nono.textContent('.yurt-card')).includes('Tour du sud'), 'tour Karabourane (tour du sud)');
   await nono.click('[data-yurt-close]'); await nono.click('[data-yurt="ruches"]'); await nono.waitForTimeout(500);
   ok((await nono.textContent('.yurt-card')).includes('Moutons et ruches d\'Ogloo') && await nono.locator('.yurt-card [data-go="ogloo"]').count() === 1, 'zone des ruches d\'Ogloo, avec sa fiche');
   await nono.click('[data-yurt-close]');
