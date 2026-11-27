@@ -495,6 +495,30 @@ html, body, #view { overflow-anchor: none; }
 .proj-mini small { color: var(--dim); }
 .proj-mini .proj-bar { grid-column: 1 / -1; height: .45rem; }
 .proj-item .joined .link { font-size: inherit; }
+.proj-cats { display: grid; gap: .35rem; }
+.proj-cat { border-left: 3px solid var(--gold); padding: .1rem 0 .3rem .6rem; background: color-mix(in srgb, var(--gold) 6%, transparent); border-radius: 0 6px 6px 0; }
+.proj-cat > summary h3 { color: var(--gold); }
+.proj-cat-in { display: grid; gap: .35rem; padding-right: .5rem; }
+.proj-cat-now { display: flex; gap: .35rem; align-items: flex-start; margin: 0; font-size: .85rem; color: var(--dim); overflow-wrap: anywhere; }
+.proj-cat-now .ico { flex: none; width: .95rem; height: .95rem; margin-top: .15rem; }
+.proj-act span small { margin-left: .45rem; font-size: .75rem; color: var(--dim); font-style: italic; }
+.proj-act.locked { opacity: .55; }
+.proj-act.locked input, .proj-act input:disabled { cursor: not-allowed; }
+.proj-act .ico { width: .9rem; height: .9rem; vertical-align: -1px; margin-right: .3rem; }
+.proj-cat .reserved { margin: 0; font-size: .82rem; }
+.proj-steps li.on { color: var(--text); }
+.proj-steps li.lock .ico { width: .85rem; height: .85rem; vertical-align: -1px; margin-right: .25rem; }
+.proj-steps li > span { display: block; }
+.proj-step-acts { display: block; font-size: .8rem; color: var(--dim); overflow-wrap: anywhere; }
+.proj-h { margin: .4rem 0 0; font: 500 .78rem/1.2 var(--ui); letter-spacing: .12em; text-transform: uppercase; color: var(--dim); }
+.proj-h small { text-transform: none; letter-spacing: 0; }
+.proj-step-edit { display: grid; gap: .35rem; padding: .55rem .6rem; border: 1px dashed var(--rule); border-radius: 6px; min-width: 0; }
+.proj-step-top { display: flex; gap: .4rem; align-items: center; min-width: 0; }
+.proj-step-top input { flex: 1; min-width: 0; }
+.proj-step-edit .special-row { flex-wrap: nowrap; }
+.proj-step-edit .special-row input { flex: 1 1 auto; min-width: 0; }
+.proj-step-add { justify-self: start; display: inline-flex; align-items: center; gap: .3rem; }
+.proj-step-add .ico { width: .95rem; height: .95rem; }
 .proj-fiche { text-align: left; margin: .2rem 0 .6rem; padding: .6rem .8rem; border: 1px dashed var(--rule); border-radius: 6px; }
 .proj-fiche > summary { display: flex; align-items: center; gap: .4rem; cursor: pointer; color: var(--dim); list-style: none; font-size: .9rem; }
 .proj-fiche > summary::-webkit-details-marker { display: none; }
@@ -873,6 +897,6 @@ button.link.danger { color: #e0a24d; }
 <div class="sync-state" id="sync-state" aria-live="polite"></div>
 </div>
 
-<script src="app.js?v=411961ae93" charset="utf-8"></script>
+<script src="app.js?v=522a0b1030" charset="utf-8"></script>
 <script type="module" src="sync.js?v=c15710742f"></script>
 

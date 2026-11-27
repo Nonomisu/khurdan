@@ -122,6 +122,7 @@ Object.assign(ICONS, {
   rain:    '<path d="M7 14h10a4 4 0 0 0 0-8 5.5 5.5 0 0 0-10.4 1.8A3.2 3.2 0 0 0 7 14z"/><path d="M8 17l-1 3M12 17l-1 3M16 17l-1 3"/>',
   thunder: '<path d="M7 13h10a4 4 0 0 0 0-8 5.5 5.5 0 0 0-10.4 1.8A3.2 3.2 0 0 0 7 13z"/><path d="M12.5 13l-2 4h3l-2 4"/>',
 });
+ICONS.lock = '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>';
 ICONS.temp = '<path d="M10 14.5V5a2 2 0 0 1 4 0v9.5a4 4 0 1 1-4 0z"/><path d="M12 9v7.5"/><circle cx="12" cy="17.5" r="1.2"/>';
 ICONS.snow = '<path d="M12 3v18M4.2 7.5l15.6 9M4.2 16.5l15.6-9"/><path d="M9.8 4.6 12 6.4l2.2-1.8M9.8 19.4 12 17.6l2.2 1.8"/>';
 ICONS.ground = '<path d="M3 19c3-2.2 6-2.2 9 0s6 2.2 9 0"/><path d="M12 4v9M8.1 6.2l7.8 4.6M8.1 10.8l7.8-4.6"/>';
@@ -1415,81 +1416,137 @@ document.addEventListener('click', e => { const t = e.target; if (!isChar(curren
   const ok = t.closest('[data-join-ok]'); if (ok) { answerJoin(ok.dataset.joinOk, true); return joinRefresh(); }
   const no = t.closest('[data-join-no]'); if (no) { answerJoin(no.dataset.joinNo, false); return joinRefresh(); }
 });
-// ---------- Projets de l'Iloh : objectifs communs, une barre qui avance avec les activités liées ----------
-// shared/projects : { id: { title, desc, by (joueur), at, goal, acts: [activités liées], steps: [étapes], done (date) ou null,
-//   contrib: { 'personnage:AAAA-MM-JJ': { c, l (activité), p (joueur) } } } } — une participation par personnage et par jour.
+// ---------- Projets de l'Iloh : objectifs communs, des étapes qui avancent avec les activités liées ----------
+// shared/projects : { id: { title, desc, by (joueur), at, v: 2, mode ('suite' : chaque étape se débloque quand la précédente est terminée,
+//   'ensemble' : toutes les étapes avancent en même temps), steps: [{ name, goal, acts (actions liées à l'étape) }],
+//   acts: [actions qui font avancer tout le projet], goal (total des étapes), done (date) ou null,
+//   contrib: { 'personnage:AAAA-MM-JJ': { c, l (activité), p (joueur), s (étape avancée) } } } }
+// Sans étape : un seul objectif (goal) et les actions du projet. Anciens projets (étapes = simples noms répartis sur l'objectif) : lus à la suite.
+// Une participation par personnage, par jour et par projet. Une action pour tout le projet fait avancer l'étape en cours (à la suite)
+// ou l'étape la moins avancée (ensemble). Les actions d'une étape verrouillée ou terminée ne se cochent pas.
 // Chacun lance un projet ou y participe ; seuls son auteur et l'admin le modifient, seul l'admin le supprime.
 const PROJECTS = {};
-const projView = { open: false, edit: null, del: null, acts: [], showDone: false };
-let projFicheOpen = false;
-const projCount = p => Object.keys(p?.contrib || {}).length;
-const projPct = p => Math.min(100, Math.round(projCount(p) / Math.max(1, p.goal) * 100));
-// Étapes réparties sur l'objectif : la dernière tombe sur l'objectif lui-même.
-const projSteps = p => (p.steps || []).map((name, i, a) => ({ name, at: Math.max(1, Math.round(p.goal * (i + 1) / a.length)) }));
+const projView = { open: false, edit: null, del: null, acts: [], steps: [], mode: 'suite', showDone: false };
+const projSteps = p => {
+  const one = [{ name: null, goal: Math.max(1, +p.goal || 1), acts: [] }];
+  if (p.v === 2) return p.steps?.length ? p.steps.map(x => ({ name: x.name || '', goal: Math.max(1, +x.goal || 1), acts: x.acts || [] })) : one;
+  const L = (p.steps || []).filter(x => typeof x === 'string' && x); if (!L.length) return one;
+  let prev = 0; return L.map((name, i) => { const at = Math.max(prev + 1, Math.round(p.goal * (i + 1) / L.length)), goal = at - prev; prev = at; return { name, goal, acts: [] }; });
+};
+const projNamed = p => projSteps(p)[0].name !== null;
+const projMode = p => p.v === 2 && p.mode === 'ensemble' ? 'ensemble' : 'suite';
+const projTotal = p => projSteps(p).reduce((a, x) => a + x.goal, 0);
+// Participations par étape : chacune compte pour l'étape notée ; les anciennes (sans étape) remplissent les étapes dans l'ordre.
+const projCounts = p => { const S = projSteps(p), n = S.map(() => 0), loose = [];
+  Object.entries(p.contrib || {}).sort((a, b) => a[0].split(':').pop().localeCompare(b[0].split(':').pop()))
+    .forEach(([, x]) => Number.isInteger(x?.s) && x.s >= 0 && x.s < S.length ? n[x.s]++ : loose.push(x));
+  loose.forEach(() => { const i = S.findIndex((x, j) => n[j] < x.goal); n[i < 0 ? S.length - 1 : i]++; });
+  return n; };
+const projOpenSteps = (p, n = projCounts(p)) => { const S = projSteps(p), first = S.findIndex((x, i) => n[i] < x.goal);
+  return S.map((x, i) => n[i] < x.goal && (projMode(p) === 'ensemble' || i === first)); };
+const projAllDone = (p, n = projCounts(p)) => projSteps(p).every((x, i) => n[i] >= x.goal);
+const projCount = p => { const S = projSteps(p), n = projCounts(p); return S.reduce((a, x, i) => a + Math.min(n[i], x.goal), 0); };
+const projPct = p => Math.min(100, Math.round(projCount(p) / Math.max(1, projTotal(p)) * 100));
+const projActsAll = p => [...new Set([...projSteps(p).flatMap(x => x.acts), ...(p.acts || [])])];
+// Étape qu'une activité ferait avancer maintenant (-1 : étape verrouillée ou terminée).
+const projTarget = (p, l, n = projCounts(p)) => { const S = projSteps(p), open = projOpenSteps(p, n);
+  const i = S.findIndex((x, j) => open[j] && x.acts.includes(l)); if (i >= 0) return i;
+  if (!(p.acts || []).includes(l)) return -1;
+  const cand = S.map((x, j) => j).filter(j => open[j]); if (!cand.length) return -1;
+  return cand.sort((a, b) => n[a] / S[a].goal - n[b] / S[b].goal || a - b)[0]; };
 const projList = done => Object.entries(PROJECTS).filter(([, p]) => p && !!p.done === done)
   .sort((a, b) => done ? b[1].done - a[1].done : a[1].at - b[1].at);
 const canEditProj = p => p.by === me || isAdminMe();
 const projWho = p => [...new Set(Object.values(p.contrib || {}).map(x => x.c))].filter(isChar).sort((a, b) => nameOf(a).localeCompare(nameOf(b), 'fr'));
 const contribKey = cid => cid + ':' + isoDay(rpDay);
 const projId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-// Nouvelle à tous les autres joueurs, une seule fois par clé (même si deux appareils franchissent l'étape en même temps).
+// Nouvelle à tous les autres joueurs, une seule fois par clé (même si deux appareils terminent l'étape en même temps).
 const projNews = (pid, kind, text) => PLAYERS.filter(p => p.id !== me).forEach(p => {
   const key = 'proj:' + pid + ':' + kind + ':' + p.id, n = { to: p.id, text, charId: null };
   if (window.RP_SYNC?.newsOnce) RP_SYNC.newsOnce(key, n); else if (!NEWS.some(x => x.key === key)) NEWS.unshift({ ...n, key, read: false, at: Date.now() });
 });
-const projBarHtml = p => `<div class="proj-bar" role="progressbar" aria-label="Avancement" aria-valuemin="0" aria-valuemax="${p.goal}" aria-valuenow="${Math.min(projCount(p), p.goal)}"><i style="width:${projPct(p)}%"></i>${projSteps(p).slice(0, -1).map(x => `<em style="left:${x.at / p.goal * 100}%"></em>`).join('')}</div>`;
+const projBarHtml = p => { const S = projSteps(p), tot = projTotal(p); let acc = 0;
+  return `<div class="proj-bar" role="progressbar" aria-label="Avancement" aria-valuemin="0" aria-valuemax="${tot}" aria-valuenow="${projCount(p)}"><i style="width:${projPct(p)}%"></i>${projNamed(p) ? S.slice(0, -1).map(x => `<em style="left:${(acc += x.goal) / tot * 100}%"></em>`).join('') : ''}</div>`; };
 const saveProj = (pid, fields) => { Object.assign(PROJECTS[pid], fields); window.RP_SYNC?.saveProjectFields?.(pid, fields); };
-// Participation d'un personnage aujourd'hui (l = activité, null pour annuler) ; étapes et fin de projet annoncées à tous.
+// Participation d'un personnage aujourd'hui (l = activité, null pour annuler) ; étapes terminées et fin du projet annoncées à tous.
 const setContrib = (pid, cid, l) => {
   const p = PROJECTS[pid]; if (!p || (p.done && l)) return;
-  const k = contribKey(cid), before = projCount(p); p.contrib ||= {};
-  if (l) p.contrib[k] = { c: cid, l, p: me }; else delete p.contrib[k];
+  const k = contribKey(cid), S = projSteps(p), before = projCounts(p);
+  const s = l ? projTarget(p, l, before) : -1; if (l && s < 0) return;
+  p.contrib ||= {};
+  if (l) p.contrib[k] = { c: cid, l, p: me, s }; else delete p.contrib[k];
   window.RP_SYNC?.setContrib?.(pid, k, l ? p.contrib[k] : null);
-  const n = projCount(p); if (n <= before) return;
-  projSteps(p).forEach((x, i) => { if (before < x.at && n >= x.at && x.at < p.goal) projNews(pid, 'etape' + i, `Projet « ${p.title} » : étape franchie, « ${x.name} » (${n}/${p.goal}).`); });
-  if (before < p.goal && n >= p.goal) { saveProj(pid, { done: Date.now() });
-    projNews(pid, 'fin', `Projet « ${p.title} » terminé grâce à ${andList(projWho(p).map(nameOf))} !`); }
+  if (!l) { if (p.done && !projAllDone(p)) saveProj(pid, { done: null }); return; }
+  const n = projCounts(p);
+  if (projAllDone(p, n)) { saveProj(pid, { done: Date.now() });
+    return projNews(pid, 'fin', `Projet « ${p.title} » terminé grâce à ${andList(projWho(p).map(nameOf))} !`); }
+  if (!projNamed(p)) return;
+  const open = projOpenSteps(p, n);
+  S.forEach((x, i) => { if (before[i] < x.goal && n[i] >= x.goal) { const next = projMode(p) === 'suite' ? S.findIndex((y, j) => open[j]) : -1;
+    projNews(pid, 'etape' + i, `Projet « ${p.title} » : étape « ${x.name} » terminée${next >= 0 ? `, l'étape « ${S[next].name} » est débloquée` : ''} (${projCount(p)}/${projTotal(p)}).`); } });
 };
 // Depuis la fiche : l'activité liée est cochée (ajoutée en activité spéciale si besoin), puis la participation est comptée.
 const doProjAct = (id, pid, l) => {
+  const p = PROJECTS[pid]; if (!p || p.done || projTarget(p, l) < 0 || p.contrib?.[contribKey(id)]) return;
   const s = state[id], c = C.find(x => x.id === id);
   if (!allActs(c).includes(l) && !s.specials.includes(l)) s.specials.push(l);
   s.checked.add(l); saveComplement(id); setContrib(pid, id, l);
 };
+// Activité décochée sur la fiche : la participation du jour qu'elle avait donnée est retirée.
+const projUncheck = (id, l) => projList(false).forEach(([pid, p]) => { if (p.contrib?.[contribKey(id)]?.l === l) setContrib(pid, id, null); });
+// Sur la fiche : une catégorie par projet en cours, qui disparaît quand il est terminé.
 const projFicheHtml = id => {
-  const L = projList(false).filter(([, p]) => p.acts?.length); if (!L.length) return '';
-  const s = state[id];
-  return `<details class="proj-fiche"${projFicheOpen ? ' open' : ''}><summary>${icon('target')}Projets de l'Iloh (${L.length})</summary>
-    ${L.map(([pid, p]) => { const c = p.contrib?.[contribKey(id)];
-      return `<div class="proj-item"><p><b>${esc(p.title)}</b> <small>· ${Math.min(projCount(p), p.goal)}/${p.goal}</small></p>${projBarHtml(p)}
-        ${c ? `<p class="joined">✓ ${esc(nameOf(id))} a fait avancer le projet aujourd'hui (${esc(c.l)}). <button type="button" class="link small" data-proj-undo="${pid}">Annuler</button></p>`
-          : `<div class="place-list subs" role="group" aria-label="Activité qui fait avancer le projet">${p.acts.map(l => `<button type="button" data-proj-do="${pid}" data-proj-act="${esc(l)}">${icon(s.checked.has(l) ? 'check' : 'plus')}${esc(l)}</button>`).join('')}</div>`}</div>`; }).join('')}
-    <p class="reserved">Une participation par personnage et par jour ; l'activité est ajoutée à la fiche si besoin.</p></details>`;
+  const L = projList(false).filter(([, p]) => projActsAll(p).length); if (!L.length) return '';
+  return `<div class="proj-cats">${L.map(([pid, p]) => { const S = projSteps(p), n = projCounts(p), open = projOpenSteps(p, n), named = projNamed(p), mine = p.contrib?.[contribKey(id)];
+    const rows = projActsAll(p).map(l => { const t = projTarget(p, l, n), si = S.findIndex(x => x.acts.includes(l));
+      const tag = !named ? '' : t >= 0 ? (si >= 0 && S[si].acts.includes(l) && t === si ? `Étape ${si + 1}` : 'Tout le projet') : n[si] >= S[si].goal ? `Étape ${si + 1} terminée` : `Étape ${si + 1} verrouillée`;
+      return { l, t, tag }; }).sort((a, b) => (a.t < 0) - (b.t < 0));
+    const cur = S.map((x, i) => i).filter(i => open[i]);
+    return `<details class="cat fold proj-cat" data-fold="proj-${pid}" ${isFolded(id, 'proj-' + pid) ? '' : 'open'}>
+      <summary><h3>Projet · ${esc(p.title)}<small> · ${projCount(p)}/${projTotal(p)}</small></h3></summary>
+      <div class="proj-cat-in">${projBarHtml(p)}
+      ${named && cur.length ? `<p class="proj-cat-now">${icon('target')}<span>${cur.length > 1 ? 'Étapes en cours' : 'Étape en cours'} : ${cur.map(i => `« ${esc(S[i].name)} » (${n[i]}/${S[i].goal})`).join(', ')}</span></p>` : ''}
+      ${rows.map(r => `<div class="act-wrap"><label class="act proj-act${r.t < 0 ? ' locked' : ''}"><input type="checkbox" data-proj-do="${pid}" data-proj-act="${esc(r.l)}" ${mine?.l === r.l ? 'checked' : ''} ${r.t < 0 && mine?.l !== r.l || (mine && mine.l !== r.l) ? 'disabled' : ''}><span>${r.t < 0 ? icon('lock') : ''}${esc(r.l)}${r.tag ? `<small>${r.tag}</small>` : ''}</span></label></div>`).join('')}
+      <p class="reserved">${mine ? `✓ ${esc(nameOf(id))} a fait avancer le projet aujourd'hui (${esc(mine.l)}). Décoche pour annuler.` : 'Une participation par jour ; l\'activité cochée s\'ajoute à la fiche.'}</p></div></details>`; }).join('')}</div>`;
 };
-const projCardHtml = ([pid, p]) => { const n = projCount(p), steps = projSteps(p), who = projWho(p);
+const projCardHtml = ([pid, p]) => { const S = projSteps(p), n = projCounts(p), open = projOpenSteps(p, n), who = projWho(p), named = projNamed(p), tot = projTotal(p), prog = projCount(p);
   return `<div class="proj-card${p.done ? ' done' : ''}" id="proj-${pid}"><div class="proj-top"><b>${esc(p.title)}</b>
       ${canEditProj(p) ? `<button type="button" class="link small ico-btn" data-proj-edit="${pid}" title="Modifier le projet" aria-label="Modifier le projet">${icon('pencil')}</button>` : ''}
       ${isAdminMe() ? `<button type="button" class="link small ico-btn" data-proj-del="${pid}" title="Supprimer le projet" aria-label="Supprimer le projet">${icon('trash')}</button>` : ''}</div>
     ${p.desc ? `<p class="proj-desc">${esc(p.desc)}</p>` : ''}
     ${projBarHtml(p)}
-    <p class="proj-num">${Math.min(n, p.goal)} / ${p.goal} participation${p.goal > 1 ? 's' : ''} · ${projPct(p)} %${p.done ? ' · terminé' : ''}</p>
-    ${steps.length ? `<ol class="proj-steps">${steps.map(x => `<li class="${n >= x.at ? 'ok' : ''}">${n >= x.at ? '✓ ' : ''}${esc(x.name)} <small>(${x.at})</small></li>`).join('')}</ol>` : ''}
-    ${p.acts?.length ? `<p class="proj-acts">${icon('target')}Activités liées : ${p.acts.map(esc).join(', ')}</p>` : ''}
+    <p class="proj-num">${prog} / ${tot} participation${tot > 1 ? 's' : ''} · ${projPct(p)} %${p.done ? ' · terminé' : ''}${named && S.length > 1 ? ` · ${projMode(p) === 'suite' ? 'étapes l\'une après l\'autre' : 'étapes menées ensemble'}` : ''}</p>
+    ${named ? `<ol class="proj-steps">${S.map((x, i) => { const st = n[i] >= x.goal ? 'ok' : open[i] ? 'on' : 'lock';
+      return `<li class="${st}"><span>${st === 'ok' ? '✓ ' : st === 'lock' ? icon('lock') : ''}${esc(x.name)} <small>${Math.min(n[i], x.goal)}/${x.goal}${st === 'on' ? ' · en cours' : st === 'lock' ? ' · verrouillée' : ''}</small></span>${x.acts.length ? `<small class="proj-step-acts">${x.acts.map(esc).join(', ')}</small>` : ''}</li>`; }).join('')}</ol>` : ''}
+    ${p.acts?.length ? `<p class="proj-acts">${icon('target')}${named ? 'Pour tout le projet' : 'Activités liées'} : ${p.acts.map(esc).join(', ')}</p>` : ''}
     ${who.length ? `<p class="ev-who">${icon('users')}<span>${who.map(cid => `<i class="yc-dot" style="background:${PLAYERS.find(x => x.id === playerOf(cid))?.color}"></i>${esc(nameOf(cid))}`).join(', ')}</span></p>` : ''}
     <small>Lancé par ${esc(PLAYER_NAME[p.by] || '?')} le ${fmtDay(new Date(p.at))}${p.done ? ` · terminé le ${fmtDay(new Date(p.done))}` : ''}</small>
     ${projView.del === pid ? `<div class="proj-confirm"><span>Supprimer ce projet et ses participations ?</span><button type="button" class="link small danger" data-proj-del-ok="${pid}">Supprimer</button><button type="button" class="link small" data-proj-del-no>Annuler</button></div>` : ''}</div>`; };
 const projActChoices = () => [...new Set(C.flatMap(c => allActs(c)))].filter(l => !(typeof isPrivateAct === 'function' && isPrivateAct(l))).sort((a, b) => a.localeCompare(b, 'fr'));
-const projFormHtml = () => { const p = projView.edit ? PROJECTS[projView.edit] : null;
-  return `<details class="ev-new proj-new"${projView.open || p ? ' open' : ''}><summary>${icon(p ? 'pencil' : 'plus')}${p ? 'Modifier le projet' : 'Lancer un projet pour l\'Iloh'}</summary>
+const projChipsHtml = (list, del) => `<div class="proj-chosen">${list.map((l, j) => `<span>${esc(l)}<button type="button" class="link small" data-proj-act-del="${del}${j}" aria-label="Retirer ${esc(l)}">×</button></span>`).join('')}</div>`;
+const projFormHtml = () => { const p = projView.edit ? PROJECTS[projView.edit] : null, V = projView, tot = V.steps.reduce((a, x) => a + (+x.goal || 1), 0);
+  return `<details class="ev-new proj-new"${V.open || p ? ' open' : ''}><summary>${icon(p ? 'pencil' : 'plus')}${p ? 'Modifier le projet' : 'Lancer un projet pour l\'Iloh'}</summary>
     <div class="ev-form proj-form">
-      <input type="text" id="proj-title" maxlength="80" placeholder="Ex. : Construire la nouvelle yourte" value="${esc(p?.title || '')}">
-      <textarea id="proj-desc" maxlength="400" placeholder="Description (facultatif)">${esc(p?.desc || '')}</textarea>
-      <label class="ev-until"><span>Activités liées (au moins une)</span></label>
-      <div class="special-row"><input type="text" id="proj-act" list="proj-act-list" maxlength="60" placeholder="Ex. : Couper du bois" enterkeyhint="done"><button type="button" class="btn" id="proj-act-add">Ajouter</button></div>
+      <input type="text" id="proj-title" maxlength="80" placeholder="Ex. : Construire la nouvelle yourte" value="${esc(p?.title || '')}" aria-label="Nom du projet">
+      <textarea id="proj-desc" maxlength="400" placeholder="Description (facultatif)" aria-label="Description">${esc(p?.desc || '')}</textarea>
       <datalist id="proj-act-list">${projActChoices().map(l => `<option value="${esc(l)}">`).join('')}</datalist>
-      <div class="proj-chosen">${projView.acts.map((l, i) => `<span>${esc(l)}<button type="button" class="link small" data-proj-act-del="${i}" aria-label="Retirer ${esc(l)}">×</button></span>`).join('')}</div>
-      <label class="proj-goal"><span>Objectif :</span><input type="number" id="proj-goal" min="1" max="500" step="1" value="${p?.goal || 20}"><span>participations</span></label>
-      <label class="ev-until"><span>Étapes (facultatif, une par ligne, réparties sur l'objectif)</span><textarea id="proj-steps" maxlength="600" placeholder="Rassembler les matériaux&#10;Monter la charpente&#10;Poser le feutre">${esc((p?.steps || []).join('\n'))}</textarea></label>
+      <h4 class="proj-h">Étapes <small>(facultatif)</small></h4>
+      ${V.steps.length > 1 ? `<div class="place-list proj-mode" role="group" aria-label="Déroulé des étapes">
+        <button type="button" data-proj-mode="suite" aria-pressed="${V.mode !== 'ensemble'}">L'une après l'autre</button>
+        <button type="button" data-proj-mode="ensemble" aria-pressed="${V.mode === 'ensemble'}">Toutes ensemble</button></div>
+        <p class="reserved">${V.mode === 'ensemble' ? 'Toutes les étapes avancent en même temps.' : 'Chaque étape se débloque quand la précédente est terminée ; avant, ses actions ne se cochent pas.'}</p>` : ''}
+      ${V.steps.map((x, i) => `<div class="proj-step-edit">
+        <div class="proj-step-top"><b>${i + 1}.</b><input type="text" data-proj-step-name="${i}" maxlength="60" value="${esc(x.name)}" placeholder="Nom de l'étape (ex. : Rassembler les matériaux)" aria-label="Nom de l'étape ${i + 1}">
+          <button type="button" class="link small ico-btn" data-proj-step-del="${i}" title="Retirer l'étape" aria-label="Retirer l'étape ${i + 1}">${icon('trash')}</button></div>
+        <label class="proj-goal"><span>Objectif :</span><input type="number" data-proj-step-goal="${i}" min="1" max="200" step="1" value="${x.goal}"><span>participations</span></label>
+        <div class="special-row"><input type="text" class="proj-step-act" data-pstep="${i}" list="proj-act-list" maxlength="60" placeholder="Action de cette étape" enterkeyhint="done" aria-label="Action de l'étape ${i + 1}"><button type="button" class="btn" data-proj-step-act-add="${i}">Ajouter</button></div>
+        ${projChipsHtml(x.acts, i + ':')}</div>`).join('')}
+      ${V.steps.length < 10 ? `<button type="button" class="link small proj-step-add" id="proj-step-add">${icon('plus')}Ajouter une étape</button>` : ''}
+      <h4 class="proj-h">${V.steps.length ? 'Actions pour tout le projet <small>(font avancer l\'étape en cours)</small>' : 'Activités liées <small>(au moins une)</small>'}</h4>
+      <div class="special-row"><input type="text" id="proj-act" list="proj-act-list" maxlength="60" placeholder="Ex. : Couper du bois" enterkeyhint="done" aria-label="Action pour tout le projet"><button type="button" class="btn" id="proj-act-add">Ajouter</button></div>
+      ${projChipsHtml(V.acts, '')}
+      ${V.steps.length ? `<p class="proj-goal">Objectif total : ${tot} participation${tot > 1 ? 's' : ''}</p>`
+        : `<label class="proj-goal"><span>Objectif :</span><input type="number" id="proj-goal" min="1" max="500" step="1" value="${p?.goal || 20}"><span>participations</span></label>`}
       <p class="proj-err reserved" id="proj-err" hidden></p>
       <div class="proj-confirm"><button type="button" class="btn" id="proj-save">${p ? 'Enregistrer' : 'Lancer le projet'}</button>${p ? '<button type="button" class="link small" id="proj-cancel">Annuler</button>' : ''}</div>
       ${p ? '' : '<p class="reserved">Tous les autres joueurs recevront une nouvelle et une notification.</p>'}
@@ -1497,7 +1554,7 @@ const projFormHtml = () => { const p = projView.edit ? PROJECTS[projView.edit] :
 // Encart de l'accueil : les projets en cours, chacun avec sa barre.
 const homeProjectsHtml = () => { const L = projList(false);
   return `<section class="group-events home-proj"><h2>${icon('target')}Projets de l'Iloh<button type="button" class="link ico-btn ev-cal-btn" data-go="projets" title="Tous les projets" aria-label="Tous les projets">${icon('search')}</button></h2>
-    ${L.length ? L.map(([pid, p]) => `<button type="button" class="proj-mini" data-proj-open="${pid}"><span>${esc(p.title)}</span><small>${Math.min(projCount(p), p.goal)}/${p.goal}</small>${projBarHtml(p)}</button>`).join('')
+    ${L.length ? L.map(([pid, p]) => `<button type="button" class="proj-mini" data-proj-open="${pid}"><span>${esc(p.title)}</span><small>${projCount(p)}/${projTotal(p)}</small>${projBarHtml(p)}</button>`).join('')
       : `<p class="reserved">Aucun projet en cours. <button type="button" class="link" data-go="projets">Lancer un projet</button></p>`}</section>`; };
 function renderProjects() {
   root.className = 't-khurdan';
@@ -1506,7 +1563,7 @@ function renderProjects() {
     <p class="ev-back"><button type="button" class="link" data-go="home">‹ Accueil</button></p>
     <header><p class="kicker">${APP_NAME}</p><h1>Projets de l'Iloh</h1></header>
     <section>
-      <p class="reserved">Des objectifs pour tout l'Iloh : chaque personnage les fait avancer depuis sa fiche, avec une activité liée (une participation par jour).</p>
+      <p class="reserved">Des objectifs pour tout l'Iloh : chaque personnage les fait avancer depuis sa fiche, dans la catégorie du projet (une participation par jour).</p>
       ${on.length ? on.map(projCardHtml).join('') : '<p class="reserved">Aucun projet en cours.</p>'}
       ${projFormHtml()}
       ${off.length ? `<details class="ev-new"${projView.showDone ? ' open' : ''} id="proj-done-fold"><summary>${icon('check')}Projets terminés (${off.length})</summary><div class="ev-form">${off.map(projCardHtml).join('')}</div></details>` : ''}
@@ -1516,45 +1573,68 @@ const projRefresh = () => { const y = window.scrollY, h = fullH();
   current === 'projets' ? renderProjects() : current === 'home' ? renderHome() : isChar(current) ? renderChar(current) : null;
   holdHeight(h); window.scrollTo({ top: y }); holdPlace(null, y); };
 document.addEventListener('toggle', e => { if (e.target.classList?.contains('proj-new')) projView.open = e.target.open;
-  if (e.target.classList?.contains('proj-fiche')) projFicheOpen = e.target.open; if (e.target.id === 'proj-done-fold') projView.showDone = e.target.open; }, true);
-const projAddAct = () => { const f = document.getElementById('proj-act'), v = f?.value.trim().replace(/\s+/g, ' ');
-  if (!v) return f?.focus(); if (!projView.acts.includes(v) && projView.acts.length < 12) projView.acts.push(v);
-  keepProjForm(); projRefresh(); restoreProjForm(); document.getElementById('proj-act')?.focus(); };
-// Les champs du formulaire survivent au réaffichage (ajout ou retrait d'une activité liée).
+  if (e.target.id === 'proj-done-fold') projView.showDone = e.target.open; }, true);
+// Les champs du formulaire survivent au réaffichage (ajout ou retrait d'une étape, d'une activité).
 const projDraft = {};
-const keepProjForm = () => ['proj-title', 'proj-desc', 'proj-goal', 'proj-steps'].forEach(k => { const el = document.getElementById(k); if (el) projDraft[k] = el.value; });
+const keepProjForm = () => { ['proj-title', 'proj-desc', 'proj-goal'].forEach(k => { const el = document.getElementById(k); if (el) projDraft[k] = el.value; });
+  document.querySelectorAll('[data-proj-step-name]').forEach(el => { const x = projView.steps[+el.dataset.projStepName]; if (x) x.name = el.value; });
+  document.querySelectorAll('[data-proj-step-goal]').forEach(el => { const x = projView.steps[+el.dataset.projStepGoal]; if (x) x.goal = Math.max(1, Math.min(200, Math.round(+el.value) || 1)); }); };
 const restoreProjForm = () => Object.entries(projDraft).forEach(([k, v]) => { const el = document.getElementById(k); if (el) el.value = v; });
+const projRedraw = fn => { keepProjForm(); fn?.(); projRefresh(); restoreProjForm(); };
+const projClean = v => (v || '').trim().replace(/\s+/g, ' ');
+const projPush = (list, v) => { if (v && !list.includes(v) && list.length < 12) list.push(v); };
+const projAddAct = () => { const f = document.getElementById('proj-act'), v = projClean(f?.value); if (!v) return f?.focus();
+  projRedraw(() => projPush(projView.acts, v)); document.getElementById('proj-act')?.focus(); };
+const projAddStepAct = i => { const f = document.querySelector(`.proj-step-act[data-pstep="${i}"]`), v = projClean(f?.value); if (!v) return f?.focus();
+  projRedraw(() => projPush(projView.steps[i].acts, v)); document.querySelector(`.proj-step-act[data-pstep="${i}"]`)?.focus(); };
+const projReset = () => { Object.assign(projView, { open: false, edit: null, acts: [], steps: [], mode: 'suite' }); Object.keys(projDraft).forEach(k => delete projDraft[k]); };
 document.addEventListener('click', e => {
   const t = e.target;
   const open = t.closest('[data-proj-open]'); if (open) { projView.del = null; go('projets'); return document.getElementById('proj-' + open.dataset.projOpen)?.scrollIntoView({ block: 'center' }); }
-  const pdo = t.closest('[data-proj-do]'); if (pdo && isChar(current)) { doProjAct(current, pdo.dataset.projDo, pdo.dataset.projAct); return renderChar(current); }
-  const und = t.closest('[data-proj-undo]'); if (und && isChar(current)) { setContrib(und.dataset.projUndo, current, null); return renderChar(current); }
+  const pdo = t.closest('[data-proj-do]'); if (pdo && isChar(current)) { const pid = pdo.dataset.projDo, l = pdo.dataset.projAct, y = window.scrollY, h = fullH();
+    if (PROJECTS[pid]?.contrib?.[contribKey(current)]?.l === l) setContrib(pid, current, null); else doProjAct(current, pid, l);
+    renderChar(current); holdHeight(h); window.scrollTo({ top: y }); return holdPlace(null, y); }
   if (t.closest('#proj-act-add')) return projAddAct();
-  const ad = t.closest('[data-proj-act-del]'); if (ad) { projView.acts.splice(+ad.dataset.projActDel, 1); keepProjForm(); projRefresh(); return restoreProjForm(); }
-  const ed = t.closest('[data-proj-edit]'); if (ed) { const p = PROJECTS[ed.dataset.projEdit]; projView.edit = ed.dataset.projEdit; projView.acts = [...(p.acts || [])]; Object.keys(projDraft).forEach(k => delete projDraft[k]);
+  const sa = t.closest('[data-proj-step-act-add]'); if (sa) return projAddStepAct(+sa.dataset.projStepActAdd);
+  const ad = t.closest('[data-proj-act-del]'); if (ad) { const [a, b] = ad.dataset.projActDel.split(':');
+    return projRedraw(() => b === undefined ? projView.acts.splice(+a, 1) : projView.steps[+a]?.acts.splice(+b, 1)); }
+  if (t.closest('#proj-step-add')) { projRedraw(() => projView.steps.length < 10 && projView.steps.push({ name: '', goal: 5, acts: [] }));
+    return document.querySelector(`[data-proj-step-name="${projView.steps.length - 1}"]`)?.focus(); }
+  const sd = t.closest('[data-proj-step-del]'); if (sd) return projRedraw(() => projView.steps.splice(+sd.dataset.projStepDel, 1));
+  const md = t.closest('[data-proj-mode]'); if (md) return projRedraw(() => { projView.mode = md.dataset.projMode; });
+  const ed = t.closest('[data-proj-edit]'); if (ed) { const pid = ed.dataset.projEdit, p = PROJECTS[pid]; projReset();
+    Object.assign(projView, { edit: pid, acts: [...(p.acts || [])], mode: projMode(p), steps: projNamed(p) ? projSteps(p).map(x => ({ ...x, acts: [...x.acts] })) : [] });
     renderProjects(); return document.querySelector('.proj-new')?.scrollIntoView({ block: 'start' }); }
-  if (t.closest('#proj-cancel')) { projView.edit = null; projView.acts = []; Object.keys(projDraft).forEach(k => delete projDraft[k]); return projRefresh(); }
+  if (t.closest('#proj-cancel')) { projReset(); return projRefresh(); }
   const del = t.closest('[data-proj-del]'); if (del) { projView.del = del.dataset.projDel; return projRefresh(); }
   if (t.closest('[data-proj-del-no]')) { projView.del = null; return projRefresh(); }
   const ok = t.closest('[data-proj-del-ok]'); if (ok && isAdminMe()) { const pid = ok.dataset.projDelOk; delete PROJECTS[pid]; window.RP_SYNC?.saveProject?.(pid, null);
     dropNews(PLAYERS.flatMap(p => ['new', 'fin'].map(k => 'proj:' + pid + ':' + k + ':' + p.id))); projView.del = null; return projRefresh(); }
   if (t.closest('#proj-save')) {
-    const title = document.getElementById('proj-title').value.trim(), desc = document.getElementById('proj-desc').value.trim();
-    const pend = document.getElementById('proj-act').value.trim(); if (pend && !projView.acts.includes(pend)) projView.acts.push(pend);
-    const goal = Math.max(1, Math.min(500, Math.round(+document.getElementById('proj-goal').value) || 20));
-    const steps = document.getElementById('proj-steps').value.split('\n').map(x => x.trim()).filter(Boolean).slice(0, 10);
-    const err = document.getElementById('proj-err');
-    if (!title || !projView.acts.length) { err.hidden = false; err.textContent = !title ? 'Donne un nom au projet.' : 'Ajoute au moins une activité liée.'; return; }
-    const fields = { title, desc, acts: [...projView.acts], goal, steps };
-    if (projView.edit) { const pid = projView.edit, p = PROJECTS[pid];
-      if (p && canEditProj(p)) { const n = projCount(p); fields.done = n >= goal ? (p.done || Date.now()) : null; saveProj(pid, fields); } }
+    keepProjForm(); const V = projView;
+    const title = projClean(document.getElementById('proj-title').value), desc = document.getElementById('proj-desc').value.trim();
+    projPush(V.acts, projClean(document.getElementById('proj-act').value));
+    document.querySelectorAll('.proj-step-act').forEach(el => projPush(V.steps[+el.dataset.pstep].acts, projClean(el.value)));
+    const steps = V.steps.map(x => ({ name: projClean(x.name), goal: Math.max(1, Math.min(200, +x.goal || 1)), acts: [...x.acts] }));
+    const err = document.getElementById('proj-err'), fail = m => { err.hidden = false; err.textContent = m; };
+    if (!title) return fail('Donne un nom au projet.');
+    const unnamed = steps.findIndex(x => !x.name); if (unnamed >= 0) return fail(`Donne un nom à l'étape ${unnamed + 1}.`);
+    if (!V.acts.length && !steps.some(x => x.acts.length)) return fail('Ajoute au moins une activité liée.');
+    const empty = V.acts.length ? null : steps.find(x => !x.acts.length);
+    if (empty) return fail(`L'étape « ${empty.name} » n'a aucune action : ajoute-lui une action, ou une action pour tout le projet.`);
+    const goal = steps.length ? steps.reduce((a, x) => a + x.goal, 0) : Math.max(1, Math.min(500, Math.round(+document.getElementById('proj-goal').value) || 20));
+    const fields = { v: 2, title, desc, mode: steps.length > 1 && V.mode === 'ensemble' ? 'ensemble' : 'suite', acts: [...V.acts], steps, goal };
+    if (V.edit) { const pid = V.edit, p = PROJECTS[pid];
+      if (p && canEditProj(p)) { fields.done = projAllDone({ ...p, ...fields }) ? (p.done || Date.now()) : null; saveProj(pid, fields); } }
     else { const pid = projId(), p = { ...fields, by: me, at: Date.now(), done: null, contrib: {} };
       PROJECTS[pid] = p; window.RP_SYNC?.saveProject?.(pid, p);
       projNews(pid, 'new', `${PLAYER_NAME[me] || 'Un joueur'} lance un projet pour l'Iloh : « ${title} ».`); }
-    Object.assign(projView, { open: false, edit: null, acts: [] }); Object.keys(projDraft).forEach(k => delete projDraft[k]); projRefresh();
+    projReset(); projRefresh();
   }
 });
-document.addEventListener('keydown', e => { if (e.target.id === 'proj-act' && e.key === 'Enter') { e.preventDefault(); projAddAct(); } });
+document.addEventListener('keydown', e => { if (e.key !== 'Enter') return;
+  if (e.target.id === 'proj-act') { e.preventDefault(); projAddAct(); }
+  if (e.target.classList?.contains('proj-step-act')) { e.preventDefault(); projAddStepAct(+e.target.dataset.pstep); } });
 
 // ---------- Boîte aux lettres et tableau de l'iloh, tenus par Javkhaanhun ----------
 // mailbox/{id} = { from (joueur), kind: 'public' | 'horn', text, name, anon, mode: 'ecrit' | 'oral', to (personnage, corne), at,
@@ -3424,9 +3504,9 @@ function renderCharNow(id) {
       ${sharedActsHtml(id, true)}
       ${shagaiFicheHtml(id)}
       ${joinsFicheHtml(id)}
-      ${projFicheHtml(id)}
       ${cats.length ? '' : `<p class="reserved">Liste d'activités à définir. En attendant, utilise le champ « Activité spéciale » et coche « L'ajouter aussi à la liste ».</p>`}
       ${!s.manageActs && cats.length > 1 ? `<div class="fold-all"><button type="button" class="link small ico-btn" data-fold-all="1" title="Tout replier" aria-label="Tout replier">${icon('foldall')}</button><button type="button" class="link small ico-btn" data-fold-all="0" title="Tout déplier" aria-label="Tout déplier">${icon('unfoldall')}</button></div>` : ''}
+      ${s.manageActs ? '' : projFicheHtml(id)}
       ${cats.map(k => !s.manageActs ? (list => `<details class="cat fold" data-fold="${k}" ${isFolded(id, k) ? '' : 'open'}>
         <summary><h3>${esc(catLabel(c, k))}<small>${list.filter(a => s.checked.has(a)).length ? ` · ${list.filter(a => s.checked.has(a)).length} cochée${list.filter(a => s.checked.has(a)).length > 1 ? 's' : ''}` : ''}</small></h3></summary>
         ${list.map(a => actRow(a)).join('')}</details>`)(live(k).filter(a => actAvailable(id, a)))
@@ -3685,7 +3765,7 @@ function renderCharNow(id) {
       if (e.target.checked && !activeContract(id)) CONTRACTS[id] = { start: isoDay(rpDay) };
       if (!e.target.checked && CONTRACTS[id]?.start === isoDay(rpDay)) delete CONTRACTS[id]; }   // contrat créé par erreur aujourd'hui
     if (e.target.checked) { s.checked.add(l); if (!s.slots[l] && guessSlot(l)) s.slots[l] = [...guessSlot(l)]; if (RANDOM_ACTS[l] && !s.details?.[l]) (s.details ||= {})[l] = drawFor(l); }
-    else { s.checked.delete(l); delete s.slots[l]; clearWith(id, l); if (RANDOM_ACTS[l] && s.details) delete s.details[l]; if (s.huntSet) delete s.huntSet[l]; }
+    else { s.checked.delete(l); projUncheck(id, l); delete s.slots[l]; clearWith(id, l); if (RANDOM_ACTS[l] && s.details) delete s.details[l]; if (s.huntSet) delete s.huntSet[l]; }
     renderChar(id);
   }));
   document.querySelectorAll('[data-join-from]').forEach(b => b.addEventListener('click', () => { joinAct(id, b.dataset.joinFrom, b.dataset.joinAct); renderChar(id); }));
