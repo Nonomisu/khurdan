@@ -42,6 +42,9 @@ Object.assign(dst._st, {
     e3: { type: 'autre', text: 'Ancien', date: '2020-01-01', by: 'eden', at: 0 } },
   [`days/boroo/months/${ym}`]: { [day]: { done: true, checked: { $set: ['Chasse en groupe', 'Cuisine'] }, withActs: { 'Chasse en groupe': ['tamachag', 'reaksa'] }, slots: { 'Chasse en groupe': ['matin'] } } },
   [`days/taiga/months/${ym}`]: { [day]: { done: true, checked: { $set: ['Chasse en groupe', 'Sexe avec Tamachag'] } } },
+  'shared/projects': { pr1: { v: 2, title: 'Nouvelle yourte', by: 'lou', at: 1, mode: 'suite', goal: 3, acts: ['Chant'], done: null, contrib: {},
+    steps: [{ name: 'Matériaux', goal: 1, acts: ['Couper du bois'] }, { name: 'Charpente', goal: 2, acts: ['Tanner les peaux'] }] },
+    pr2: { v: 2, title: 'Fini', by: 'lou', at: 2, goal: 1, acts: ['X'], steps: [], done: 5, contrib: {} } },
   'mailbox/m1': { status: 'new', text: 'secret' }, 'mailbox/m2': { status: 'posted' }, 'requests/r1': { status: 'pending' },
 });
 (async () => {
@@ -90,6 +93,24 @@ Object.assign(dst._st, {
   ok(dst._st['joins/jx'].status === 'ok' && Object.values(dst._st).some(n => n?.key === 'join:jx:ok' && n.to === 'idriss'), 'acceptée : statut et nouvelle pour le joueur de Boroo');
   ok(src._st[`iloh/_live/months/${iso}`].ops.o7 === 'demande introuvable' && dst._st[jn[0]].status === 'asked', 'impossible de répondre à la place d\'un autre');
   ok(!Object.keys(src._st).some(k => !k.startsWith('iloh/') && !k.startsWith('days/')), 'Journée RP : rien d\'écrit hors de iloh/');
+  console.log('Projets de l\'Iloh depuis Journée RP');
+  d = src._st[`iloh/_live/months/${iso}`];
+  const pj = d.projects?.find(x => x.id === 'pr1');
+  ok(d.projects.length === 1 && pj.steps[0].open && !pj.steps[1].open && pj.total === 3, 'projets en cours dans le résumé (terminés exclus), étape 2 verrouillée');
+  ok(pj.acts.find(a => a.act === 'Tanner les peaux').tag === 'Étape 2 verrouillée' && !pj.acts.find(a => a.act === 'Tanner les peaux').open && pj.acts.find(a => a.act === 'Chant').tag === 'Tout le projet', 'actions : ouvertes ou verrouillées, avec leur étiquette');
+  t[day].ilohOps.o8 = { op: 'projDo', pid: 'pr1', act: 'Tanner les peaux', on: true, at: 8, day: iso };
+  t[day].ilohOps.o9 = { op: 'projDo', pid: 'pr1', act: 'Couper du bois', on: true, at: 9, day: iso };
+  t[day].ilohOps.o10 = { op: 'projDo', pid: 'pr1', act: 'Chant', on: true, at: 10, day: iso };
+  await src.doc(`days/tamachag/months/${ym}`).set(t); await wait(600);
+  d = src._st[`iloh/_live/months/${iso}`];
+  ok(d.ops.o8 === 'étape pas encore débloquée', 'action d\'une étape verrouillée refusée');
+  ok(dst._st['shared/projects'].pr1.contrib[`tamachag:${iso}`]?.s === 0 && dst._st['shared/projects'].pr1.contrib[`tamachag:${iso}`].p === 'nono', 'participation de Tamachag pour l\'étape 1');
+  ok(dst._st['news/proj:pr1:etape0:lou']?.text === 'Projet « Nouvelle yourte » : étape « Matériaux » terminée, l\'étape « Charpente » est débloquée (1/3).' && !dst._st['news/proj:pr1:etape0:nono'], 'nouvelle d\'étape pour les autres joueurs');
+  ok(d.ops.o10 === 'déjà une participation aujourd\'hui', 'une participation par jour');
+  ok(d.projects[0].mine.tamachag === 'Couper du bois' && d.projects[0].steps[1].open, 'résumé : participation du jour, étape 2 débloquée');
+  t[day].ilohOps.o11 = { op: 'projDo', pid: 'pr1', act: 'Couper du bois', on: false, at: 11, day: iso };
+  await src.doc(`days/tamachag/months/${ym}`).set(t); await wait(600);
+  ok(!dst._st['shared/projects'].pr1.contrib[`tamachag:${iso}`] && !src._st[`iloh/_live/months/${iso}`].projects[0].mine.tamachag, 'participation retirée');
   P.stop();
   console.log(fails ? `${fails} échec(s)` : 'Tout est bon.'); process.exit(fails ? 1 : 0);
 })();

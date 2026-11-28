@@ -3,7 +3,8 @@
 // 1. Résumé de l'Iloh déposé dans Journée RP (iloh/_live/months/{AAAA-MM-JJ}, lecture seule là-bas) :
 //    événements (dont l'événement du jour et ses actions), activités communes notées dans l'Iloh avec les personnages recopiés,
 //    fiches validées du jour (pour « J'y participe aussi »), demandes de participation, nombre de messages et de demandes
-//    de logistique en attente (sans leur contenu), résultat des gestes déjà traités.
+//    de logistique en attente (sans leur contenu), projets de l'Iloh en cours (étapes, actions ouvertes ou verrouillées),
+//    résultat des gestes déjà traités.
 // 2. Gestes faits dans Journée RP : le joueur les note sur la fiche du jour de SON personnage (champ ilohOps, jamais recopié).
 //    Seul le joueur d'un personnage peut écrire sa fiche : le geste vient donc bien de lui. Le pont le vérifie et l'exécute
 //    dans l'Iloh, comme s'il avait été fait dans l'appli (avec les mêmes nouvelles), puis note son résultat (pont/ops-{jour}).
@@ -30,6 +31,34 @@ const evActLabel = e => e.text.length <= 60 ? e.text : (EV_LABEL[e.type] || EV_L
 const evDayActLabel = (e, a) => a.text.length + e.text.length <= 56 ? `${a.text} (${e.text})` : a.text;
 const setOf = v => new Set(Array.isArray(v?.$set) ? v.$set : Array.isArray(v) ? v : []);
 const withOf = (wa, l) => (Array.isArray(wa?.[l]) ? wa[l] : []).filter(x => typeof x === 'string');
+
+// Projets de l'Iloh : mêmes règles que l'appli (étapes à la suite ou ensemble, actions d'étape ou pour tout le projet).
+const projSteps = p => {
+  const one = [{ name: null, goal: Math.max(1, +p.goal || 1), acts: [] }];
+  if (p.v === 2) return p.steps?.length ? p.steps.map(x => ({ name: x.name || '', goal: Math.max(1, +x.goal || 1), acts: x.acts || [] })) : one;
+  const L = (p.steps || []).filter(x => typeof x === 'string' && x); if (!L.length) return one;
+  let prev = 0; return L.map((name, i) => { const at = Math.max(prev + 1, Math.round(p.goal * (i + 1) / L.length)), goal = at - prev; prev = at; return { name, goal, acts: [] }; });
+};
+const projNamed = p => projSteps(p)[0].name !== null;
+const projMode = p => p.v === 2 && p.mode === 'ensemble' ? 'ensemble' : 'suite';
+const projTotal = p => projSteps(p).reduce((a, x) => a + x.goal, 0);
+const projCounts = p => { const S_ = projSteps(p), n = S_.map(() => 0), loose = [];
+  Object.entries(p.contrib || {}).sort((a, b) => a[0].split(':').pop().localeCompare(b[0].split(':').pop()))
+    .forEach(([, x]) => Number.isInteger(x?.s) && x.s >= 0 && x.s < S_.length ? n[x.s]++ : loose.push(x));
+  loose.forEach(() => { const i = S_.findIndex((x, j) => n[j] < x.goal); n[i < 0 ? S_.length - 1 : i]++; });
+  return n; };
+const projOpenSteps = (p, n = projCounts(p)) => { const S_ = projSteps(p), first = S_.findIndex((x, i) => n[i] < x.goal);
+  return S_.map((x, i) => n[i] < x.goal && (projMode(p) === 'ensemble' || i === first)); };
+const projAllDone = (p, n = projCounts(p)) => projSteps(p).every((x, i) => n[i] >= x.goal);
+const projCount = p => { const S_ = projSteps(p), n = projCounts(p); return S_.reduce((a, x, i) => a + Math.min(n[i], x.goal), 0); };
+const projActsAll = p => [...new Set([...projSteps(p).flatMap(x => x.acts), ...(p.acts || [])])];
+const projTarget = (p, l, n = projCounts(p)) => { const S_ = projSteps(p), open = projOpenSteps(p, n);
+  const i = S_.findIndex((x, j) => open[j] && x.acts.includes(l)); if (i >= 0) return i;
+  if (!(p.acts || []).includes(l)) return -1;
+  const cand = S_.map((x, j) => j).filter(j => open[j]); if (!cand.length) return -1;
+  return cand.sort((a, b) => n[a] / S_[a].goal - n[b] / S_[b].goal || a - b)[0]; };
+const projWho = p => [...new Set(Object.values(p.contrib || {}).map(x => x?.c))].filter(isChar).sort((a, b) => nameOf(a).localeCompare(nameOf(b), 'fr'));
+const projOn = () => Object.entries(S.projects).filter(([, p]) => p && p.title && !p.done && projActsAll(p).length).sort((a, b) => (a[1].at || 0) - (b[1].at || 0));
 
 let S = null;   // état de la journée suivie
 const log = (...a) => console.log(new Date().toLocaleString('fr-FR'), 'pont :', ...a);
@@ -88,7 +117,14 @@ function digest() {
   }
   const joins = Object.entries(S.joins).filter(([, j]) => j && j.day === iso)
     .map(([id, j]) => ({ id, host: j.host, act: j.act, chars: j.chars || [], p: j.p, status: j.status, applied: !!j.applied, via: j.via || null }));
-  return { iso, at: Date.now(), events, shared, fiches, joins, todo: { mail: S.mailNew, logi: S.logiOpen },
+  // Projets en cours : de quoi afficher leur catégorie sur les fiches recopiées (actions ouvertes ou verrouillées, participation du jour).
+  const projects = projOn().map(([id, p]) => { const st = projSteps(p), n = projCounts(p), open = projOpenSteps(p, n), named = projNamed(p);
+    return { id, title: p.title, named, mode: projMode(p), prog: projCount(p), total: projTotal(p),
+      steps: named ? st.map((x, i) => ({ name: x.name, goal: x.goal, n: n[i], open: open[i] })) : [],
+      acts: projActsAll(p).map(l => { const t = projTarget(p, l, n), si = st.findIndex(x => x.acts.includes(l));
+        return { act: l, open: t >= 0, tag: !named ? '' : t >= 0 ? (si >= 0 && t === si ? `Étape ${si + 1}` : 'Tout le projet') : n[si] >= st[si].goal ? `Étape ${si + 1} terminée` : `Étape ${si + 1} verrouillée` }; }),
+      mine: Object.fromEntries(T.MIRROR.map(m => [m, p.contrib?.[m + ':' + iso]?.l]).filter(x => x[1])) }; });
+  return { iso, at: Date.now(), events, shared, fiches, joins, projects, todo: { mail: S.mailNew, logi: S.logiOpen },
     ops: S.done, names: Object.fromEntries(T.ILOH.map(x => [x, nameOf(x)])), players: PLAYER_NAME };
 }
 let digestTimer = 0, lastDigest = '';
@@ -160,6 +196,28 @@ async function runOp(carrier, opId, o) {
       const j = S.joins[o.jid]; if (!j || j.p !== p || j.status !== 'ok') return 'demande introuvable';
       await S.dst.doc('joins/' + o.jid).update({ applied: true }); return 'ok';
     }
+    case 'projDo': {   // participer (ou plus) à un projet de l'Iloh avec une activité de sa catégorie
+      const pr = typeof o.pid === 'string' ? S.projects[o.pid] : null; if (!pr || !pr.title) return 'projet introuvable';
+      const key = carrier + ':' + iso, cur = pr.contrib?.[key], ref = S.dst.doc('shared/projects');
+      if (!o.on) { if (!cur || cur.l !== o.act) return 'ok';
+        await ref.update(new FieldPath(o.pid, 'contrib', key), FieldValue.delete()); delete pr.contrib[key];
+        if (pr.done && !projAllDone(pr)) { await ref.update(new FieldPath(o.pid, 'done'), null); pr.done = null; }
+        return 'ok'; }
+      if (pr.done) return 'projet terminé';
+      if (cur) return cur.l === o.act ? 'ok' : 'déjà une participation aujourd\'hui';
+      const st = projSteps(pr), before = projCounts(pr), si = projTarget(pr, o.act, before);
+      if (si < 0) return projActsAll(pr).includes(o.act) ? 'étape pas encore débloquée' : 'action introuvable';
+      const c = { c: carrier, l: o.act, p, s: si };
+      await ref.update(new FieldPath(o.pid, 'contrib', key), c); (pr.contrib ||= {})[key] = c;
+      const pnews = (kind, text) => Promise.all(PLAYERS.filter(x => x !== p).map(x => news(x, p, `proj:${o.pid}:${kind}:${x}`, text)));
+      const n = projCounts(pr);
+      if (projAllDone(pr, n)) { pr.done = Date.now(); await ref.update(new FieldPath(o.pid, 'done'), pr.done);
+        await pnews('fin', `Projet « ${pr.title} » terminé grâce à ${andList(projWho(pr).map(nameOf))} !`); return 'ok'; }
+      if (projNamed(pr)) { const open = projOpenSteps(pr, n);
+        for (const [i, x] of st.entries()) if (before[i] < x.goal && n[i] >= x.goal) { const next = projMode(pr) === 'suite' ? st.findIndex((y, j) => open[j]) : -1;
+          await pnews('etape' + i, `Projet « ${pr.title} » : étape « ${x.name} » terminée${next >= 0 ? `, l'étape « ${st[next].name} » est débloquée` : ''} (${projCount(pr)}/${projTotal(pr)}).`); } }
+      return 'ok';
+    }
     default: return 'geste inconnu';
   }
 }
@@ -183,10 +241,11 @@ function onJrpMonth(id, month) {
 function start(src, dst, today) {
   stop();
   const iso = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`, ym = iso.slice(0, 7), day = String(today.getDate());
-  S = { src, dst, iso, ym, day, events: {}, joins: {}, days: {}, extras: {}, mailNew: 0, logiOpen: 0, done: {}, running: new Set(), subs: [] };
+  S = { src, dst, iso, ym, day, events: {}, projects: {}, joins: {}, days: {}, extras: {}, mailNew: 0, logiOpen: 0, done: {}, running: new Set(), subs: [] };
   const sub = (label, ref, fn) => S.subs.push(ref.onSnapshot(s => { try { fn(s); } catch (e) { console.error('pont,', label, e.message || e); } pushDigest(); },
     e => console.error('pont,', label, e.message || e)));
   sub('événements', dst.doc('shared/events'), s => { S.events = s.data() || {}; });
+  sub('projets', dst.doc('shared/projects'), s => { S.projects = s.data() || {}; });
   sub('participations', dst.collection('joins').where('day', '==', iso), s => { S.joins = Object.fromEntries(s.docs.map(x => [x.id, x.data()])); });
   sub('boîte', dst.collection('mailbox').where('status', '==', 'new'), s => { S.mailNew = s.size; });
   sub('logistique', dst.collection('requests').where('status', 'in', ['pending', 'preparing']), s => { S.logiOpen = s.size; });
